@@ -1,0 +1,328 @@
+/* =============================
+   LOGIN
+============================= */
+
+.login-page {
+  position: relative;
+
+  width: 100%;
+  min-height: calc(100vh - 64px);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 60px 40px;
+
+  /*
+    메인페이지에서 사용하는 여행 이미지를
+    로그인 배경으로 같이 사용하면 가장 자연스러움
+  */
+  background:
+    linear-gradient(
+      90deg,
+      rgba(19, 35, 53, 0.72) 0%,
+      rgba(19, 35, 53, 0.42) 40%,
+      rgba(255, 247, 241, 0.82) 100%
+    ),
+    url("/images/login-bg.jpg");
+
+  background-size: cover;
+  background-position: center;
+}
+
+
+/* 전체 내용 */
+
+.login-content {
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  max-width: 1180px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 80px;
+}
+
+
+/* 왼쪽 여행 문구 */
+
+.login-intro {
+  flex: 1;
+
+  color: white;
+
+  text-align: left;
+}
+
+.login-intro span {
+  display: inline-block;
+
+  margin-bottom: 18px;
+
+  font-size: 17px;
+  font-weight: 600;
+
+  color: #ffd4c7;
+}
+
+.login-intro h1 {
+  margin: 0 0 22px;
+
+  font-size: 48px;
+  line-height: 1.25;
+
+  font-weight: 700;
+  letter-spacing: -2px;
+
+  color: white;
+}
+
+.login-intro p {
+  font-size: 16px;
+  line-height: 1.8;
+
+  color: rgba(255, 255, 255, 0.86);
+}
+
+
+/* 로그인 카드 */
+
+.login-card {
+  width: 420px;
+
+  flex-shrink: 0;
+
+  padding: 42px 38px 38px;
+
+  background: rgba(255, 255, 255, 0.96);
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 20px 50px rgba(20, 32, 46, 0.2);
+
+  backdrop-filter: blur(8px);
+}
+
+
+/* 로그인 제목 */
+
+.login-card-title {
+  margin-bottom: 30px;
+
+  text-align: left;
+}
+
+.login-card-title h2 {
+  margin: 0 0 8px;
+
+  font-size: 28px;
+  font-weight: 750;
+
+  letter-spacing: -1px;
+
+  color: #263444;
+}
+
+.login-card-title p {
+  margin: 0;
+
+  font-size: 13px;
+
+  color: #939ba5;
+}
+
+
+/* 입력 */
+
+.input-group {
+  margin-bottom: 18px;
+}
+
+.input-group label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  color: #3d4956;
+}
+
+.input-group input {
+  width: 100%;
+  height: 50px;
+
+  padding: 0 15px;
+
+  border: 1px solid #dfe3e8;
+  border-radius: 9px;
+
+  background: white;
+
+  font-size: 14px;
+
+  outline: none;
+
+  transition: 0.2s;
+}
+
+.input-group input::placeholder {
+  color: #b1b7be;
+}
+
+.input-group input:focus {
+  border-color: #ef8b73;
+
+  box-shadow:
+    0 0 0 3px rgba(239, 139, 115, 0.12);
+}
+
+
+/* 로그인 옵션 */
+
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin: 3px 0 24px;
+
+  font-size: 12px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  color: #747d87;
+
+  cursor: pointer;
+}
+
+.remember input {
+  accent-color: #ef876f;
+}
+
+.login-options a {
+  color: #747d87;
+
+  text-decoration: none;
+}
+
+.login-options a:hover {
+  color: #ef795f;
+}
+
+
+/* 로그인 버튼 */
+
+.auth-button {
+  width: 100%;
+  height: 50px;
+
+  border: none;
+  border-radius: 9px;
+
+  background: #ef876f;
+
+  color: white;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.auth-button:hover {
+  background: #e97860;
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 8px 20px rgba(231, 120, 96, 0.25);
+}
+
+
+/* 회원가입 */
+
+.login-signup {
+  margin-top: 25px;
+
+  padding-top: 22px;
+
+  border-top: 1px solid #eeeeee;
+
+  text-align: center;
+
+  color: #858e98;
+
+  font-size: 13px;
+}
+
+.login-signup a {
+  margin-left: 7px;
+
+  color: #ef795f;
+
+  font-weight: 700;
+
+  text-decoration: none;
+}
+
+
+/* =============================
+   TABLET
+============================= */
+
+@media (max-width: 900px) {
+
+  .login-page {
+    padding: 40px 25px;
+  }
+
+  .login-content {
+    justify-content: center;
+  }
+
+  .login-intro {
+    display: none;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 430px;
+  }
+}
+
+
+/* =============================
+   MOBILE
+============================= */
+
+@media (max-width: 520px) {
+
+  .login-page {
+    min-height: calc(100vh - 56px);
+
+    padding: 25px 15px;
+  }
+
+  .login-card {
+    padding: 32px 22px;
+  }
+
+  .login-card-title h2 {
+    font-size: 24px;
+  }
+}
