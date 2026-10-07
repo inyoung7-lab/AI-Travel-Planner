@@ -1,0 +1,298 @@
+.site-header {
+  width: 100%;
+  height: 64px;
+
+  background: #252b38;
+
+  color: #ffffff;
+
+  flex-shrink: 0;
+
+  position: relative;
+  z-index: 1000;
+}
+
+
+.site-header-inner {
+  width: 100%;
+  max-width: 1600px;
+  height: 64px;
+
+  margin: 0 auto;
+  padding: 0 48px;
+
+  display: grid;
+
+  /* 왼쪽 로고 / 중앙 메뉴 / 오른쪽 버튼 */
+  grid-template-columns: 180px 1fr 260px;
+
+  align-items: center;
+}
+
+
+/* =========================
+   LOGO
+========================= */
+
+.site-header-logo {
+  justify-self: start;
+
+  color: #ffffff !important;
+
+  font-size: 20px;
+  font-weight: 800;
+
+  letter-spacing: -0.8px;
+
+  text-decoration: none !important;
+
+  white-space: nowrap;
+}
+
+
+/* =========================
+   NAVIGATION
+========================= */
+
+.site-header-nav {
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+
+  gap: 46px;
+}
+
+
+.site-header-nav a {
+  color: rgba(255, 255, 255, 0.88) !important;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  line-height: 1;
+
+  text-decoration: none !important;
+
+  white-space: nowrap;
+
+  transition: color 0.2s;
+}
+
+
+.site-header-nav a:hover {
+  color: #ffffff !important;
+}
+
+
+/* =========================
+   오른쪽 영역
+========================= */
+
+.site-header-actions {
+  justify-self: end;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+
+/* 하트 */
+
+.site-header-heart {
+  width: 36px;
+  height: 36px;
+
+  padding: 0;
+  margin: 0 8px 0 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+
+  background: transparent;
+
+  color: #ffffff;
+
+  font-size: 21px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+
+/* 로그인 */
+
+.site-header-login {
+  height: 36px;
+
+  padding: 0 14px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+
+  background: transparent;
+
+  color: #ffffff !important;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  line-height: 1;
+
+  text-decoration: none !important;
+
+  white-space: nowrap;
+
+  border-radius: 18px;
+
+  transition: background 0.2s;
+}
+
+
+.site-header-login:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+
+/* 회원가입 */
+
+.site-header-signup {
+  height: 38px;
+
+  padding: 0 19px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+
+  color: #ffffff !important;
+
+  border-radius: 999px;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  line-height: 1;
+
+  text-decoration: none !important;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+
+.site-header-signup:hover {
+  background: rgba(255, 255, 255, 0.08);
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================
+   1200 이하
+========================= */
+
+@media (max-width: 1200px) {
+
+  .site-header-inner {
+    padding: 0 28px;
+
+    grid-template-columns: 150px 1fr 230px;
+  }
+
+  .site-header-nav {
+    gap: 26px;
+  }
+
+  .site-header-nav a {
+    font-size: 13px;
+  }
+}
+
+
+/* =========================
+   950 이하
+========================= */
+
+@media (max-width: 950px) {
+
+  .site-header-inner {
+    grid-template-columns: 150px 1fr auto;
+  }
+
+  .site-header-nav {
+    gap: 15px;
+  }
+
+  .site-header-nav a {
+    font-size: 12px;
+  }
+
+  .site-header-heart {
+    display: none;
+  }
+}
+
+
+/* =========================
+   모바일
+========================= */
+
+@media (max-width: 768px) {
+
+  .site-header,
+  .site-header-inner {
+    height: 56px;
+  }
+
+  .site-header-inner {
+    padding: 0 16px;
+
+    display: flex;
+
+    justify-content: space-between;
+  }
+
+  .site-header-logo {
+    font-size: 18px;
+  }
+
+  .site-header-nav {
+    display: none;
+  }
+
+  .site-header-actions {
+    gap: 5px;
+  }
+
+  .site-header-heart {
+    display: flex;
+
+    margin-right: 0;
+  }
+
+  .site-header-login {
+    display: none;
+  }
+
+  .site-header-signup {
+    height: 32px;
+
+    padding: 0 14px;
+
+    font-size: 12px;
+  }
+}
