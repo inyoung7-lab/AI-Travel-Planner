@@ -1,0 +1,92 @@
+:root {
+  font-family:
+    Pretendard,
+    "Noto Sans KR",
+    Arial,
+    sans-serif;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  color: #333;
+  background: #ffffff;
+}
+
+/* 전체 요소 크기 계산 */
+* {
+  box-sizing: border-box;
+}
+
+/* 전체 화면 */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: #ffffff;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+
+  margin: 0;
+
+  background: #ffffff;
+}
+
+/* React 전체 영역 */
+#root {
+  width: 100%;
+  min-height: 100vh;
+
+  margin: 0;
+  padding: 0;
+
+  max-width: none;
+
+  display: flex;
+  flex-direction: column;
+
+  text-align: left;
+
+  border: none;
+}
+
+/* 기본 링크 */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 기본 폼 폰트 */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* 기본 제목 여백 제거 */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  padding: 0;
+}
+
+/* 기본 문단 */
+p {
+  margin: 0;
+}

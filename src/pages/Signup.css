@@ -1,0 +1,477 @@
+/* =========================
+   회원가입 페이지
+========================= */
+
+.signup-page {
+  position: relative;
+
+  width: 100%;
+  min-height: calc(100vh - 64px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 45px 40px;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(20, 35, 51, 0.72) 0%,
+      rgba(20, 35, 51, 0.38) 42%,
+      rgba(255, 247, 241, 0.88) 100%
+    ),
+    url("/images/signup-bg.jpg");
+
+  background-size: cover;
+  background-position: center;
+}
+
+
+/* 배경 위 레이어 */
+
+.signup-overlay {
+  position: absolute;
+  inset: 0;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 243, 236, 0.05)
+    );
+
+  pointer-events: none;
+}
+
+
+/* 전체 레이아웃 */
+
+.signup-layout {
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  max-width: 1200px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 80px;
+}
+
+
+/* =========================
+   왼쪽 문구
+========================= */
+
+.signup-intro {
+  flex: 1;
+
+  text-align: left;
+
+  color: white;
+}
+
+.signup-brand {
+  display: inline-block;
+
+  margin-bottom: 18px;
+
+  color: #ffd0c2;
+
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.signup-intro h1 {
+  margin: 0 0 20px;
+
+  color: #ffffff;
+
+  font-size: 46px;
+  font-weight: 750;
+
+  line-height: 1.25;
+
+  letter-spacing: -2px;
+}
+
+.signup-intro p {
+  margin: 0;
+
+  color: rgba(255, 255, 255, 0.85);
+
+  font-size: 15px;
+
+  line-height: 1.8;
+}
+
+
+/* =========================
+   회원가입 카드
+========================= */
+
+.signup-card {
+  width: 500px;
+
+  flex-shrink: 0;
+
+  padding: 34px 38px 30px;
+
+  background: rgba(255, 255, 255, 0.97);
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 20px 50px rgba(26, 38, 52, 0.20);
+
+  backdrop-filter: blur(8px);
+}
+
+
+/* 제목 */
+
+.signup-title {
+  margin-bottom: 24px;
+
+  text-align: left;
+}
+
+.signup-title h2 {
+  margin: 0 0 7px;
+
+  color: #263444;
+
+  font-size: 27px;
+  font-weight: 750;
+
+  letter-spacing: -1px;
+}
+
+.signup-title p {
+  margin: 0;
+
+  color: #9199a3;
+
+  font-size: 13px;
+}
+
+
+/* =========================
+   입력창
+========================= */
+
+.signup-input-group {
+  width: 100%;
+
+  margin-bottom: 14px;
+}
+
+.signup-input-group label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #3d4956;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.signup-input-group input {
+  width: 100%;
+  height: 46px;
+
+  padding: 0 14px;
+
+  background: #ffffff;
+
+  border: 1px solid #dfe3e8;
+  border-radius: 9px;
+
+  outline: none;
+
+  color: #333;
+
+  font-size: 14px;
+
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.signup-input-group input::placeholder {
+  color: #b3b8be;
+}
+
+.signup-input-group input:focus {
+  border-color: #ef8b73;
+
+  box-shadow:
+    0 0 0 3px rgba(239, 139, 115, 0.11);
+}
+
+
+/* =========================
+   아이디 + 중복확인
+========================= */
+
+.signup-id-row {
+  display: flex;
+
+  gap: 8px;
+}
+
+.signup-id-row input {
+  flex: 1;
+
+  min-width: 0;
+}
+
+.signup-id-row button {
+  width: 92px;
+
+  flex-shrink: 0;
+
+  border: 1px solid #ef8b73;
+
+  border-radius: 9px;
+
+  background: #fff;
+
+  color: #e97860;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.signup-id-row button:hover {
+  background: #fff3ef;
+}
+
+
+/* =========================
+   비밀번호 2칸
+========================= */
+
+.signup-password-row {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 12px;
+}
+
+
+/* =========================
+   동의
+========================= */
+
+.signup-agreement {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  margin: 2px 0 19px;
+
+  color: #737c86;
+
+  font-size: 12px;
+
+  cursor: pointer;
+}
+
+.signup-agreement input {
+  width: 14px;
+  height: 14px;
+
+  margin: 0;
+
+  accent-color: #ef876f;
+}
+
+
+/* =========================
+   회원가입 버튼
+========================= */
+
+.signup-submit {
+  width: 100%;
+  height: 49px;
+
+  border: none;
+
+  border-radius: 9px;
+
+  background: #ef876f;
+
+  color: white;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+
+  box-shadow:
+    0 7px 18px rgba(239, 135, 111, 0.20);
+}
+
+.signup-submit:hover {
+  background: #e97860;
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 9px 22px rgba(239, 135, 111, 0.27);
+}
+
+
+/* =========================
+   로그인 링크
+========================= */
+
+.signup-login-link {
+  margin-top: 21px;
+  padding-top: 19px;
+
+  border-top: 1px solid #eeeeee;
+
+  text-align: center;
+
+  color: #858e98;
+
+  font-size: 13px;
+}
+
+.signup-login-link a {
+  margin-left: 7px;
+
+  color: #ef795f;
+
+  font-weight: 700;
+
+  text-decoration: none;
+}
+
+.signup-login-link a:hover {
+  text-decoration: underline;
+}
+
+
+/* =========================
+   작은 노트북
+========================= */
+
+@media (max-height: 820px) and (min-width: 901px) {
+
+  .signup-page {
+    align-items: flex-start;
+
+    padding-top: 25px;
+    padding-bottom: 35px;
+
+    overflow-y: auto;
+  }
+
+  .signup-card {
+    padding-top: 26px;
+    padding-bottom: 24px;
+  }
+
+  .signup-title {
+    margin-bottom: 18px;
+  }
+
+  .signup-input-group {
+    margin-bottom: 10px;
+  }
+
+  .signup-input-group input {
+    height: 42px;
+  }
+
+  .signup-submit {
+    height: 45px;
+  }
+}
+
+
+/* =========================
+   태블릿
+========================= */
+
+@media (max-width: 900px) {
+
+  .signup-page {
+    min-height: calc(100vh - 64px);
+
+    padding: 35px 20px;
+
+    overflow-y: auto;
+  }
+
+  .signup-layout {
+    justify-content: center;
+  }
+
+  .signup-intro {
+    display: none;
+  }
+
+  .signup-card {
+    width: 100%;
+    max-width: 500px;
+  }
+}
+
+
+/* =========================
+   모바일
+========================= */
+
+@media (max-width: 520px) {
+
+  .signup-page {
+    min-height: calc(100vh - 56px);
+
+    align-items: flex-start;
+
+    padding: 22px 14px 35px;
+  }
+
+  .signup-card {
+    padding: 27px 20px;
+  }
+
+  .signup-title h2 {
+    font-size: 23px;
+  }
+
+  .signup-title p {
+    font-size: 12px;
+  }
+
+  .signup-password-row {
+    grid-template-columns: 1fr;
+
+    gap: 0;
+  }
+
+  .signup-id-row button {
+    width: 82px;
+
+    font-size: 11px;
+  }
+}
