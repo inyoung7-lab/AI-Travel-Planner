@@ -1,16 +1,163 @@
+import { Link, useParams } from "react-router-dom";
 import "./ReviewDetail.css";
+import { Thumb, Chat, ChevDown, ChevRight, Heart, ImageIcon } from "./Icons.jsx";
+import { posts, places, profiles, reviewDetails, GRADIENTS } from "./data/mockPosts.js";
 
 export default function ReviewDetail() {
+  const { id } = useParams();
+  const post = posts.find((p) => String(p.id) === id && p.type === "review");
+  const detail = reviewDetails[id];
+
+  if (!post || !detail) {
+    return (
+      <div className="cmp-root">
+        <div className="cmp-wrap">
+          <p style={{ padding: "80px 0", textAlign: "center" }}>글을 찾을 수 없어요.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const profile = profiles[post.author];
+  const photoBg = [post.thumb?.bg || GRADIENTS[0], GRADIENTS[1], GRADIENTS[2]];
+
   return (
     <div className="cmp-root">
-<div className="cmp-wrap"><div className="cmp-crumb">커뮤니티 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg> 리뷰 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg> <b>여행 리뷰</b></div>
-<div className="cmp-main2"><section><article className="cmp-card cmp-qq"><div className="cmp-qh"><span className="cmp-cat cmp-r"><i></i>여행 리뷰</span></div><h1>일몰 시간에 맞춰 가면 해안도로가 정말 예뻐요</h1><div className="cmp-qm"><span className="cmp-av">달</span><b>달토끼</b><span className="cmp-muted">2일 전 · 10월 방문 · 조회 842</span></div>
-<div className="cmp-muted" style={{fontSize:"13px",fontWeight:"600",marginTop:"20px"}}>태그한 여행지 2곳</div><div className="cmp-plc3" style={{marginTop:"8px"}}><div className="cmp-mth2" style={{background:"linear-gradient(135deg,#8FA4BA,#5B7491)"}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:"rgba(255,255,255,.7)"}}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg></div><div className="cmp-pc3t"><b>제주 애월</b><span>제주특별자치도 제주시 · 리뷰 128</span></div><span className="cmp-btn cmp-nv cmp-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{fill:"#E8695A",stroke:"#E8695A"}}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z" /></svg> 찜</span><span className="cmp-btn cmp-ol cmp-sm">이 여행지 리뷰 보기</span></div><div className="cmp-plc3" style={{marginTop:"10px"}}><div className="cmp-mth2" style={{background:"linear-gradient(135deg,#BFCEDD,#8CA3BA)"}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:"rgba(255,255,255,.7)"}}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg></div><div className="cmp-pc3t"><b>제주 협재해변</b><span>제주특별자치도 제주시 한림읍 · 리뷰 86</span></div><span className="cmp-btn cmp-nv cmp-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{fill:"#E8695A",stroke:"#E8695A"}}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z" /></svg> 찜</span><span className="cmp-btn cmp-ol cmp-sm">이 여행지 리뷰 보기</span></div>
-<p className="cmp-qb">평일에 다녀와서 사람이 거의 없었어요. 애월 해안도로를 따라 카페와 산책로가 이어져 있어서 차로 천천히 움직이기 좋았어요.</p><p className="cmp-qb" style={{marginTop:"12px"}}>일몰 시간에 맞춰 곽지해변에 도착하면 사진이 제일 잘 나와요. 주차는 오전에 가면 걱정 없었고, 점심 이후에는 해변 근처가 조금 붐벼요.</p><div className="cmp-mos"><div className="cmp-mA" style={{background:"linear-gradient(135deg,#8FA4BA,#5B7491)"}}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:"rgba(255,255,255,.7)"}}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg></div><div className="cmp-mB" style={{background:"linear-gradient(135deg,#F2DFC9,#D9B48F)"}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:"rgba(255,255,255,.7)"}}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg></div><div className="cmp-mC" style={{background:"linear-gradient(135deg,#EFCFC4,#D9A595)"}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{color:"rgba(255,255,255,.7)"}}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg><span className="cmp-mo"><b>+8</b></span></div></div>
-<div className="cmp-rvf"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg> 128</span><span>공유</span></div></article>
-<div className="cmp-ah"><div className="cmp-h2">댓글 24</div><span className="cmp-pl3 cmp-sortc">최신순 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></span></div><div className="cmp-card cmp-wbox" style={{marginTop:"0",marginBottom:"16px"}}><div className="cmp-wph" style={{height:"64px"}}>댓글을 남겨보세요.</div><div className="cmp-wbt"><span className="cmp-btn cmp-co">등록</span></div></div><div className="cmp-rvl"><article className="cmp-an"><div className="cmp-rvh"><span className="cmp-av">지</span><b>지수</b><span className="cmp-sp"></span><span className="cmp-muted">어제</span></div><p>저도 지난달에 다녀왔는데 곽지해변 카페 추천 감사해요! 일몰 시간대도 좋았어요.</p><div className="cmp-rvf"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg> 5</span><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5z" /></svg> 0</span></div></article><article className="cmp-an"><div className="cmp-rvh"><span className="cmp-av">제</span><b>제주러버</b><span className="cmp-sp"></span><span className="cmp-muted">어제</span></div><p>렌터카 없이도 코스 따라가기 가능할까요?</p><div className="cmp-rvf"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg> 2</span><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 1 1 21 11.5z" /></svg> 1</span></div><div className="cmp-rep"><div className="cmp-rvh"><span className="cmp-av">달</span><b>달토끼</b><span className="cmp-wr2">작성자</span></div><p>버스로도 다닐 수 있는데 애월 구간은 택시가 훨씬 편했어요.</p></div></article></div><div style={{display:"flex",justifyContent:"center",marginTop:"24px"}}><span className="cmp-btn cmp-nv">댓글 더보기 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></span></div></section>
-<aside><div className="cmp-card cmp-sd cmp-pfc"><div className="cmp-h2s" style={{marginBottom:"14px"}}>작성자</div><div className="cmp-pfh"><div className="cmp-pfa">달</div><div><div className="cmp-pfn">달토끼</div><div className="cmp-pfs">2026년 3월 가입</div></div></div><div className="cmp-pfst"><div><b>18</b><span>리뷰</span></div><div><b>12</b><span>다녀온 여행지</span></div><div><b>342</b><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg></span></div></div><div className="cmp-pfr"><small>최근 다녀온 여행지</small><div className="cmp-tg"><span>제주 애월</span><span>강릉 안목해변</span><span>부산 흰여울문화마을</span></div></div><div className="cmp-pfb"><span className="cmp-p1">달토끼의 리뷰 모아보기</span><span className="cmp-p2">다녀온 여행 보기</span></div></div><div style={{height:"16px"}}></div>
-<div className="cmp-card cmp-sd" style={{marginTop:"16px"}}><div className="cmp-h2s">이 여행지의 다른 리뷰</div><div className="cmp-rr"><div className="cmp-rr2" style={{color:"var(--ink)",fontWeight:"600"}}>협재해변, 물때 확인하고 가면 훨씬 예뻐요</div><div className="cmp-rr3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg> 87</div></div><div className="cmp-rr"><div className="cmp-rr2" style={{color:"var(--ink)",fontWeight:"600"}}>애월 카페 5곳 솔직 후기</div><div className="cmp-rr3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg> 97</div></div><div className="cmp-rr" style={{border:"0"}}><div className="cmp-rr2" style={{color:"var(--ink)",fontWeight:"600"}}>제주 동쪽 2박 3일 코스 공유해요</div><div className="cmp-rr3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3z" /><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg> 54</div></div></div></aside></div></div>
+      <div className="cmp-wrap">
+        <div className="cmp-crumb">
+          커뮤니티 <ChevRight /> 리뷰 <ChevRight /> <b>여행 리뷰</b>
+        </div>
+        <div className="cmp-main2">
+          <section>
+            <article className="cmp-card cmp-qq">
+              <div className="cmp-qh">
+                <span className="cmp-cat cmp-r"><i></i>여행 리뷰</span>
+              </div>
+              <h1>{post.title}</h1>
+              <div className="cmp-qm">
+                <span className="cmp-av">{post.author[0]}</span>
+                <b>{post.author}</b>
+                <span className="cmp-muted">{post.time} · {detail.visited} · 조회 {detail.views}</span>
+              </div>
+
+              <div className="cmp-muted" style={{ fontSize: "13px", fontWeight: "600", marginTop: "20px" }}>
+                태그한 여행지 {post.placeIds.length}곳
+              </div>
+              {post.placeIds.map((pid, i) => {
+                const pl = places[pid];
+                return (
+                  <div className="cmp-plc3" style={{ marginTop: i === 0 ? "8px" : "10px" }} key={pid}>
+                    <div className="cmp-mth2" style={{ background: pl.bg }}><ImageIcon size={22} /></div>
+                    <div className="cmp-pc3t">
+                      <b>{pl.name}</b>
+                      <span>{pl.addr} · 리뷰 {pl.reviews}</span>
+                    </div>
+                    <span className="cmp-btn cmp-nv cmp-sm"><Heart /> 찜</span>
+                    <Link className="cmp-btn cmp-ol cmp-sm" to={`/community/places/${pid}/reviews`}>
+                      이 여행지 리뷰 보기
+                    </Link>
+                  </div>
+                );
+              })}
+
+              {detail.body.map((t, i) => (
+                <p className="cmp-qb" style={i ? { marginTop: "12px" } : undefined} key={i}>{t}</p>
+              ))}
+
+              <div className="cmp-mos">
+                <div className="cmp-mA" style={{ background: photoBg[0] }}><ImageIcon size={40} /></div>
+                <div className="cmp-mB" style={{ background: photoBg[1] }}><ImageIcon size={28} /></div>
+                <div className="cmp-mC" style={{ background: photoBg[2] }}>
+                  <ImageIcon size={28} />
+                  <span className="cmp-mo"><b>+{detail.photoMore}</b></span>
+                </div>
+              </div>
+
+              <div className="cmp-rvf">
+                <span><Thumb /> {post.likes}</span>
+                <span>공유</span>
+              </div>
+            </article>
+
+            <div className="cmp-ah">
+              <div className="cmp-h2">댓글 {post.comments}</div>
+              <span className="cmp-pl3 cmp-sortc">최신순 <ChevDown /></span>
+            </div>
+            <div className="cmp-card cmp-wbox" style={{ marginTop: "0", marginBottom: "16px" }}>
+              <div className="cmp-wph" style={{ height: "64px" }}>댓글을 남겨보세요.</div>
+              <div className="cmp-wbt"><span className="cmp-btn cmp-co">등록</span></div>
+            </div>
+            <div className="cmp-rvl">
+              {detail.comments.map((c) => (
+                <article className="cmp-an" key={c.name + c.text}>
+                  <div className="cmp-rvh">
+                    <span className="cmp-av">{c.name[0]}</span>
+                    <b>{c.name}</b>
+                    <span className="cmp-sp"></span>
+                    <span className="cmp-muted">{c.time}</span>
+                  </div>
+                  <p>{c.text}</p>
+                  <div className="cmp-rvf">
+                    <span><Thumb /> {c.likes}</span>
+                    <span><Chat /> {c.replies}</span>
+                  </div>
+                  {c.reply && (
+                    <div className="cmp-rep">
+                      <div className="cmp-rvh">
+                        <span className="cmp-av">{c.reply.name[0]}</span>
+                        <b>{c.reply.name}</b>
+                        {c.reply.name === post.author && <span className="cmp-wr2">작성자</span>}
+                      </div>
+                      <p>{c.reply.text}</p>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: "24px" }}>
+              <span className="cmp-btn cmp-nv">댓글 더보기 <ChevDown /></span>
+            </div>
+          </section>
+
+          <aside>
+            <div className="cmp-card cmp-sd cmp-pfc">
+              <div className="cmp-h2s" style={{ marginBottom: "14px" }}>작성자</div>
+              <div className="cmp-pfh">
+                <div className="cmp-pfa">{post.author[0]}</div>
+                <div>
+                  <div className="cmp-pfn">{post.author}</div>
+                  <div className="cmp-pfs">{profile.joined} 가입</div>
+                </div>
+              </div>
+              <div className="cmp-pfst">
+                <div><b>{profile.reviews}</b><span>리뷰</span></div>
+                <div><b>{profile.trips}</b><span>다녀온 여행지</span></div>
+                <div><b>{profile.likes}</b><span><Thumb /></span></div>
+              </div>
+              <div className="cmp-pfr">
+                <small>최근 다녀온 여행지</small>
+                <div className="cmp-tg">
+                  {profile.recent.map((r) => <span key={r}>{r}</span>)}
+                </div>
+              </div>
+              <div className="cmp-pfb">
+                <span className="cmp-p1">{post.author}의 리뷰 모아보기</span>
+                <span className="cmp-p2">다녀온 여행 보기</span>
+              </div>
+            </div>
+
+            <div className="cmp-card cmp-sd" style={{ marginTop: "16px" }}>
+              <div className="cmp-h2s">이 여행지의 다른 리뷰</div>
+              {detail.related.map((r, i) => (
+                <div className="cmp-rr" style={i === detail.related.length - 1 ? { border: "0" } : undefined} key={r.title}>
+                  <div className="cmp-rr2" style={{ color: "var(--ink)", fontWeight: "600" }}>{r.title}</div>
+                  <div className="cmp-rr3"><Thumb /> {r.likes}</div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }
