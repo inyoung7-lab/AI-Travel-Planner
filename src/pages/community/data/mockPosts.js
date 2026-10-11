@@ -21,6 +21,7 @@ export const places = {
   4: { name: "여수 오동도", addr: "전남 여수시 수정동", reviews: 47, bg: GRADIENTS[3] },
   5: { name: "순천만 국가정원", addr: "전남 순천시", reviews: 76, bg: "linear-gradient(135deg,#A9BACB,#7389A3)" },
   6: { name: "순천 낙안읍성", addr: "전남 순천시 낙안면", reviews: 33, bg: GRADIENTS[1] },
+  8: { name: "서울 성수동", addr: "서울 성동구", reviews: 92, bg: "linear-gradient(135deg,#D9E0E9,#AEBBCC)" },
   7: { name: "부산 흰여울문화마을", addr: "부산 영도구", reviews: 71, bg: "linear-gradient(135deg,#3E566F,#1E3042)" },
 };
 
@@ -145,3 +146,12 @@ export const questionDetails = {
     ],
     similar: [{ title: "혼자 여행 숙소 안전하게 고르는 법", answers: 6 }, { title: "혼행 가능한 게스트하우스 추천", answers: 4 }, { title: "혼자 가기 좋은 국내 여행지", answers: 12 }] },
 };
+
+// 이번 달 가장 많이 리뷰된 여행지 (1~5위) — 나중에 DB에서 "이번 달 리뷰 수 많은 순"으로 가져와요
+export const hotPlaces = [
+  { rank: 1, placeId: 1, region: "제주", count: 128 },
+  { rank: 2, placeId: 8, region: "서울", count: 92 },
+  { rank: 3, placeId: 3, region: "전남", count: 84 },
+  { rank: 4, placeId: 5, region: "전남", count: 76 },
+  { rank: 5, placeId: 7, region: "부산", count: 71 },
+];
