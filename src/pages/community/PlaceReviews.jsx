@@ -4,7 +4,9 @@ import { Thumb, ChevDown, ChevRight, Heart, ImageIcon, Star, Plus, Pencil } from
 import { places, placeInfo, placeReviews, GRADIENTS } from "./data/mockPosts.js";
 
 export default function PlaceReviews() {
-  const { placeId } = useParams();
+  // App.jsx의 주소 이름이 :id 든 :placeId 든 둘 다 읽어요
+  const params = useParams();
+  const placeId = params.placeId ?? params.id;
   const place = places[placeId];
   const info = placeInfo[placeId];
   const reviews = placeReviews[placeId] || [];
