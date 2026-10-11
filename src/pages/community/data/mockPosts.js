@@ -155,3 +155,60 @@ export const hotPlaces = [
   { rank: 4, placeId: 5, region: "전남", count: 76 },
   { rank: 5, placeId: 7, region: "부산", count: 71 },
 ];
+
+// ── 장소 리뷰 화면용: 장소별 추가 정보 (태그, 상세 주소) ──
+export const placeInfo = {
+  1: { tags: [["바다", "b"], ["힐링", "p"]], address: "제주특별자치도 제주시 애월읍" },
+  2: { tags: [["바다", "b"], ["산책", "p"]], address: "제주특별자치도 제주시 한림읍 협재리" },
+  3: { tags: [["야경", "p"], ["액티비티", "b"]], address: "전남 여수시 돌산읍 돌산로" },
+  4: { tags: [["산책", "p"], ["섬", "b"]], address: "전남 여수시 수정동 오동도" },
+  5: { tags: [["정원", "b"], ["산책", "p"]], address: "전남 순천시 국가정원1호길" },
+  6: { tags: [["역사", "b"], ["체험", "p"]], address: "전남 순천시 낙안면 충민길" },
+  7: { tags: [["바다", "b"], ["사진", "p"]], address: "부산 영도구 영선동4가" },
+  8: { tags: [["카페", "p"], ["골목", "b"]], address: "서울 성동구 성수동" },
+};
+
+// ── 장소별 리뷰 (작성자가 직접 준 별점 1~5, 사진 개수 0~3) ──
+export const placeReviews = {
+  1: [
+    { author: "달토끼", visited: "10월 초 방문", rating: 5, photos: 3, likes: 24, text: "일몰 시간에 맞춰 갔는데 해안도로 드라이브가 정말 좋았어요. 주차는 카페 앞이 제일 편했고, 평일 오후라 한적했어요. 바람이 세서 겉옷은 꼭 챙기세요." },
+    { author: "서울탐험", visited: "9월 방문", rating: 4, photos: 2, likes: 17, text: "한담해변까지 걸으면 풍경이 좋아요. 주말은 카페 웨이팅이 길어서 오전 일찍 가는 걸 추천해요." },
+    { author: "여행메이트", visited: "9월 방문", rating: 5, photos: 0, likes: 9, text: "사진 찍기 좋은 포인트가 많아요. 아이와 가도 걷는 길이 평탄해서 괜찮았어요." },
+    { author: "뚜벅초보", visited: "8월 방문", rating: 4, photos: 0, likes: 6, text: "대중교통으로도 갈 수 있지만 배차 간격이 길어요. 시간 여유를 두고 가세요." },
+  ],
+  2: [
+    { author: "달토끼", visited: "10월 방문", rating: 5, photos: 2, likes: 31, text: "물때를 확인하고 가면 물빛이 정말 예뻐요. 비양도가 보이는 쪽에서 사진이 제일 잘 나와요." },
+    { author: "제주러버", visited: "9월 방문", rating: 4, photos: 1, likes: 12, text: "주차장이 가까워서 편하지만 성수기에는 일찍 가야 해요. 근처 카페도 많아요." },
+    { author: "지수", visited: "8월 방문", rating: 5, photos: 0, likes: 7, text: "모래가 곱고 수심이 얕아서 아이랑 놀기 좋았어요." },
+  ],
+  3: [
+    { author: "바다러버", visited: "10월 방문", rating: 5, photos: 3, likes: 18, text: "해 질 무렵에 타면 야경이 정말 예뻐요. 주말은 대기가 길어서 평일 저녁을 추천해요." },
+    { author: "여수사랑", visited: "9월 방문", rating: 4, photos: 1, likes: 11, text: "바닥이 투명한 캐빈이 재밌었어요. 무서워하시는 분은 일반 캐빈이 나아요." },
+    { author: "혼행러", visited: "9월 방문", rating: 4, photos: 0, likes: 5, text: "혼자 가도 부담 없었어요. 탑승 시간은 왕복 20분 정도예요." },
+  ],
+  4: [
+    { author: "바다러버", visited: "10월 방문", rating: 5, photos: 2, likes: 15, text: "동백나무 길이 짧고 평탄해서 천천히 산책하기 좋아요. 동백열차는 줄이 길어서 걸어갔어요." },
+    { author: "산책좋아", visited: "9월 방문", rating: 4, photos: 1, likes: 8, text: "케이블카랑 같이 묶어서 가면 코스가 딱 맞아요." },
+    { author: "여수사랑", visited: "8월 방문", rating: 4, photos: 0, likes: 4, text: "그늘이 많아서 여름에도 걸을 만했어요." },
+  ],
+  5: [
+    { author: "정원러버", visited: "10월 방문", rating: 5, photos: 3, likes: 14, text: "가을에 걷기 좋아요. 전체를 돌면 3시간 정도 걸리고 편한 신발은 필수예요. 억새는 오후 4시쯤이 가장 예뻐요." },
+    { author: "산책좋아", visited: "10월 방문", rating: 5, photos: 2, likes: 9, text: "전동차로 한 구간만 타도 충분해요. 호수정원 쪽 풍경이 제일 좋았어요." },
+    { author: "혼행러", visited: "9월 방문", rating: 4, photos: 0, likes: 6, text: "주말은 사람이 많아요. 오전 일찍 입장하는 걸 추천해요." },
+  ],
+  6: [
+    { author: "정원러버", visited: "10월 방문", rating: 4, photos: 2, likes: 10, text: "성곽을 따라 한 바퀴 도는 데 1시간 정도 걸려요. 해 질 무렵 초가집 풍경이 좋아요." },
+    { author: "여행메이트", visited: "9월 방문", rating: 4, photos: 1, likes: 6, text: "한복 체험을 하면 사진이 잘 나와요. 바닥이 울퉁불퉁하니 편한 신발이 좋아요." },
+    { author: "지수", visited: "8월 방문", rating: 5, photos: 0, likes: 3, text: "음식점이 읍성 안에 있어서 점심까지 해결했어요." },
+  ],
+  7: [
+    { author: "골목산책", visited: "10월 방문", rating: 5, photos: 3, likes: 33, text: "계단이 많아서 신발은 편하게 신으세요. 오전 9시쯤 가면 사람이 거의 없어요." },
+    { author: "혼행러", visited: "9월 방문", rating: 4, photos: 2, likes: 14, text: "바다 쪽 길을 따라 걸으면 사진 찍기 좋아요. 주말 오후는 붐벼요." },
+    { author: "서울탐험", visited: "8월 방문", rating: 4, photos: 0, likes: 8, text: "카페가 많아서 걷다가 쉬어가기 좋았어요." },
+  ],
+  8: [
+    { author: "서울탐험", visited: "10월 방문", rating: 4, photos: 2, likes: 20, text: "골목마다 카페와 편집숍이 많아요. 주말에는 웨이팅이 길어서 평일 오후를 추천해요." },
+    { author: "뚜벅초보", visited: "9월 방문", rating: 5, photos: 1, likes: 12, text: "지하철역에서 걸어서 갈 수 있어서 대중교통으로 가기 편해요." },
+    { author: "여행메이트", visited: "9월 방문", rating: 4, photos: 0, likes: 5, text: "점심시간 전에 가면 한적하게 구경할 수 있어요." },
+  ],
+};

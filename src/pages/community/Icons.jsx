@@ -71,3 +71,23 @@ export const ImageIcon = ({ size = 30 }) => (
     <polyline points="21 15 16 10 5 21" />
   </svg>
 );
+
+export const Star = ({ size = 16, on = true }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{ fill: on ? "#E8695A" : "#E6DED2", stroke: "none" }}>
+    <polygon points="12 2 15.1 8.6 22 9.3 16.8 14 18.2 21 12 17.5 5.8 21 7.2 14 2 9.3 8.9 8.6" />
+  </svg>
+);
+
+export const Plus = ({ size = 16 }) => (
+  <svg width={size} height={size} {...base}>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+export const Pencil = ({ size = 16 }) => (
+  <svg width={size} height={size} {...base}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </svg>
+);
