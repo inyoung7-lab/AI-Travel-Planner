@@ -1,14 +1,44 @@
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import "./ReviewDetail.css";
 import { Thumb, Chat, ChevDown, ChevRight, Heart, ImageIcon } from "./Icons.jsx";
-import { posts, places, profiles, reviewDetails, GRADIENTS } from "./data/mockPosts.js";
+import { places, GRADIENTS } from "./data/mockPosts.js";
+import { loadPost, getUser, postComment } from "./data/api.js";
+import CommentBox from "./CommentBox.jsx";
 
 export default function ReviewDetail() {
   const { id } = useParams();
-  const post = posts.find((p) => String(p.id) === id && p.type === "review");
-  const detail = reviewDetails[id];
+  const [data, setData] = useState(undefined); // undefined = 불러오는 중, null = 글 없음
+  const counted = useRef(null);
+  const navigate = useNavigate();
 
-  if (!post || !detail) {
+  useEffect(() => {
+    const first = counted.current !== id; // 조회수는 처음 열 때 한 번만 올려요
+    counted.current = id;
+    setData(undefined);
+    loadPost(id, "review", first).then(setData);
+  }, [id]);
+
+  async function submitComment(content) {
+    const user = getUser();
+    if (!user) {
+      alert("로그인이 필요해요.");
+      navigate("/login");
+      return false;
+    }
+    try {
+      await postComment(id, user.userId, content);
+      setData(await loadPost(id, "review", false));
+      return true;
+    } catch (e) {
+      alert(e.message);
+      return false;
+    }
+  }
+
+  if (data === undefined) return <div className="cmp-root"><div className="cmp-wrap" /></div>;
+
+  if (data === null) {
     return (
       <div className="cmp-root">
         <div className="cmp-wrap">
@@ -18,7 +48,8 @@ export default function ReviewDetail() {
     );
   }
 
-  const profile = profiles[post.author];
+  const { post, body, photoCount, photoMore, comments, profile, related } = data;
+  const placeIds = post.placeIds ?? [];
   const photoBg = [post.thumb?.bg || GRADIENTS[0], GRADIENTS[1], GRADIENTS[2]];
 
   return (
@@ -37,20 +68,21 @@ export default function ReviewDetail() {
               <div className="cmp-qm">
                 <span className="cmp-av">{post.author[0]}</span>
                 <b>{post.author}</b>
-                <span className="cmp-muted">{post.time} · {detail.visited} · 조회 {detail.views}</span>
+                <span className="cmp-muted">{post.time}{post.visited ? ` · ${post.visited}` : ""} · 조회 {post.views}</span>
               </div>
 
               <div className="cmp-muted" style={{ fontSize: "13px", fontWeight: "600", marginTop: "20px" }}>
-                태그한 여행지 {post.placeIds.length}곳
+                태그한 여행지 {placeIds.length}곳
               </div>
-              {post.placeIds.map((pid, i) => {
-                const pl = places[pid];
+              {placeIds.map((pid, i) => {
+                const base = places[pid] ?? { name: `여행지 ${pid}`, addr: "", bg: GRADIENTS[0] };
+                const pl = { ...base, reviews: data.placeReviews?.[pid] ?? base.reviews ?? 0 };
                 return (
                   <div className="cmp-plc3" style={{ marginTop: i === 0 ? "8px" : "10px" }} key={pid}>
                     <div className="cmp-mth2" style={{ background: pl.bg }}><ImageIcon size={22} /></div>
                     <div className="cmp-pc3t">
                       <b>{pl.name}</b>
-                      <span>{pl.addr} · 리뷰 {pl.reviews}</span>
+                      <span>{pl.addr ? `${pl.addr} · ` : ""}리뷰 {pl.reviews}</span>
                     </div>
                     <span className="cmp-btn cmp-nv cmp-sm"><Heart /> 찜</span>
                     <Link className="cmp-btn cmp-ol cmp-sm" to={`/community/places/${pid}/reviews`}>
@@ -60,18 +92,20 @@ export default function ReviewDetail() {
                 );
               })}
 
-              {detail.body.map((t, i) => (
+              {body.map((t, i) => (
                 <p className="cmp-qb" style={i ? { marginTop: "12px" } : undefined} key={i}>{t}</p>
               ))}
 
+              {photoCount > 0 && (
               <div className="cmp-mos">
                 <div className="cmp-mA" style={{ background: photoBg[0] }}><ImageIcon size={40} /></div>
                 <div className="cmp-mB" style={{ background: photoBg[1] }}><ImageIcon size={28} /></div>
                 <div className="cmp-mC" style={{ background: photoBg[2] }}>
                   <ImageIcon size={28} />
-                  <span className="cmp-mo"><b>+{detail.photoMore}</b></span>
+                  {photoMore > 0 && <span className="cmp-mo"><b>+{photoMore}</b></span>}
                 </div>
               </div>
+              )}
 
               <div className="cmp-rvf">
                 <span><Thumb /> {post.likes}</span>
@@ -83,13 +117,10 @@ export default function ReviewDetail() {
               <div className="cmp-h2">댓글 {post.comments}</div>
               <span className="cmp-pl3 cmp-sortc">최신순 <ChevDown /></span>
             </div>
-            <div className="cmp-card cmp-wbox" style={{ marginTop: "0", marginBottom: "16px" }}>
-              <div className="cmp-wph" style={{ height: "64px" }}>댓글을 남겨보세요.</div>
-              <div className="cmp-wbt"><span className="cmp-btn cmp-co">등록</span></div>
-            </div>
+            <CommentBox prefix="cmp" placeholder="댓글을 남겨보세요." onSubmit={submitComment} />
             <div className="cmp-rvl">
-              {detail.comments.map((c) => (
-                <article className="cmp-an" key={c.name + c.text}>
+              {comments.map((c, ci) => (
+                <article className="cmp-an" key={ci}>
                   <div className="cmp-rvh">
                     <span className="cmp-av">{c.name[0]}</span>
                     <b>{c.name}</b>
@@ -99,18 +130,18 @@ export default function ReviewDetail() {
                   <p>{c.text}</p>
                   <div className="cmp-rvf">
                     <span><Thumb /> {c.likes}</span>
-                    <span><Chat /> {c.replies}</span>
+                    <span><Chat /> {c.replyCount}</span>
                   </div>
-                  {c.reply && (
-                    <div className="cmp-rep">
+                  {c.replyList.map((rp, ri) => (
+                    <div className="cmp-rep" key={ri}>
                       <div className="cmp-rvh">
-                        <span className="cmp-av">{c.reply.name[0]}</span>
-                        <b>{c.reply.name}</b>
-                        {c.reply.name === post.author && <span className="cmp-wr2">작성자</span>}
+                        <span className="cmp-av">{rp.name[0]}</span>
+                        <b>{rp.name}</b>
+                        {rp.name === post.author && <span className="cmp-wr2">작성자</span>}
                       </div>
-                      <p>{c.reply.text}</p>
+                      <p>{rp.text}</p>
                     </div>
-                  )}
+                  ))}
                 </article>
               ))}
             </div>
@@ -126,7 +157,7 @@ export default function ReviewDetail() {
                 <div className="cmp-pfa">{post.author[0]}</div>
                 <div>
                   <div className="cmp-pfn">{post.author}</div>
-                  <div className="cmp-pfs">{profile.joined} 가입</div>
+                  {profile.joined && <div className="cmp-pfs">{profile.joined} 가입</div>}
                 </div>
               </div>
               <div className="cmp-pfst">
@@ -134,12 +165,14 @@ export default function ReviewDetail() {
                 <div><b>{profile.trips}</b><span>다녀온 여행지</span></div>
                 <div><b>{profile.likes}</b><span><Thumb /></span></div>
               </div>
+              {profile.recent?.length > 0 && (
               <div className="cmp-pfr">
                 <small>최근 다녀온 여행지</small>
                 <div className="cmp-tg">
                   {profile.recent.map((r) => <span key={r}>{r}</span>)}
                 </div>
               </div>
+              )}
               <div className="cmp-pfb">
                 <span className="cmp-p1">{post.author}의 리뷰 모아보기</span>
                 <span className="cmp-p2">다녀온 여행 보기</span>
@@ -148,8 +181,9 @@ export default function ReviewDetail() {
 
             <div className="cmp-card cmp-sd" style={{ marginTop: "16px" }}>
               <div className="cmp-h2s">이 여행지의 다른 리뷰</div>
-              {detail.related.map((r, i) => (
-                <div className="cmp-rr" style={i === detail.related.length - 1 ? { border: "0" } : undefined} key={r.title}>
+              {related.length === 0 && <p className="cmp-muted" style={{ marginTop: "12px" }}>아직 다른 리뷰가 없어요.</p>}
+              {related.map((r, i) => (
+                <div className="cmp-rr" style={i === related.length - 1 ? { border: "0" } : undefined} key={r.title + i}>
                   <div className="cmp-rr2" style={{ color: "var(--ink)", fontWeight: "600" }}>{r.title}</div>
                   <div className="cmp-rr3"><Thumb /> {r.likes}</div>
                 </div>

@@ -170,24 +170,69 @@ function WaitingStrip() {
 
 const API = "http://localhost:3000";
 
+const CATS = [
+  { key: "all", label: "전체", n: "total" },
+  { key: "review", label: "리뷰", n: "review" },
+  { key: "trip", label: "여행 리뷰", n: "trip", sub: true },
+  { key: "place", label: "장소 리뷰", n: "place", sub: true },
+  { key: "question", label: "질문", n: "question" },
+  { key: "talk", label: "소통", n: "talk" },
+];
+const REGIONS = ["서울", "부산", "제주", "강원", "경기", "전남", "경북", "경남"];
+// 서버가 꺼져 있을 때만 보여주는 예시 숫자
+const FALLBACK_COUNTS = {
+  total: 1284, review: 862, trip: 318, place: 544, question: 322, talk: 100,
+  regions: { 서울: 212, 부산: 168, 제주: 301, 강원: 142, 경기: 96, 전남: 118, 경북: 87, 경남: 64 },
+};
+const fmt = (v) => (v == null ? "" : Number(v).toLocaleString());
+
 export default function CommunityHome() {
-  // DB에서 글을 가져와요. 서버가 꺼져 있거나 글이 없으면 예시 글을 보여줘요.
-  const [posts, setPosts] = useState(mockPosts);
+  const [cat, setCat] = useState("all");
+  const [region, setRegion] = useState("전체");
+  const [posts, setPosts] = useState(null); // null = 불러오는 중
+  const [counts, setCounts] = useState(null);
+
+  // 왼쪽 숫자: DB에서 센 개수 (서버가 꺼져 있으면 예시 숫자)
   useEffect(() => {
-    fetch(`${API}/api/community/posts`)
+    fetch(`${API}/api/community/counts`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) setPosts(data);
-      })
-      .catch(() => {});
+      .then(setCounts)
+      .catch(() => setCounts(FALLBACK_COUNTS));
   }, []);
+
+  // 글 목록: 카테고리·지역을 바꿀 때마다 DB에서 다시 가져와요 (서버가 꺼져 있으면 예시 글)
+  useEffect(() => {
+    const q = `category=${cat}&region=${encodeURIComponent(region)}`;
+    fetch(`${API}/api/community/posts?${q}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => setPosts(Array.isArray(data) ? data : mockPosts))
+      .catch(() => setPosts(mockPosts));
+  }, [cat, region]);
+
+  const list = posts ?? [];
+  const catLabel = CATS.find((c) => c.key === cat).label;
 
   return (
     <div className="cmh-root">
 <div className="cmh-srow"><div className="cmh-srin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>여행지·리뷰·질문 검색</span></div></div><div className="cmh-wrap"><section className="cmh-hot"><div className="cmh-ph2"><div className="cmh-h2">이번 달 가장 많이 리뷰된 여행지</div><span className="cmh-sub">유저들이 직접 다녀와서 리뷰를 남긴 곳 · 순위별로 자동으로 바뀌어요</span></div><HotPlaces /></section>
-<div className="cmh-board"><aside className="cmh-rail"><div className="cmh-rl"><div className="cmh-rtt">카테고리</div><div className="cmh-ni cmh-on"><span>전체</span><em>1,284</em></div><div className="cmh-ni cmh-open"><span>리뷰</span><em>862 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg></em></div><div className="cmh-ni cmh-sub"><span>여행 리뷰</span><em>318</em></div><div className="cmh-ni cmh-sub"><span>장소 리뷰</span><em>544</em></div><div className="cmh-ni"><span>질문</span><em>322</em></div><div className="cmh-ni"><span>소통</span><em>100</em></div></div><div className="cmh-rl"><div className="cmh-rtt">지역</div><div className="cmh-ri cmh-on"><i></i><span>전체</span><em>1,284</em></div><div className="cmh-ri"><i></i><span>서울</span><em>212</em></div><div className="cmh-ri"><i></i><span>부산</span><em>168</em></div><div className="cmh-ri"><i></i><span>제주</span><em>301</em></div><div className="cmh-ri"><i></i><span>강원</span><em>142</em></div><div className="cmh-ri"><i></i><span>경기</span><em>96</em></div><div className="cmh-ri"><i></i><span>전남</span><em>118</em></div><div className="cmh-ri"><i></i><span>경북</span><em>87</em></div><div className="cmh-ri"><i></i><span>경남</span><em>64</em></div><div className="cmh-more2">더보기 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></div></div></aside>
-<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">전체 글 <b>1,284</b></div><span className="cmh-pl3 cmh-sortc">추천순 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></span></div><div className="cmh-fr"><span className="cmh-btn cmh-co"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg> 글쓰기</span></div></div><div className="cmh-bpl">
-          {posts.map((p, i) => (
+<div className="cmh-board"><aside className="cmh-rail"><div className="cmh-rl"><div className="cmh-rtt">카테고리</div>
+{CATS.map((c) => (
+  <div key={c.key} className={"cmh-ni" + (c.sub ? " cmh-sub" : "") + (c.key === "review" ? " cmh-open" : "") + (cat === c.key ? " cmh-on" : "")} onClick={() => setCat(c.key)} style={{ cursor: "pointer" }}>
+    <span>{c.label}</span>
+    <em>{fmt(counts && counts[c.n])}{c.key === "review" && (<> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg></>)}</em>
+  </div>
+))}
+</div><div className="cmh-rl"><div className="cmh-rtt">지역</div>
+<div className={"cmh-ri" + (region === "전체" ? " cmh-on" : "")} onClick={() => setRegion("전체")} style={{ cursor: "pointer" }}><i></i><span>전체</span><em>{fmt(counts && counts.total)}</em></div>
+{REGIONS.map((r) => (
+  <div key={r} className={"cmh-ri" + (region === r ? " cmh-on" : "")} onClick={() => setRegion(r)} style={{ cursor: "pointer" }}><i></i><span>{r}</span><em>{fmt(counts && (counts.regions[r] ?? 0))}</em></div>
+))}
+<div className="cmh-more2">더보기 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></div></div></aside>
+<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{list.length}</b></div><span className="cmh-pl3 cmh-sortc">추천순 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></span></div><div className="cmh-fr"><span className="cmh-btn cmh-co"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg> 글쓰기</span></div></div><div className="cmh-bpl">
+          {posts && posts.length === 0 && (
+            <div className="cmh-inl"><div className="cmh-inh"><b>아직 글이 없어요</b><span className="cmh-muted">다른 카테고리나 지역을 선택해 보세요</span></div></div>
+          )}
+          {list.map((p, i) => (
             <Fragment key={p.id}>
               <PostCard p={p} />
               {i === 3 && <WaitingStrip />}
