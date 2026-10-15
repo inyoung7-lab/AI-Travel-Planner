@@ -5,9 +5,9 @@ import { places } from "./data/mockPosts.js";
 import { getUser, createPost, searchLocalPlaces, searchOpenPlaces, savePlace, regionFromAddr } from "./data/api.js";
 
 const KINDS = [
-  { key: "trip", param: "review", label: "여행 리뷰", hint: "다녀온 여행이나 장소를 후기로 남겨요. 장소를 1곳 이상 태그하고, 장소마다 별점을 남길 수도 있어요." },
-  { key: "question", param: "question", label: "질문", hint: "여행 준비 중 궁금한 걸 물어보세요. 관련 장소를 태그하면 더 잘 찾아져요." },
-  { key: "talk", param: "talk", label: "소통", hint: "여행 이야기를 자유롭게 나눠요. 장소 태그는 선택이에요." },
+  { key: "trip", param: "review", label: "여행 리뷰", hint: "다녀온 여행을 후기로 남겨요. 여행지를 1곳 이상 태그하고, 여행지마다 별점을 남길 수도 있어요." },
+  { key: "question", param: "question", label: "질문", hint: "여행 준비 중 궁금한 걸 물어보세요. 관련 여행지를 태그하면 더 잘 찾아져요." },
+  { key: "talk", param: "talk", label: "소통", hint: "여행 이야기를 자유롭게 나눠요. 여행지 태그는 선택이에요." },
 ];
 const MAX_BODY = 1200; // 서버는 4000바이트(한글 약 1,300자)까지만 받아요
 const MAX_TAGS = 10;
@@ -89,7 +89,7 @@ export default function Write() {
   }
 
   async function addTag(r) {
-    if (tags.length >= MAX_TAGS) return setErr(`장소는 ${MAX_TAGS}곳까지 태그할 수 있어요.`);
+    if (tags.length >= MAX_TAGS) return setErr(`여행지는 ${MAX_TAGS}곳까지 태그할 수 있어요.`);
     setErr("");
     try {
       // 검색(무료 주소 API)에서 고른 장소는 DB에 저장하고 번호를 받아요
@@ -105,7 +105,7 @@ export default function Write() {
     setErr("");
     if (!title.trim()) return setErr("제목을 입력해 주세요.");
     if (!body.trim()) return setErr("내용을 입력해 주세요.");
-    if (kind === "trip" && tags.length < 1) return setErr("다녀온 장소를 1곳 이상 태그해 주세요.");
+    if (kind === "trip" && tags.length < 1) return setErr("다녀온 여행지를 1곳 이상 태그해 주세요.");
     setBusy(true);
     try {
       const r = await createPost({
@@ -152,7 +152,7 @@ export default function Write() {
           </div>
 
           <div className="cmw-f">
-            <div className="cmw-l">장소 태그 <small>{kind === "trip" ? "필수" : "선택"} · {tags.length}/{MAX_TAGS}</small></div>
+            <div className="cmw-l">여행지 태그 <small>{kind === "trip" ? "필수" : "선택"} · {tags.length}/{MAX_TAGS}</small></div>
             {tags.length > 0 && (
               <div style={{ display: "grid", gap: "8px", marginBottom: "10px" }}>
                 {tags.map((t) => (
@@ -185,7 +185,7 @@ export default function Write() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (shown[0]) addTag(shown[0]); } }}
-                placeholder="장소 이름이나 주소를 검색해 태그하세요 (예: 애월 카페, 성산일출봉)"
+                placeholder="여행지 이름이나 주소를 검색해 태그하세요 (예: 성산일출봉, 여수 오동도)"
               />
               {q.trim() && (
                 <div className="cmw-dd">
@@ -200,7 +200,7 @@ export default function Write() {
               )}
             </div>
             <div className="cmw-hint">
-              {regions.length > 0 ? `지역은 장소 주소로 자동 분류돼요: ${regions.join(", ")}` : "태그한 장소의 주소로 지역이 자동 분류돼요."}
+              {regions.length > 0 ? `지역은 여행지 주소로 자동 분류돼요: ${regions.join(", ")}` : "태그한 여행지의 주소로 지역이 자동 분류돼요."}
             </div>
           </div>
 

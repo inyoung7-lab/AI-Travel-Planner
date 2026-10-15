@@ -33,6 +33,19 @@ async function hasPpRating(connection) {
   return ppRatingOk;
 }
 
+// 테이블이 있는지 확인해요 (한 번 있다고 확인되면 기억해요)
+const tableOk = {};
+async function hasTable(connection, name) {
+  if (tableOk[name]) return true;
+  try {
+    const r = await connection.execute("SELECT COUNT(*) FROM USER_TABLES WHERE table_name = :n", { n: name });
+    tableOk[name] = r.rows[0][0] > 0;
+  } catch {
+    tableOk[name] = false;
+  }
+  return tableOk[name];
+}
+
 function timeAgo(date) {
   const min = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
   if (min < 1) return "방금 전";
@@ -67,7 +80,11 @@ router.get("/posts", async (req, res) => {
     // 검색(?q=), 작성자 글 모아보기(?author=), 답변 없는 질문(?unanswered=1), 개수(?limit=), 정렬(?sort=recommend|latest)
     const q = String(req.query.q ?? "").trim().toLowerCase();
     if (q) {
-      where.push("(LOWER(p.title) LIKE :q OR LOWER(DBMS_LOB.SUBSTR(p.content, 4000, 1)) LIKE :q)");
+      // 제목·내용, 그리고 태그한 여행지의 이름·주소에서도 찾아요
+      const byPlace = (await hasTable(connection, "COMM_PLACE"))
+        ? " OR EXISTS (SELECT 1 FROM COMM_POST_PLACE pp JOIN COMM_PLACE cp ON cp.place_id = pp.place_id WHERE pp.post_id = p.post_id AND (LOWER(cp.name) LIKE :q OR LOWER(cp.address) LIKE :q))"
+        : "";
+      where.push(`(LOWER(p.title) LIKE :q OR LOWER(DBMS_LOB.SUBSTR(p.content, 4000, 1)) LIKE :q${byPlace})`);
       fbinds.q = `%${q}%`;
     }
     const author = String(req.query.author ?? "").trim();
@@ -735,7 +752,7 @@ router.post("/places", async (req, res) => {
   const extKey = String(b.extKey ?? "").trim().slice(0, 100);
   const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
   const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
-  if (!name || !extKey) return res.status(400).json({ message: "장소 정보가 올바르지 않아요." });
+  if (!name || !extKey) return res.status(400).json({ message: "여행지 정보가 올바르지 않아요." });
   let connection;
   try {
     connection = await getConnection();
@@ -751,7 +768,7 @@ router.post("/places", async (req, res) => {
     res.json({ placeId: ins.outBinds.newId[0] });
   } catch (err) {
     console.error("[community] 장소 저장 오류:", err.message);
-    res.status(500).json({ message: "장소를 저장하지 못했어요. (node server/setup-places.js 를 실행했는지 확인해 주세요)" });
+    res.status(500).json({ message: "여행지를 저장하지 못했어요. (node server/setup-places.js 를 실행했는지 확인해 주세요)" });
   } finally {
     if (connection) { try { await connection.close(); } catch (e) { console.error(e.message); } }
   }

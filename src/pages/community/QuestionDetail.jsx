@@ -150,11 +150,11 @@ export default function QuestionDetail() {
               </div>
               <div className="cmq-pfst">
                 {post.authorId ? (
-                  <Link to={`/community?author=${encodeURIComponent(post.authorId)}&name=${encodeURIComponent(post.author)}`} style={{ textDecoration: "none", color: "inherit", cursor: "pointer", textAlign: "center", display: "block" }} title={`${post.author}의 글 모아보기`}>
-                    <b>{profile.reviews}</b><span>리뷰 ›</span>
+                  <Link to={`/community?author=${encodeURIComponent(post.authorId)}&name=${encodeURIComponent(post.author)}&type=review`} style={{ textDecoration: "none", color: "inherit", cursor: "pointer", textAlign: "center", display: "block" }} title={`${post.author}의 여행 리뷰 모아보기`}>
+                    <b>{profile.reviews}</b><span>여행 리뷰 ›</span>
                   </Link>
                 ) : (
-                  <div><b>{profile.reviews}</b><span>리뷰</span></div>
+                  <div><b>{profile.reviews}</b><span>여행 리뷰</span></div>
                 )}
                 <div><b>{profile.trips}</b><span>다녀온 여행지</span></div>
                 <div><b>{profile.likes}</b><span><Thumb /></span></div>

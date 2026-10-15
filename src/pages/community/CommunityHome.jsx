@@ -184,7 +184,7 @@ const API = "http://localhost:3000";
 
 const CATS = [
   { key: "all", label: "전체", n: "total" },
-  { key: "review", label: "리뷰", n: "review" },
+  { key: "review", label: "여행 리뷰", n: "review" },
   { key: "question", label: "질문", n: "question" },
   { key: "talk", label: "소통", n: "talk" },
 ];
@@ -198,7 +198,6 @@ const FALLBACK_COUNTS = {
 const fmt = (v) => (v == null ? "" : Number(v).toLocaleString());
 
 export default function CommunityHome() {
-  const [cat, setCat] = useState("all");
   const [region, setRegion] = useState("전체");
   const [page, setPage] = useState(1);
   const [moreRegions, setMoreRegions] = useState(false);
@@ -210,6 +209,7 @@ export default function CommunityHome() {
   const [hot, setHot] = useState(null);
   const [waiting, setWaiting] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [cat, setCat] = useState(["review", "question", "talk"].includes(searchParams.get("type")) ? searchParams.get("type") : "all");
   const author = searchParams.get("author") ?? ""; // 작성자의 글 모아보기
   const authorName = searchParams.get("name") ?? author;
 
@@ -255,7 +255,7 @@ export default function CommunityHome() {
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && searchNow()}
-            placeholder="여행지·리뷰·질문 검색"
+            placeholder="여행지, 제목, 내용으로 검색"
             style={{ flex: 1, border: 0, outline: "none", background: "transparent", font: "inherit", color: "#1E3042" }}
           /></div></div><div className="cmh-wrap"><section className="cmh-hot"><div className="cmh-ph2"><div className="cmh-h2">이번 달 가장 많이 리뷰된 여행지</div><span className="cmh-sub">유저들이 직접 다녀와서 리뷰를 남긴 곳 · 순위별로 자동으로 바뀌어요</span></div>{hot && hot.length > 0 && <HotPlaces items={hot} />}</section>
 <div className="cmh-board"><aside className="cmh-rail"><div className="cmh-rl"><div className="cmh-rtt">카테고리</div>
@@ -281,7 +281,7 @@ export default function CommunityHome() {
             <div className="cmh-inl" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
               {author && (
                 <span>
-                  <b>{authorName}</b>님의 글만 보는 중{" "}
+                  <b>{authorName}</b>님의 {cat === "all" ? "글" : catLabel}만 보는 중{" "}
                   <span style={{ cursor: "pointer", color: "#E8695A" }} onClick={() => setSearchParams({})}>✕ 해제</span>
                 </span>
               )}

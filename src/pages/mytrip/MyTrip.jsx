@@ -128,9 +128,9 @@ export default function MyTrip() {
             <span
               className="mt-p1"
               style={{ cursor: "pointer" }}
-              onClick={() => navigate(`/community?author=${encodeURIComponent(data.user.id)}&name=${encodeURIComponent(data.user.name)}`)}
+              onClick={() => navigate(`/community?author=${encodeURIComponent(data.user.id)}&name=${encodeURIComponent(data.user.name)}&type=review`)}
             >
-              내 리뷰 모아보기
+              내 여행 리뷰 보기
             </span>
           </div>
         </div>

@@ -115,7 +115,7 @@ export async function savePlace(p) {
     throw new Error("서버에 연결할 수 없어요.");
   }
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.message || "장소를 저장하지 못했어요.");
+  if (!r.ok) throw new Error(d.message || "여행지를 저장하지 못했어요.");
   return d.placeId;
 }
 

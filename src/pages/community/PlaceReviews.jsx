@@ -74,7 +74,7 @@ export default function PlaceReviews() {
     <div className="cml-root">
       <div className="cml-wrap">
         <div className="cml-crumb">
-          <Link to="/community" style={{ color: "inherit", textDecoration: "none" }}>커뮤니티</Link> <ChevRight /> 리뷰 <ChevRight /> <b>장소 리뷰</b>
+          <Link to="/community" style={{ color: "inherit", textDecoration: "none" }}>커뮤니티</Link> <ChevRight /> <b>여행지</b>
         </div>
 
         <section className="cml-card cml-ph0">
