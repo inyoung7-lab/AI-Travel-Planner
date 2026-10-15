@@ -37,23 +37,54 @@ export function validateSearchInput(body) {
   return { query, limit };
 }
 
-export function createSearchHandler(repository) {
+export function createSearchHandler(repository, { historyRepository = null } = {}) {
   return async function searchHandler(req, res) {
     try {
       const { query, limit } = validateSearchInput(req.body);
       const filters = parseTravelQuery(query);
-      const places = await repository.listPlaces();
+      const repositoryResult = await repository.listPlaces({ query, filters });
+      const places = Array.isArray(repositoryResult) ? repositoryResult : repositoryResult.places;
       const matched = filterTravelPlaces(places, filters);
-      const items = matched.slice(0, limit);
+      const items = matched.slice(0, limit).map((place) => ({
+        ...place,
+        reason: repository.dataSource === "tourapi" && place.reason === "장소명에 ‘바다’ 포함"
+          ? place.reason
+          : "검색 조건 일치",
+      }));
+      const matchCountComplete = Array.isArray(repositoryResult) || repositoryResult.matchCountComplete !== false;
+      let history = { saved: false, reason: "not_configured" };
+
+      if (repository.dataSource === "example") {
+        history = { saved: false, reason: "example_data" };
+      } else if (!matchCountComplete) {
+        history = { saved: false, reason: "incomplete_match_count" };
+      } else if (historyRepository) {
+        try {
+          history = await historyRepository.recordSearch({
+            // The current login flow has no server-verified principal; never use body userId/localStorage.
+            actorKey: null,
+            queryText: query,
+            conditions: filters,
+            matchedCount: matched.length,
+            returnedCount: items.length,
+            returnedPlaces: items,
+          });
+        } catch {
+          // Search success is independent of history storage; report storage failure explicitly.
+          history = { saved: false, reason: "save_failed" };
+        }
+      }
 
       return res.status(200).json({
         query,
         filters,
         matchedCount: matched.length,
+        matchCountComplete,
         returnedCount: items.length,
         limit,
         dataSource: repository.dataSource,
         personalized: false,
+        history,
         items,
       });
     } catch (error) {
@@ -62,7 +93,11 @@ export function createSearchHandler(repository) {
       }
 
       if (error instanceof CatalogNotConfiguredError) {
-        return res.status(503).json({ error: { code: error.code, message: error.message } });
+        return res.status(error.status || 503).json({ error: { code: error.code, message: error.message } });
+      }
+
+      if (error?.status && error?.code) {
+        return res.status(error.status).json({ error: { code: error.code, message: error.message } });
       }
 
       return res.status(500).json({

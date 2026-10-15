@@ -33,6 +33,21 @@ test("parses region, type, and theme from the existing Korean query format", () 
   });
 });
 
+test("normalizes 숙박 and 숙소 to the accommodation parent type and filters by TourAPI content type", () => {
+  const lodging = { regionCode: "부산", contentTypeId: "32", type: "", tags: [], name: "해운대 숙박시설", region: "부산 해운대" };
+  const pension = { regionCode: "경남", contentTypeId: "32", type: "펜션", tags: ["바다"], name: "바다 펜션", region: "경남 거제" };
+  const attraction = { regionCode: "부산", contentTypeId: "12", type: "", tags: [], name: "부산 관광지", region: "부산" };
+
+  for (const query of ["부산 숙박", "부산 숙소"]) {
+    const conditions = parseTravelQuery(query);
+    assert.deepEqual(conditions, { regions: ["부산"], types: ["숙박"], themes: [], keywords: [] });
+    assert.deepEqual(filterTravelPlaces([lodging, attraction], conditions), [lodging]);
+  }
+
+  assert.deepEqual(filterTravelPlaces([pension, attraction], parseTravelQuery("경남 바다 펜션")), [pension]);
+  assert.deepEqual(filterTravelPlaces([pension], parseTravelQuery("경남 바다 숙박")), [pension]);
+});
+
 test("requires every region, type, and theme condition to match", () => {
   const places = [
     { regionCode: "경남", type: "펜션", tags: ["바다"], name: "통영 바다 펜션", region: "경남 통영" },
@@ -75,6 +90,7 @@ test("separates all exact matches from the limited response count", async () => 
   assert.equal(result.payload.matchedCount, 2);
   assert.equal(result.payload.returnedCount, 1);
   assert.equal(result.payload.items[0].regionCode, "경남");
+  assert.equal(result.payload.items[0].reason, "검색 조건 일치");
 });
 
 test("validates required query and optional bounded integer limit", () => {
@@ -107,4 +123,94 @@ test("reports an unconfigured catalog as an error, not an empty result", async (
   assert.equal(result.statusCode, 503);
   assert.equal(result.payload.error.code, "CATALOG_NOT_CONFIGURED");
   assert.equal("matchedCount" in result.payload, false);
+});
+
+test("keeps TourAPI search successful without history storage and explicitly reports not saved", async () => {
+  const repository = {
+    dataSource: "tourapi",
+    async listPlaces() {
+      return { places: [], matchCountComplete: true };
+    },
+  };
+  const response = await invokeHandler(createSearchHandler(repository), { query: "부산" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.payload.matchedCount, 0);
+  assert.deepEqual(response.payload.history, { saved: false, reason: "not_configured" });
+});
+
+test("stores successful search with anonymous identity and ignores request body userId", async () => {
+  const place = {
+    id: "tourapi:source-77", sourceCode: "KTO_TOURAPI", sourcePlaceId: "source-77",
+    regionCode: "부산", type: "숙박", contentTypeId: "32", tags: [], name: "부산 숙박", region: "부산",
+  };
+  let storedRecord;
+  const repository = {
+    dataSource: "tourapi",
+    async listPlaces() { return { places: [place], matchCountComplete: true }; },
+  };
+  const historyRepository = {
+    async recordSearch(record) {
+      storedRecord = record;
+      return { saved: true, searchId: 912 };
+    },
+  };
+  const response = await invokeHandler(
+    createSearchHandler(repository, { historyRepository }),
+    { query: "부산 숙박", userId: "forged-from-browser" },
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.payload.history, { saved: true, searchId: 912 });
+  assert.equal(storedRecord.actorKey, null);
+  assert.equal(storedRecord.queryText, "부산 숙박");
+  assert.deepEqual(storedRecord.conditions.types, ["숙박"]);
+  assert.equal(storedRecord.matchedCount, 1);
+  assert.equal(storedRecord.returnedCount, 1);
+  assert.deepEqual(storedRecord.returnedPlaces, [{ ...place, reason: "검색 조건 일치" }]);
+});
+
+test("records a successful zero-result search as a real zero-count search", async () => {
+  let savedRecord;
+  const repository = { dataSource: "tourapi", async listPlaces() { return { places: [], matchCountComplete: true }; } };
+  const historyRepository = { async recordSearch(record) { savedRecord = record; return { saved: true, searchId: 913 }; } };
+  const response = await invokeHandler(createSearchHandler(repository, { historyRepository }), { query: "\uBD80\uC0B0" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.payload.history, { saved: true, searchId: 913 });
+  assert.equal(savedRecord.matchedCount, 0);
+  assert.equal(savedRecord.returnedCount, 0);
+  assert.deepEqual(savedRecord.returnedPlaces, []);
+});
+
+test("does not persist failed searches or incomplete match counts", async () => {
+  let saveCalls = 0;
+  const historyRepository = { async recordSearch() { saveCalls += 1; return { saved: true }; } };
+  const providerFailure = {
+    dataSource: "tourapi",
+    async listPlaces() { throw Object.assign(new Error("upstream"), { code: "UPSTREAM", status: 502 }); },
+  };
+  const failed = await invokeHandler(createSearchHandler(providerFailure, { historyRepository }), { query: "부산" });
+  assert.equal(failed.statusCode, 502);
+  assert.equal("history" in failed.payload, false);
+
+  const partial = {
+    dataSource: "tourapi",
+    async listPlaces() { return { places: [], matchCountComplete: false }; },
+  };
+  const partialResponse = await invokeHandler(createSearchHandler(partial, { historyRepository }), { query: "부산" });
+  assert.deepEqual(partialResponse.payload.history, { saved: false, reason: "incomplete_match_count" });
+  assert.equal(saveCalls, 0);
+});
+
+test("reports storage failure without turning a successful search into a failed or saved response", async () => {
+  const repository = {
+    dataSource: "tourapi",
+    async listPlaces() { return { places: [], matchCountComplete: true }; },
+  };
+  const historyRepository = { async recordSearch() { throw new Error("simulated database failure"); } };
+  const response = await invokeHandler(createSearchHandler(repository, { historyRepository }), { query: "부산" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.payload.history, { saved: false, reason: "save_failed" });
 });

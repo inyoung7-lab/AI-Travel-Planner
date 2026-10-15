@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "test:search": "node --test server/search.test.js",
-    "test:travel": "node --test server/search.test.js src/pages/data/trendingPlaceDetails.test.js",
+    "test:travel": "node --test server/search.test.js server/repositories/tourApiRepository.test.js server/repositories/searchHistoryRepository.test.js server/recommendations/recentSearchRecommendations.test.js src/pages/data/trendingPlaceDetails.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

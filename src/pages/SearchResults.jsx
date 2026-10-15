@@ -61,7 +61,7 @@ export default function SearchResults() {
             <h2>“{query || "여행지"}” 검색 결과</h2>
             {activeConditions.length > 0 && <p className="travel-search-conditions">{activeConditions.join(" · ")}</p>}
           </div>
-          {data && <span className="travel-data-badge">{data.dataSource === "example" ? "예시 데이터" : "검색 데이터"}</span>}
+          {data && <span className="travel-data-badge">{data.dataSource === "example" ? "예시 데이터" : data.dataSource === "tourapi" ? "한국관광공사 TourAPI" : "검색 데이터"}</span>}
         </div>
 
         {currentSearchState.status === "loading" && (
@@ -85,14 +85,13 @@ export default function SearchResults() {
         {data && (
           <>
             <p className="travel-result-count">
-              조건 일치 {data.matchedCount}곳 · 응답 결과 {data.returnedCount}곳
+              {data.matchCountComplete === false ? "조회 범위 내 조건 일치" : "조건 일치"} {data.matchedCount}곳 · 응답 결과 {data.returnedCount}곳
             </p>
             {data.items.length > 0 ? (
               <div className="travel-results-grid">
                 {data.items.map((place, index) => (
                   <div className="travel-result-item" key={`${place.id ?? place.sourcePlaceId ?? place.name}-${index}`}>
                     <PlaceCard place={place} index={index} />
-                    <div className="travel-reason"><strong>추천 이유</strong><p>{place.reason}</p></div>
                   </div>
                 ))}
               </div>
@@ -104,6 +103,9 @@ export default function SearchResults() {
             )}
             {data.dataSource === "example" && (
               <p className="travel-disclaimer">화면 확인용 예시 데이터입니다. 실제 관광 데이터가 아닙니다.</p>
+            )}
+            {data.dataSource === "tourapi" && (
+              <p className="travel-disclaimer">한국관광공사 TourAPI 원천 데이터를 검색했습니다. 조회 페이지가 제한된 경우 표시한 일치 건수는 전체 건수가 아닙니다. 사진이 없는 항목은 원천 사진이 제공되지 않은 경우입니다.</p>
             )}
           </>
         )}
