@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import "./ReviewDetail.css";
 import { Thumb, Chat, ChevDown, ChevRight, Heart, ImageIcon } from "./Icons.jsx";
 import { places, GRADIENTS } from "./data/mockPosts.js";
-import { loadPost, getUser, postComment } from "./data/api.js";
+import { loadPost, getUser, postComment, sendLike, toggleWish } from "./data/api.js";
 import CommentBox from "./CommentBox.jsx";
 
 export default function ReviewDetail() {
@@ -18,6 +18,44 @@ export default function ReviewDetail() {
     setData(undefined);
     loadPost(id, "review", first).then(setData);
   }, [id]);
+
+  async function toggleLike(kind, targetId) {
+    const user = getUser();
+    if (!user) {
+      alert("로그인이 필요해요.");
+      navigate("/login");
+      return;
+    }
+    try {
+      await sendLike(kind, targetId, user.userId);
+      setData(await loadPost(id, "review", false));
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+  async function wish(placeId) {
+    const user = getUser();
+    if (!user) {
+      alert("로그인이 필요해요.");
+      navigate("/login");
+      return;
+    }
+    try {
+      await toggleWish(placeId, user.userId);
+      setData(await loadPost(id, "review", false));
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+  async function share() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert("링크를 복사했어요.");
+    } catch {
+      alert("링크를 복사하지 못했어요.");
+    }
+  }
+  const likeStyle = (on) => ({ cursor: "pointer", color: on ? "var(--coral)" : undefined, fontWeight: on ? 700 : undefined });
 
   async function submitComment(content) {
     const user = getUser();
@@ -56,7 +94,7 @@ export default function ReviewDetail() {
     <div className="cmp-root">
       <div className="cmp-wrap">
         <div className="cmp-crumb">
-          커뮤니티 <ChevRight /> 리뷰 <ChevRight /> <b>여행 리뷰</b>
+          <Link to="/community" style={{ color: "inherit", textDecoration: "none" }}>커뮤니티</Link> <ChevRight /> 리뷰 <ChevRight /> <b>여행 리뷰</b>
         </div>
         <div className="cmp-main2">
           <section>
@@ -84,7 +122,13 @@ export default function ReviewDetail() {
                       <b>{pl.name}</b>
                       <span>{pl.addr ? `${pl.addr} · ` : ""}리뷰 {pl.reviews}</span>
                     </div>
-                    <span className="cmp-btn cmp-nv cmp-sm"><Heart /> 찜</span>
+                    <span
+                      className="cmp-btn cmp-nv cmp-sm"
+                      style={{ cursor: "pointer", ...((data.wishedPlaceIds ?? []).includes(pid) ? { borderColor: "#E8695A" } : {}) }}
+                      onClick={() => wish(pid)}
+                    >
+                      <Heart filled={(data.wishedPlaceIds ?? []).includes(pid)} /> 찜
+                    </span>
                     <Link className="cmp-btn cmp-ol cmp-sm" to={`/community/places/${pid}/reviews`}>
                       이 여행지 리뷰 보기
                     </Link>
@@ -108,8 +152,8 @@ export default function ReviewDetail() {
               )}
 
               <div className="cmp-rvf">
-                <span><Thumb /> {post.likes}</span>
-                <span>공유</span>
+                <span onClick={() => toggleLike("post", post.id)} style={likeStyle(post.liked)}><Thumb /> {post.likes}</span>
+                <span onClick={share} style={{ cursor: "pointer" }}>공유</span>
               </div>
             </article>
 
@@ -129,7 +173,7 @@ export default function ReviewDetail() {
                   </div>
                   <p>{c.text}</p>
                   <div className="cmp-rvf">
-                    <span><Thumb /> {c.likes}</span>
+                    <span onClick={() => { if (c.id) toggleLike("comment", c.id); }} style={likeStyle(c.liked)}><Thumb /> {c.likes}</span>
                     <span><Chat /> {c.replyCount}</span>
                   </div>
                   {c.replyList.map((rp, ri) => (
@@ -174,7 +218,13 @@ export default function ReviewDetail() {
               </div>
               )}
               <div className="cmp-pfb">
-                <span className="cmp-p1">{post.author}의 리뷰 모아보기</span>
+                {post.authorId ? (
+                  <Link className="cmp-p1" style={{ textDecoration: "none" }} to={`/community?author=${encodeURIComponent(post.authorId)}&name=${encodeURIComponent(post.author)}`}>
+                    {post.author}의 리뷰 모아보기
+                  </Link>
+                ) : (
+                  <span className="cmp-p1">{post.author}의 리뷰 모아보기</span>
+                )}
                 <span className="cmp-p2">다녀온 여행 보기</span>
               </div>
             </div>
@@ -183,10 +233,15 @@ export default function ReviewDetail() {
               <div className="cmp-h2s">이 여행지의 다른 리뷰</div>
               {related.length === 0 && <p className="cmp-muted" style={{ marginTop: "12px" }}>아직 다른 리뷰가 없어요.</p>}
               {related.map((r, i) => (
-                <div className="cmp-rr" style={i === related.length - 1 ? { border: "0" } : undefined} key={r.title + i}>
+                <Link
+                  className="cmp-rr"
+                  to={r.id ? `/community/reviews/${r.id}` : "#"}
+                  style={{ textDecoration: "none", color: "inherit", ...(i === related.length - 1 ? { border: "0" } : {}) }}
+                  key={r.title + i}
+                >
                   <div className="cmp-rr2" style={{ color: "var(--ink)", fontWeight: "600" }}>{r.title}</div>
                   <div className="cmp-rr3"><Thumb /> {r.likes}</div>
-                </div>
+                </Link>
               ))}
             </div>
           </aside>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import "./QuestionDetail.css";
 import { Pin, Thumb, Chat, Check, ChevDown, ChevRight } from "./Icons.jsx";
-import { loadPost, getUser, postComment } from "./data/api.js";
+import { loadPost, getUser, postComment, sendLike } from "./data/api.js";
 import CommentBox from "./CommentBox.jsx";
 
 export default function QuestionDetail() {
@@ -17,6 +17,22 @@ export default function QuestionDetail() {
     setData(undefined);
     loadPost(id, "question", first).then(setData);
   }, [id]);
+
+  async function toggleLike(kind, targetId) {
+    const user = getUser();
+    if (!user) {
+      alert("로그인이 필요해요.");
+      navigate("/login");
+      return;
+    }
+    try {
+      await sendLike(kind, targetId, user.userId);
+      setData(await loadPost(id, "question", false));
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+  const likeStyle = (on) => ({ cursor: "pointer", color: on ? "var(--coral)" : undefined, fontWeight: on ? 700 : undefined });
 
   async function submitAnswer(content) {
     const user = getUser();
@@ -52,7 +68,7 @@ export default function QuestionDetail() {
   return (
     <div className="cmq-root">
       <div className="cmq-wrap">
-        <div className="cmq-crumb">커뮤니티 <ChevRight /> <b>질문</b></div>
+        <div className="cmq-crumb"><Link to="/community" style={{ color: "inherit", textDecoration: "none" }}>커뮤니티</Link> <ChevRight /> <b>질문</b></div>
         <div className="cmq-main2">
           <section>
             <article className="cmq-card cmq-qq">
@@ -75,7 +91,7 @@ export default function QuestionDetail() {
                 <p className="cmq-qb" style={i ? { marginTop: "12px" } : undefined} key={i}>{t}</p>
               ))}
               <div className="cmq-rvf">
-                <span><Thumb /> {post.likes}</span>
+                <span onClick={() => toggleLike("post", post.id)} style={likeStyle(post.liked)}><Thumb /> {post.likes}</span>
                 <span><Chat /> 저장</span>
               </div>
             </article>
@@ -101,7 +117,7 @@ export default function QuestionDetail() {
                   </div>
                   <p>{a.text}</p>
                   <div className="cmq-rvf">
-                    <span><Thumb /> {a.likes}</span>
+                    <span onClick={() => { if (a.id) toggleLike("comment", a.id); }} style={likeStyle(a.liked)}><Thumb /> {a.likes}</span>
                     <span><Chat /> {a.replyCount}</span>
                   </div>
                   {a.replyList.map((rp, ri) => (
@@ -143,7 +159,13 @@ export default function QuestionDetail() {
               </div>
               )}
               <div className="cmq-pfb">
-                <span className="cmq-p1">{post.author}의 리뷰 모아보기</span>
+                {post.authorId ? (
+                  <Link className="cmq-p1" style={{ textDecoration: "none" }} to={`/community?author=${encodeURIComponent(post.authorId)}&name=${encodeURIComponent(post.author)}`}>
+                    {post.author}의 글 모아보기
+                  </Link>
+                ) : (
+                  <span className="cmq-p1">{post.author}의 리뷰 모아보기</span>
+                )}
                 <span className="cmq-p2">다녀온 여행 보기</span>
               </div>
             </div>
@@ -152,10 +174,15 @@ export default function QuestionDetail() {
               <div className="cmq-h2s">비슷한 질문</div>
               {similar.length === 0 && <p className="cmq-muted" style={{ marginTop: "12px" }}>비슷한 질문이 아직 없어요.</p>}
               {similar.map((q, i) => (
-                <div className="cmq-rr" style={i === similar.length - 1 ? { border: "0" } : undefined} key={q.title + i}>
+                <Link
+                  className="cmq-rr"
+                  to={q.id ? `/community/questions/${q.id}` : "#"}
+                  style={{ textDecoration: "none", color: "inherit", ...(i === similar.length - 1 ? { border: "0" } : {}) }}
+                  key={q.title + i}
+                >
                   <div className="cmq-rr2" style={{ color: "var(--ink)", fontWeight: "600" }}>{q.title}</div>
                   <div className="cmq-rr3">답변 {q.answers}</div>
-                </div>
+                </Link>
               ))}
             </div>
           </aside>

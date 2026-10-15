@@ -25,6 +25,7 @@ function mockDetail(id, type) {
       similar: [],
     };
   }
+  if (type === "talk") return null;
   const d = questionDetails[id];
   if (!d) return null;
   return {
@@ -45,7 +46,11 @@ function mockDetail(id, type) {
 // 반환: 글 데이터 / null(글이 없음)
 export async function loadPost(id, type, countView) {
   try {
-    const r = await fetch(`${API}/api/community/posts/${id}${countView ? "?view=1" : ""}`);
+    const qs = [];
+    if (countView) qs.push("view=1");
+    const me = getUser();
+    if (me) qs.push(`userId=${encodeURIComponent(me.userId)}`);
+    const r = await fetch(`${API}/api/community/posts/${id}${qs.length ? "?" + qs.join("&") : ""}`);
     if (r.status === 404) return null;
     if (!r.ok) throw new Error("server");
     const d = await r.json();
@@ -81,4 +86,99 @@ export async function postComment(postId, userId, content, parentId = null) {
     const d = await r.json().catch(() => ({}));
     throw new Error(d.message || "등록하지 못했어요.");
   }
+}
+
+// 좋아요 누르기/취소 (kind: "post" | "comment")
+export async function sendLike(kind, targetId, userId) {
+  const path = kind === "post" ? `posts/${targetId}/like` : `comments/${targetId}/like`;
+  let r;
+  try {
+    r = await fetch(`${API}/api/community/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+  } catch {
+    throw new Error("서버에 연결할 수 없어요.");
+  }
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || "처리하지 못했어요.");
+  }
+  return r.json();
+}
+
+// 이번 달 인기 여행지 (실패하면 null)
+export async function loadHot() {
+  try {
+    const r = await fetch(`${API}/api/community/hot-places`);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+// 글 목록 (params: category, region, sort, q, author, unanswered, limit) — 실패하면 null
+export async function loadPostList(params) {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+  try {
+    const r = await fetch(`${API}/api/community/posts?${qs}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return Array.isArray(d) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+// 여행지 하나의 리뷰 목록 (실패하면 null)
+export async function loadPlace(placeId, sort) {
+  const me = getUser();
+  const qs = [`sort=${sort}`];
+  if (me) qs.push(`userId=${encodeURIComponent(me.userId)}`);
+  try {
+    const r = await fetch(`${API}/api/community/places/${placeId}?${qs.join("&")}`);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+// 여행지 찜하기/취소 (실패하면 Error)
+export async function toggleWish(placeId, userId) {
+  let r;
+  try {
+    r = await fetch(`${API}/api/community/wishes/toggle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, placeId }),
+    });
+  } catch {
+    throw new Error("서버에 연결할 수 없어요.");
+  }
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || "처리하지 못했어요.");
+  }
+  return r.json();
+}
+
+// 새 글 쓰기 (kind: trip | place | question | talk). 성공하면 { id, kind, placeIds }
+export async function createPost(body) {
+  let r;
+  try {
+    r = await fetch(`${API}/api/community/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("서버에 연결할 수 없어요.");
+  }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || "등록하지 못했어요.");
+  return d;
 }

@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import "./CommunityHome.css";
 import { Pin, Thumb, Chat, Check, ImageIcon } from "./Icons.jsx";
-import { posts as mockPosts, places, waitingQuestions, hotPlaces } from "./data/mockPosts.js";
+import { posts as mockPosts, places, waitingQuestions, hotPlaces as mockHot, GRADIENTS } from "./data/mockPosts.js";
+import { loadPostList, loadHot } from "./data/api.js";
+import SortMenu from "./SortMenu.jsx";
 
 const CATEGORY = {
   review: { label: "여행 리뷰", cls: "cmh-r" },
@@ -15,6 +17,7 @@ const CATEGORY = {
 function linkOf(p) {
   if (p.type === "review") return `/community/reviews/${p.id}`;
   if (p.type === "question") return `/community/questions/${p.id}`;
+  if (p.type === "talk") return `/community/talks/${p.id}`;
   if (p.type === "place" && p.placeIds) return `/community/places/${p.placeIds[0]}/reviews`;
   return null;
 }
@@ -22,7 +25,10 @@ function linkOf(p) {
 
 const HOT_INTERVAL = 3500; // 3.5초마다 다음 순위로 넘어가요
 
-function HotPlaces() {
+// 예시 표에 없는 여행지는 번호로 보여줘요 (팀 PLACE 테이블이 정해지면 교체)
+const placeOf = (id) => places[id] ?? { name: `여행지 ${id}`, bg: GRADIENTS[Number(id) % GRADIENTS.length] };
+
+function HotPlaces({ items }) {
   const [active, setActive] = useState(0);
   const [hold, setHold] = useState(false); // 마우스를 올려두면 멈춰요
   const [round, setRound] = useState(0); // 멈췄다 다시 시작할 때 진행 막대를 처음부터 채우기 위한 값
@@ -30,17 +36,17 @@ function HotPlaces() {
   useEffect(() => {
     if (hold) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setTimeout(() => setActive((a) => (a + 1) % hotPlaces.length), HOT_INTERVAL);
+    const t = setTimeout(() => setActive((a) => (a + 1) % items.length), HOT_INTERVAL);
     return () => clearTimeout(t);
-  }, [active, hold, round]);
+  }, [active, hold, round, items.length]);
 
   const pick = (i) => {
     setActive(i);
     setRound((r) => r + 1);
   };
 
-  const cur = hotPlaces[active];
-  const curPlace = places[cur.placeId];
+  const cur = items[active % items.length];
+  const curPlace = placeOf(cur.placeId);
 
   return (
     <div
@@ -67,8 +73,8 @@ function HotPlaces() {
       </article>
 
       <div className="cmh-hxl">
-        {hotPlaces.map((h, i) => {
-          const pl = places[h.placeId];
+        {items.map((h, i) => {
+          const pl = placeOf(h.placeId);
           return (
             <div
               key={h.placeId}
@@ -151,7 +157,7 @@ function PostCard({ p }) {
   );
 }
 
-function WaitingStrip() {
+function WaitingStrip({ items }) {
   return (
     <div className="cmh-inl">
       <div className="cmh-inh">
@@ -159,9 +165,15 @@ function WaitingStrip() {
         <span className="cmh-muted">아직 답변이 없어요</span>
       </div>
       <div className="cmh-inq">
-        {waitingQuestions.map((q) => (
-          <span className="cmh-iq" key={q.title}>{q.title} <i>{q.region}</i></span>
-        ))}
+        {items.map((q) =>
+          q.id ? (
+            <Link className="cmh-iq" key={q.id} to={`/community/questions/${q.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+              {q.title} {q.region && <i>{q.region}</i>}
+            </Link>
+          ) : (
+            <span className="cmh-iq" key={q.title}>{q.title} <i>{q.region}</i></span>
+          )
+        )}
       </div>
     </div>
   );
@@ -191,6 +203,14 @@ export default function CommunityHome() {
   const [region, setRegion] = useState("전체");
   const [posts, setPosts] = useState(null); // null = 불러오는 중
   const [counts, setCounts] = useState(null);
+  const [sort, setSort] = useState("recommend");
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState("");
+  const [hot, setHot] = useState(null);
+  const [waiting, setWaiting] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const author = searchParams.get("author") ?? ""; // 작성자의 글 모아보기
+  const authorName = searchParams.get("name") ?? author;
 
   // 왼쪽 숫자: DB에서 센 개수 (서버가 꺼져 있으면 예시 숫자)
   useEffect(() => {
@@ -202,19 +222,36 @@ export default function CommunityHome() {
 
   // 글 목록: 카테고리·지역을 바꿀 때마다 DB에서 다시 가져와요 (서버가 꺼져 있으면 예시 글)
   useEffect(() => {
-    const q = `category=${cat}&region=${encodeURIComponent(region)}`;
-    fetch(`${API}/api/community/posts?${q}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => setPosts(Array.isArray(data) ? data : mockPosts))
-      .catch(() => setPosts(mockPosts));
-  }, [cat, region]);
+    let alive = true;
+    loadPostList({ category: cat, region, sort, q, author }).then((data) => {
+      if (alive) setPosts(data ?? mockPosts);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [cat, region, sort, q, author]);
+
+  // 인기 여행지 · 답변을 기다리는 질문 (서버가 꺼져 있으면 예시)
+  useEffect(() => {
+    loadHot().then((d) => setHot(d ?? mockHot));
+    loadPostList({ category: "question", unanswered: 1, limit: 3, sort: "latest" }).then((d) =>
+      setWaiting(d ? d.map((x) => ({ id: x.id, title: x.title, region: x.region })) : waitingQuestions)
+    );
+  }, []);
 
   const list = posts ?? [];
+  const searchNow = () => setQ(qInput.trim());
   const catLabel = CATS.find((c) => c.key === cat).label;
 
   return (
     <div className="cmh-root">
-<div className="cmh-srow"><div className="cmh-srin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>여행지·리뷰·질문 검색</span></div></div><div className="cmh-wrap"><section className="cmh-hot"><div className="cmh-ph2"><div className="cmh-h2">이번 달 가장 많이 리뷰된 여행지</div><span className="cmh-sub">유저들이 직접 다녀와서 리뷰를 남긴 곳 · 순위별로 자동으로 바뀌어요</span></div><HotPlaces /></section>
+<div className="cmh-srow"><div className="cmh-srin"><svg style={{ cursor: "pointer" }} onClick={searchNow} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><input
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && searchNow()}
+            placeholder="여행지·리뷰·질문 검색"
+            style={{ flex: 1, border: 0, outline: "none", background: "transparent", font: "inherit", color: "#1E3042" }}
+          /></div></div><div className="cmh-wrap"><section className="cmh-hot"><div className="cmh-ph2"><div className="cmh-h2">이번 달 가장 많이 리뷰된 여행지</div><span className="cmh-sub">유저들이 직접 다녀와서 리뷰를 남긴 곳 · 순위별로 자동으로 바뀌어요</span></div>{hot && hot.length > 0 && <HotPlaces items={hot} />}</section>
 <div className="cmh-board"><aside className="cmh-rail"><div className="cmh-rl"><div className="cmh-rtt">카테고리</div>
 {CATS.map((c) => (
   <div key={c.key} className={"cmh-ni" + (c.sub ? " cmh-sub" : "") + (c.key === "review" ? " cmh-open" : "") + (cat === c.key ? " cmh-on" : "")} onClick={() => setCat(c.key)} style={{ cursor: "pointer" }}>
@@ -228,14 +265,35 @@ export default function CommunityHome() {
   <div key={r} className={"cmh-ri" + (region === r ? " cmh-on" : "")} onClick={() => setRegion(r)} style={{ cursor: "pointer" }}><i></i><span>{r}</span><em>{fmt(counts && (counts.regions[r] ?? 0))}</em></div>
 ))}
 <div className="cmh-more2">더보기 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></div></div></aside>
-<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{list.length}</b></div><span className="cmh-pl3 cmh-sortc">추천순 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></span></div><div className="cmh-fr"><span className="cmh-btn cmh-co"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg> 글쓰기</span></div></div><div className="cmh-bpl">
+<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{list.length}</b></div><SortMenu
+            className="cmh-pl3 cmh-sortc"
+            value={sort}
+            onChange={setSort}
+            options={[{ key: "recommend", label: "추천순" }, { key: "latest", label: "최신순" }]}
+          /></div><div className="cmh-fr"><Link to="/community/write" className="cmh-btn cmh-co" style={{ textDecoration: "none" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg> 글쓰기</Link></div></div><div className="cmh-bpl">
+          {(author || q) && (
+            <div className="cmh-inl" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              {author && (
+                <span>
+                  <b>{authorName}</b>님의 글만 보는 중{" "}
+                  <span style={{ cursor: "pointer", color: "#E8695A" }} onClick={() => setSearchParams({})}>✕ 해제</span>
+                </span>
+              )}
+              {q && (
+                <span>
+                  "<b>{q}</b>" 검색 결과{" "}
+                  <span style={{ cursor: "pointer", color: "#E8695A" }} onClick={() => { setQ(""); setQInput(""); }}>✕ 해제</span>
+                </span>
+              )}
+            </div>
+          )}
           {posts && posts.length === 0 && (
             <div className="cmh-inl"><div className="cmh-inh"><b>아직 글이 없어요</b><span className="cmh-muted">다른 카테고리나 지역을 선택해 보세요</span></div></div>
           )}
           {list.map((p, i) => (
             <Fragment key={p.id}>
               <PostCard p={p} />
-              {i === 3 && <WaitingStrip />}
+              {i === 3 && waiting && waiting.length > 0 && <WaitingStrip items={waiting} />}
             </Fragment>
           ))}
         </div>
