@@ -5,9 +5,9 @@
 | 영역 | 상태 | 확인된 범위 |
 |---|---|---|
 | TourAPI 검색 | 구현 완료 | `example`/`tourapi` 저장소 선택, 서버 환경변수 사용, 지역·분류·키워드 요청, 결과 정규화, 필터·페이지 제한·오류 처리. 실제 TourAPI 호출 여부는 별도 실행 환경의 키와 한도에 따름. |
-| 검색 이력 코드 | 구현 완료 | `TRAVEL_SEARCH_LOG`와 `TRAVEL_SEARCH_PLACE`를 한 트랜잭션으로 저장. 검색 실패는 저장하지 않고, 미설정·저장 실패는 검색 성공과 구분해 응답. |
-| 최근 30일 추천 계산 | 구현 완료 | 최근 30×24시간 검색 조건 빈도를 계산하고 현재 조건을 통과한 후보의 순위에만 반영. 주입형 저장소로 모의 이력 테스트 완료. |
-| 로그인 인증 연결 | 대기 | 로그인 성공 응답은 있지만 검증 가능한 서버 세션·서명 토큰·인증 미들웨어가 없음. `/api/search` 개인화 연결 금지 상태이며 계속 `personalized: false`를 반환해야 함. |
+| 검색 이력 저장 | JSON 구현 완료 / Oracle 검증 대기 | 기본은 서버 파일 JSON 저장소. 기존 Oracle 트랜잭션 저장소도 별도 유지하며, Oracle DDL 적용과 실제 INSERT/SELECT는 미검증. |
+| 최근 30일 추천 계산 | 구현 완료 | 최근 30일 브라우저 이력을 읽어 현재 조건 통과 후보의 순위를 조정. `/api/search`와 `/api/recommendations`에 JSON 저장소로 연결했고, 저장 전 추천을 계산. |
+| 로그인 인증 연결 | 회원 인증 대기 | 서버 발급 브라우저 쿠키는 개발 편의용으로 연결했으나 로그인 회원과 연결되지 않음. 요청 본문 ID는 무시. Oracle ACTOR_KEY 매핑은 인증·MEMBER DDL 확인 후 연결. |
 | Oracle 저장·조회 검증 | 대기 | SQL 및 저장소 코드는 있으나 실제 Oracle 접속·DDL 적용·INSERT/SELECT 검증은 하지 않음. |
 | LLM 추천 | 미구현 | 현재 검색 필수 조건 필터와 후보 수 제한을 통과한 후보만 전달하는 후속 단계. |
 
@@ -41,3 +41,11 @@ SQL의 `ACTOR_KEY`는 `VARCHAR2(128)` nullable이다. 애플리케이션 계약�
 ## 비밀 정보 점검
 
 `.env`와 `Wallet/`은 `.gitignore`에서 제외된다. 커밋 후보 및 추적 파일 목록에서는 `.env`, Wallet, 인증키·개인키 파일을 제외한다. `.env.example`에는 변수명만 있고 값은 비워 둔다.
+
+## JSON 저장 단계 상태 갱신
+
+우선 개발 저장소는 `TRAVEL_SEARCH_HISTORY_STORE=json`(기본값)이며 파일은 `server/data/search-history.json`으로 고정되어 `public` 밖에 있다. `/server/data/`는 Git ignore 대상이다. 저장은 프로세스 안에서 직렬화하고 임시 파일 작성 후 교체한다. JSON이 손상되었거나 스키마 버전이 맞지 않으면 오류를 내고 기존 파일을 보존한다.
+
+검색·메인 추천 API는 서버가 만든 서명 쿠키 `travel_browser_id`를 기준으로 최근 30일 이력을 읽는다. 쿠키는 브라우저 식별자일 뿐 로그인·회원 인증이 아니며, UI와 API 응답은 개인화 여부와 `browser` 기준 여부를 따로 표시한다. 요청 본문 `userId`/`actorKey`는 사용하지 않는다. 쿠키 서명키는 기본적으로 ignore된 `server/data/browser-cookie-secret`에 생성되며, `TRAVEL_BROWSER_COOKIE_SECRET`을 설정해 외부에서 관리할 수도 있다.
+
+Oracle 전환은 `TRAVEL_SEARCH_HISTORY_STORE=oracle`로 선택한다. 현 로그인에는 서버 인증이 없으므로 브라우저 쿠키를 Oracle `ACTOR_KEY`에 쓰거나 Oracle 이력을 개인별 추천에 사용하지 않는다. Oracle 모드의 회원별 읽기/개인화는 인증 담당자가 검증된 principal 주입을 연결한 뒤에만 추가한다. JSON 단계 적용·저장·조회는 모의/임시 디렉터리 테스트로 검증하며 Oracle은 계속 검증 대기다. 실제 인기 통계와 LLM 추천은 미구현이다.

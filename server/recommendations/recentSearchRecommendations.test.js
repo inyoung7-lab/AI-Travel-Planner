@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { parseTravelQuery } from "../../shared/travelSearch.js";
 import {
   countRecentSearchPreferences,
+  recommendForBrowser,
   rankCandidatesWithRecentSearches,
   recommendForVerifiedActor,
 } from "./recentSearchRecommendations.js";
@@ -54,6 +55,29 @@ test("keeps current search filters mandatory and ranks matching candidates by re
   assert.equal(result.frequencies.types["숙박"], 2);
   assert.equal(result.frequencies.themes["바다"], 2);
   assert.ok(result.items.every((place) => place.regionCode === "부산"));
+});
+
+test("shows only preference conditions that contributed to each candidate score", () => {
+  const candidates = [
+    candidate("부산 바다", { regionCode: "부산", type: "관광지", contentTypeId: "12", tags: ["바다"] }),
+    candidate("부산 산", { regionCode: "부산", type: "관광지", contentTypeId: "12", tags: ["산"] }),
+  ];
+  const result = rankCandidatesWithRecentSearches({
+    candidates,
+    currentConditions: parseTravelQuery("부산"),
+    historyRecords: [
+      record({ regions: ["부산"], types: [], themes: ["바다"] }, now),
+    ],
+    now,
+  });
+
+  const byName = Object.fromEntries(result.items.map((place) => [place.name, place]));
+  assert.equal(result.personalized, true);
+  assert.ok(byName["부산 바다"].recommendationReason.includes("부산"));
+  assert.ok(byName["부산 바다"].recommendationReason.includes("바다"));
+  assert.ok(byName["부산 산"].recommendationReason.includes("부산"));
+  assert.ok(!byName["부산 산"].recommendationReason.includes("바다"));
+  assert.deepEqual(byName["부산 산"].personalizationReasons, ["최근 검색한 부산 지역과 일치"]);
 });
 
 test("returns ordinary ordering when there is no valid in-window history", () => {
@@ -118,4 +142,56 @@ test("uses only the supplied actor's injected history and never queries for anon
   assert.equal(anonymous.personalized, false);
   assert.deepEqual(anonymous.items.map(({ name }) => name), ["바다 여행지", "산 여행지"]);
   assert.deepEqual(requestedActors, ["verified-a", "verified-b"]);
+});
+
+test("browser recommendation ranks only eligible candidates from the last 30 days and handles empty history", async () => {
+  const candidates = [
+    candidate("부산 바다 장소", { regionCode: "부산", type: "관광지", contentTypeId: "12", tags: ["바다"] }),
+    candidate("부산 산 장소", { regionCode: "부산", type: "관광지", contentTypeId: "12", tags: ["산"] }),
+    candidate("경남 바다 장소", { regionCode: "경남", type: "관광지", contentTypeId: "12", tags: ["바다"] }),
+  ];
+  const historyRepository = {
+    async listRecentConditions({ browserId }) {
+      assert.equal(browserId, "this-browser");
+      return [
+        record({ regions: ["부산"], themes: ["산"] }, daysAgo(30)),
+        record({ regions: ["부산"], themes: ["산"] }, daysAgo(31)),
+      ];
+    },
+  };
+  const result = await recommendForBrowser({
+    browserId: "this-browser",
+    historyRepository,
+    candidates,
+    currentConditions: parseTravelQuery("부산"),
+    limit: 1,
+    now,
+  });
+  assert.equal(result.personalized, true);
+  assert.equal(result.personalizationBasis, "browser");
+  assert.deepEqual(result.items.map(({ name }) => name), ["부산 산 장소"]);
+
+  const ordinary = await recommendForBrowser({
+    browserId: "this-browser",
+    historyRepository: { async listRecentConditions() { return []; } },
+    candidates,
+    currentConditions: parseTravelQuery("부산 바다"),
+    limit: 1,
+    now,
+  });
+  assert.equal(ordinary.personalized, false);
+  assert.equal(ordinary.personalizationBasis, "browser");
+  assert.deepEqual(ordinary.items.map(({ name }) => name), ["부산 바다 장소"]);
+
+  const unavailable = await recommendForBrowser({
+    browserId: "this-browser",
+    historyRepository: { async listRecentConditions() { throw new Error("read failed"); } },
+    candidates,
+    currentConditions: parseTravelQuery("부산 바다"),
+    limit: 1,
+    now,
+  });
+  assert.equal(unavailable.personalized, false);
+  assert.equal(unavailable.personalizationBasis, "browser");
+  assert.deepEqual(unavailable.items.map(({ name }) => name), ["부산 바다 장소"]);
 });

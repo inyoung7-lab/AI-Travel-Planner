@@ -1,5 +1,6 @@
 import { filterTravelPlaces, parseTravelQuery } from "../shared/travelSearch.js";
 import { CatalogNotConfiguredError } from "./repositories/travelPlaceRepository.js";
+import { recommendForBrowser } from "./recommendations/recentSearchRecommendations.js";
 
 export const DEFAULT_SEARCH_LIMIT = 8;
 export const MAX_SEARCH_LIMIT = 50;
@@ -45,13 +46,22 @@ export function createSearchHandler(repository, { historyRepository = null } = {
       const repositoryResult = await repository.listPlaces({ query, filters });
       const places = Array.isArray(repositoryResult) ? repositoryResult : repositoryResult.places;
       const matched = filterTravelPlaces(places, filters);
-      const items = matched.slice(0, limit).map((place) => ({
+      const matchCountComplete = Array.isArray(repositoryResult) || repositoryResult.matchCountComplete !== false;
+      const recommendation = historyRepository?.scope === "browser" && repository.dataSource !== "example"
+        ? await recommendForBrowser({
+          browserId: req.browserId,
+          historyRepository,
+          candidates: matched,
+          currentConditions: filters,
+          limit,
+        })
+        : { items: matched.slice(0, limit), personalized: false, personalizationBasis: "none", personalizationReason: "unavailable" };
+      const items = recommendation.items.map((place) => ({
         ...place,
         reason: repository.dataSource === "tourapi" && place.reason === "장소명에 ‘바다’ 포함"
           ? place.reason
           : "검색 조건 일치",
       }));
-      const matchCountComplete = Array.isArray(repositoryResult) || repositoryResult.matchCountComplete !== false;
       let history = { saved: false, reason: "not_configured" };
 
       if (repository.dataSource === "example") {
@@ -61,8 +71,8 @@ export function createSearchHandler(repository, { historyRepository = null } = {
       } else if (historyRepository) {
         try {
           history = await historyRepository.recordSearch({
-            // The current login flow has no server-verified principal; never use body userId/localStorage.
-            actorKey: null,
+            // Browser scope is an anonymous convenience identifier, never a member identity.
+            ...(historyRepository.scope === "browser" ? { browserId: req.browserId } : { actorKey: null }),
             queryText: query,
             conditions: filters,
             matchedCount: matched.length,
@@ -83,7 +93,12 @@ export function createSearchHandler(repository, { historyRepository = null } = {
         returnedCount: items.length,
         limit,
         dataSource: repository.dataSource,
-        personalized: false,
+        personalized: recommendation.personalized,
+        personalization: {
+          applied: recommendation.personalized,
+          basis: recommendation.personalizationBasis,
+          reason: recommendation.personalizationReason,
+        },
         history,
         items,
       });

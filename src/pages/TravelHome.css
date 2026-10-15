@@ -150,3 +150,8 @@
   .travel-results-page .travel-results-grid { grid-template-columns: 1fr; }
   .travel-home .travel-section-head h2 { font-size: 18px; }
 }
+
+.travel-home .travel-search-state,
+.travel-home .travel-search-error,
+.travel-home .travel-no-results { margin: 0 0 14px; padding: 14px 16px; border: 1px solid var(--travel-line); border-radius: 10px; color: var(--travel-muted); background: #fbfcfd; font-size: 12px; }
+.travel-home .travel-search-error { border-color: #f0d4d4; color: #9a4545; background: #fffafa; }

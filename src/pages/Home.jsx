@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { examplePlaces } from "./data/travelExamples.js";
 import { openPlaceDetail } from "./data/placeNavigation.js";
@@ -39,7 +39,7 @@ function PlaceCard({ place, index, showRank = false, detailType = "team" }) {
         <span className="travel-card-copy">
           <span className="travel-card-region">{place.region}</span>
           <span className="travel-card-title">{place.name}</span>
-          <span className="travel-card-description">{place.reason}</span>
+          <span className="travel-card-description">{place.recommendationReason || place.reason}</span>
           <span className="travel-card-tags">{place.tags.map((tag) => <span key={tag}>{tag}</span>)}</span>
         </span>
       </button>
@@ -70,6 +70,35 @@ function TrendChart() {
 }
 
 export default function Home() {
+  const [recommendationState, setRecommendationState] = useState({ status: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/recommendations", { credentials: "include", signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error?.message || "여행지 목록을 불러오지 못했습니다.");
+        setRecommendationState({ status: "success", data: payload });
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") setRecommendationState({ status: "error", message: error.message });
+      });
+    return () => controller.abort();
+  }, []);
+
+  const recommendation = recommendationState.status === "success" ? recommendationState.data : null;
+  const recommendationNote = recommendation?.dataSource === "example"
+    ? "화면 확인용 예시 데이터이며 개인화 결과가 아닙니다."
+    : recommendation?.personalized
+      ? "최근 30일 검색 취향을 반영한 목록입니다. 이 브라우저 기준이며 회원 인증과는 무관합니다."
+      : recommendation?.personalization?.basis === "browser"
+        ? recommendation.personalization.reason === "history_unavailable"
+          ? "이 브라우저의 검색 이력을 읽을 수 없어 일반 목록을 표시합니다."
+          : recommendation.personalization.reason === "no_history"
+            ? "이 브라우저에 최근 검색 이력이 없어 일반 목록을 표시합니다."
+            : "최근 검색 이력과 맞는 후보가 없어 일반 목록을 표시합니다."
+        : "일반 여행지 목록입니다. 개인 맞춤 결과가 아닙니다.";
+
   return (
     <main className="travel-home">
       <section className="travel-hero">
@@ -86,8 +115,11 @@ export default function Home() {
         </div>
       </section>
       <section className="travel-section travel-personal">
-        <div className="travel-section-head"><div><h2>추천 여행지</h2><p>화면 확인용 예시 데이터이며 개인화 추천은 아직 연결되지 않았습니다.</p></div></div>
-        <div className="travel-personal-grid">{examplePlaces.slice(1).map((place, index) => <PlaceCard key={place.id} place={place} index={index} />)}</div>
+        <div className="travel-section-head"><div><h2>내 취향에 맞는 여행지</h2><p>{recommendationNote}</p></div>{recommendation?.personalized && <span className="travel-data-badge">브라우저 기준</span>}</div>
+        {recommendationState.status === "loading" && <p className="travel-search-state" role="status">여행지를 불러오는 중입니다.</p>}
+        {recommendationState.status === "error" && <p className="travel-search-error" role="status">{recommendationState.message}</p>}
+        {recommendationState.status === "success" && recommendation.items.length === 0 && <p className="travel-no-results">표시할 여행지가 없습니다.</p>}
+        {recommendationState.status === "success" && recommendation.items.length > 0 && <div className="travel-personal-grid">{recommendation.items.map((place, index) => <PlaceCard key={`${place.sourceCode || recommendation.dataSource}:${place.sourcePlaceId || place.id}`} place={{ ...place, recommendationReason: place.recommendationReason || (recommendation.personalized ? "일반 목록 · 최근 검색 취향 점수 없음" : "일반 여행지 목록") }} index={index} />)}</div>}
       </section>
     </main>
   );

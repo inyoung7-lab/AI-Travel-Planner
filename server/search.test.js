@@ -7,8 +7,9 @@ import {
   validateSearchInput,
 } from "./search.js";
 import { createTravelPlaceRepository } from "./repositories/travelPlaceRepository.js";
+import { createHomeRecommendationsHandler } from "./recommendations/handlers.js";
 
-function invokeHandler(handler, body) {
+function invokeHandler(handler, body, extraRequest = {}) {
   const response = {
     statusCode: 200,
     payload: null,
@@ -21,7 +22,7 @@ function invokeHandler(handler, body) {
       return this;
     },
   };
-  return handler({ body }, response).then(() => response);
+  return handler({ body, ...extraRequest }, response).then(() => response);
 }
 
 test("parses region, type, and theme from the existing Korean query format", () => {
@@ -213,4 +214,63 @@ test("reports storage failure without turning a successful search into a failed 
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.payload.history, { saved: false, reason: "save_failed" });
+});
+
+test("ranks browser search history before applying the return limit and saves only after ranking", async () => {
+  const places = [
+    { id: "tourapi:sea", sourceCode: "KTO_TOURAPI", sourcePlaceId: "sea", regionCode: "부산", type: "관광지", contentTypeId: "12", tags: ["바다"], name: "부산 바다", region: "부산" },
+    { id: "tourapi:mountain", sourceCode: "KTO_TOURAPI", sourcePlaceId: "mountain", regionCode: "부산", type: "관광지", contentTypeId: "12", tags: ["산"], name: "부산 산", region: "부산" },
+  ];
+  const events = [];
+  const repository = { dataSource: "tourapi", async listPlaces() { return { places, matchCountComplete: true }; } };
+  const historyRepository = {
+    scope: "browser",
+    async listRecentConditions({ browserId }) {
+      events.push("read");
+      assert.equal(browserId, "server-cookie-browser");
+      return [{ conditions: { regions: ["부산"], types: [], themes: ["산"] }, searchedAt: new Date() }];
+    },
+    async recordSearch(record) {
+      events.push("write");
+      this.record = record;
+      return { saved: true, searchId: "mock" };
+    },
+  };
+  const response = await invokeHandler(
+    createSearchHandler(repository, { historyRepository }),
+    { query: "부산", limit: 1, userId: "forged-user", actorKey: "forged-actor" },
+    { browserId: "server-cookie-browser" },
+  );
+
+  assert.equal(response.payload.matchedCount, 2);
+  assert.deepEqual(response.payload.items.map(({ sourcePlaceId }) => sourcePlaceId), ["mountain"]);
+  assert.equal(response.payload.personalized, true);
+  assert.deepEqual(response.payload.personalization, { applied: true, basis: "browser", reason: "applied" });
+  assert.deepEqual(events, ["read", "write"]);
+  assert.equal(historyRepository.record.browserId, "server-cookie-browser");
+  assert.equal("actorKey" in historyRepository.record, false);
+});
+
+test("home recommendations use browser history and example cards remain clearly non-personalized", async () => {
+  const places = [
+    { id: "1", sourceCode: "KTO_TOURAPI", sourcePlaceId: "one", contentTypeId: "12", sourceCategoryCodes: { cat1: "A01" }, regionCode: "부산", type: "관광지", tags: ["바다"], name: "부산 바다", region: "부산" },
+    { id: "2", sourceCode: "KTO_TOURAPI", sourcePlaceId: "two", contentTypeId: "12", sourceCategoryCodes: { cat1: "A01" }, regionCode: "제주", type: "관광지", tags: ["산"], name: "제주 산", region: "제주" },
+    { id: "3", sourceCode: "KTO_TOURAPI", sourcePlaceId: "pharmacy", contentTypeId: "38", sourceCategoryCodes: { cat1: "A04" }, regionCode: "제주", type: "", tags: ["산"], name: "가까운약국", region: "제주" },
+  ];
+  const repository = { dataSource: "tourapi", async listPlaces() { return { places, matchCountComplete: true }; } };
+  const historyRepository = { scope: "browser", async listRecentConditions({ browserId }) {
+    assert.equal(browserId, "browser-for-home");
+    return [{ conditions: { regions: ["제주"], types: [], themes: ["산"] }, searchedAt: new Date() }];
+  } };
+  const personalized = await invokeHandler(createHomeRecommendationsHandler(repository, { historyRepository }), {}, { browserId: "browser-for-home" });
+  assert.equal(personalized.payload.personalization.applied, true);
+  assert.equal(personalized.payload.personalization.basis, "browser");
+  assert.equal(personalized.payload.items[0].sourcePlaceId, "two");
+  assert.equal(personalized.payload.candidateCount, 2);
+  assert.ok(personalized.payload.items.every((place) => place.sourcePlaceId !== "pharmacy"));
+
+  const examples = await invokeHandler(createHomeRecommendationsHandler(createTravelPlaceRepository({ mode: "example" }), { historyRepository }), {}, { browserId: "browser-for-home" });
+  assert.equal(examples.payload.dataSource, "example");
+  assert.equal(examples.payload.personalized, false);
+  assert.deepEqual(examples.payload.personalization, { applied: false, basis: "none", reason: "example_data" });
 });

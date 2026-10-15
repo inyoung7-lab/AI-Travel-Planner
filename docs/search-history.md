@@ -24,3 +24,28 @@
 `server/recommendations/recentSearchRecommendations.js`에는 최근 30×24시간 조건 빈도 계산, 현재 조건을 통과한 후보의 순위 조정 및 이력 공급자 주입 인터페이스가 있다. Oracle 조회는 요청된 비NULL `ACTOR_KEY`와 `searched_at` 경계(시작 시각 포함, 현재 시각 포함)를 모두 바인드해 개인별 행만 읽는다. SQL에서도 `actor_key IS NOT NULL`을 명시한다. 익명 행을 제외하고 지역·유형·테마 빈도만 순위에 더하며, 현재 검색의 필수 조건은 그대로 유지한다.
 
 현재 서버에 검증된 인증 미들웨어가 없으므로 이 추천 함수와 Oracle 이력 조회는 실제 `/api/search`에 연결되지 않았다. 함수 동작은 사용자별 모의 이력으로만 테스트했고, 운영 요청에는 모의 이력을 넣지 않는다. 저장소의 정상 commit, 결과 INSERT 실패 시 rollback, 성공한 0건 검색 저장, 검색 실패/부분 건수/예시 데이터의 저장 건너뜀, 최근 30일 경계·사용자 분리·익명 제외·순위는 주입한 모의 연결/이력으로 테스트한다. 이 검증은 Oracle 연결이나 SQL 실행 검증이 아니다. SQL은 DB 담당자가 `01_main_search_create.sql`을 실행해 객체를 만들기 전에는 실제 조회할 수 없다. LLM은 범위에 포함되지 않는다.
+
+## JSON browser-history implementation
+
+`TRAVEL_SEARCH_HISTORY_STORE=json` (the default) uses `server/data/search-history.json`, outside `public` and excluded by `/server/data/` in `.gitignore`. Its version 1 structure is `{ "version": 1, "searches": [...] }`. Each row stores a random search ID, server-issued browser ID, query, parsed conditions, ISO 8601 search timestamp, matched and returned counts, and returned source/source-place IDs. Writes are serialized within the server process and use a temporary file followed by rename. Missing files are initialized; corrupt JSON or an unsupported/malformed structure raises an error and is never replaced with an empty file.
+
+`/api/search` reads the browser's recent 30-day history before ranking and writes the current successful search after ranking. The current search cannot score itself. Ranking runs on all candidates that passed current mandatory filters before the response limit is applied. `/api/recommendations` uses the same flow for the home preference section. Empty history or a read failure returns ordinary ordering and reports `personalized: false`; the response separately reports whether the basis is `browser`. Example catalog cards remain labeled as examples and non-personalized. Trending cards and their interest graph remain example data.
+
+The server issues an HttpOnly, SameSite=Lax signed `travel_browser_id` cookie. The identifier is a random opaque browser key and is not member authentication. The signing secret is generated under ignored `server/data/browser-cookie-secret`; deployments can configure `TRAVEL_BROWSER_COOKIE_SECRET` (at least 32 bytes) and must share it across API instances. Clearing the cookie or switching browsers starts a separate history. Request-body `userId` and `actorKey` are ignored.
+
+`TRAVEL_SEARCH_HISTORY_STORE=oracle` selects the existing Oracle adapter, but browser IDs are never written to Oracle `ACTOR_KEY`. Member-scoped Oracle reads require server-verified authentication and a mapping confirmed against the actual `MEMBER` DDL. Oracle access and SQL execution were not performed. Temporary-directory tests cover JSON persistence, restart reads, browser separation, concurrent writes, corruption protection, and recommendation behavior.
+
+LLM recommendation and actual popularity statistics remain future work.
+## Browser-cookie key stability and manual flow check
+
+For local development, if `TRAVEL_BROWSER_COOKIE_SECRET` is blank, the server creates `server/data/browser-cookie-secret` once using exclusive file creation and reuses that file at every restart. It does not generate a new key when the file already exists. Keep `server/data/` persistent and do not delete or replace this key; doing so invalidates existing signed cookies. In production, `TRAVEL_BROWSER_COOKIE_SECRET` is required and must be a stable random value of at least 32 bytes supplied through the server environment or secret manager. Every API instance must use the same value. The application never logs or returns the secret.
+
+Manual browser check (requires a valid TourAPI server configuration; do not use the example catalog because it intentionally does not save example searches):
+
+1. Set `TRAVEL_SEARCH_DATA_SOURCE=tourapi` and `TRAVEL_SEARCH_HISTORY_STORE=json` in the server environment, start the API with `npm run server`, and start Vite with `npm run dev`.
+2. Open `http://localhost:5173/`. The home page calls `/api/recommendations`, which issues an HttpOnly `travel_browser_id` cookie. In browser developer tools, confirm that cookie exists; its value is not needed for the check.
+3. Search for a query that returns places, for example `부산 바다`. The first search should normally report no prior personalization in the API response (`personalized: false`, browser basis) and, after a successful complete search, `history.saved: true`. Search results UI says the list is general when no earlier matching history exists.
+4. Return to the home page. If a prior 30-day condition matches fields confirmed on fetched candidates, the home section says the list reflects recent search preferences and identifies the basis as this browser. Otherwise it shows the general-list message. This does not imply member login or national popularity.
+5. Restart the API without clearing browser data or `server/data/browser-cookie-secret`, reload the same browser, and repeat. The cookie should remain valid and prior JSON history should still be used. A separate browser profile should receive a different cookie and start without the first browser's history.
+
+The automated temporary-directory tests validate key reuse across loader invocations, cookie signature verification, JSON persistence after repository re-creation, separate browser histories, and recommendation fallback. They are mock/local tests, not an actual browser or TourAPI verification. No real browser check was performed for this change.

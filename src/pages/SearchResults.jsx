@@ -15,6 +15,7 @@ export default function SearchResults() {
 
     fetch("/api/search", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, limit: 8 }),
       signal: controller.signal,
@@ -87,7 +88,17 @@ export default function SearchResults() {
             <p className="travel-result-count">
               {data.matchCountComplete === false ? "조회 범위 내 조건 일치" : "조건 일치"} {data.matchedCount}곳 · 응답 결과 {data.returnedCount}곳
             </p>
-            {data.items.length > 0 ? (
+            <p className="travel-search-state">
+              {data.personalization?.applied
+                ? "최근 30일 검색 취향을 반영했습니다. 이 브라우저 기준이며 회원 인증과는 무관합니다."
+                : data.personalization?.basis === "browser"
+                  ? data.personalization.reason === "history_unavailable"
+                    ? "이 브라우저의 검색 이력을 읽을 수 없어 일반 순서로 표시합니다."
+                    : data.personalization.reason === "no_history"
+                      ? "이 브라우저에 최근 검색 이력이 없어 일반 순서로 표시합니다."
+                      : "최근 검색 이력과 맞는 후보가 없어 일반 순서로 표시합니다."
+                  : "개인화되지 않은 일반 검색 결과입니다."}
+            </p>            {data.items.length > 0 ? (
               <div className="travel-results-grid">
                 {data.items.map((place, index) => (
                   <div className="travel-result-item" key={`${place.id ?? place.sourcePlaceId ?? place.name}-${index}`}>

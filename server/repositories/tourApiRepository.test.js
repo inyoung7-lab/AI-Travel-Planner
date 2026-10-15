@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createTourApiRepository } from "./tourApiRepository.js";
 import { createSearchHandler } from "../search.js";
 import { filterTravelPlaces, parseTravelQuery } from "../../shared/travelSearch.js";
+import { rankCandidatesWithRecentSearches } from "../recommendations/recentSearchRecommendations.js";
 
 function apiResponse(items, totalCount = items.length, resultCode = "0000") {
   return new Response(JSON.stringify({ response: {
@@ -18,7 +19,7 @@ test("sends separate source filters and keeps exact source evidence", async () =
     fetchImpl: async (url) => {
       requestedUrls.push(new URL(url));
       return apiResponse([
-        { contentid: "src-1", contenttypeid: "32", areacode: "36", title: "Geoje \uBC14\uB2E4 \uD39C\uC158", addr1: "\uACBD\uB0A8 Geoje", firstimage: "https://img.example/1.jpg", cat3: "\uD39C\uC158" },
+        { contentid: "src-1", contenttypeid: "32", areacode: "36", title: "Geoje \uBC14\uB2E4 \uD39C\uC158", addr1: "\uACBD\uB0A8 Geoje", firstimage: "https://img.example/1.jpg", cat1: "B02", cat2: "B0201", cat3: "B02010500" },
         { contentid: "src-2", contenttypeid: "32", areacode: "38", title: "Yeosu \uBC14\uB2E4 \uD39C\uC158", addr1: "\uC804\uB0A8 Yeosu", cat3: "\uD39C\uC158" },
         { contentid: "src-3", contenttypeid: "32", areacode: "36", title: "Geoje \uBC14\uB2E4 Hotel", addr1: "\uACBD\uB0A8 Geoje", cat3: "Hotel" },
       ]);
@@ -37,6 +38,7 @@ test("sends separate source filters and keeps exact source evidence", async () =
   assert.equal(exact[0].sourcePlaceId, "src-1");
   assert.equal(exact[0].id, "tourapi:src-1");
   assert.equal(exact[0].photoSource, "\uD55C\uAD6D\uAD00\uAD11\uACF5\uC0AC TourAPI");
+  assert.deepEqual(exact[0].sourceCategoryCodes, { cat1: "B02", cat2: "B0201", cat3: "B02010500", lclsSystm1: "", lclsSystm2: "", lclsSystm3: "" });
   assert.equal(exact[0].reason, "\uC7A5\uC18C\uBA85\uC5D0 ‘\uBC14\uB2E4’ \uD3EC\uD568");
   assert.equal(result.places.find((place) => place.sourcePlaceId === "src-2").regionCode, "\uC804\uB0A8");
 });
@@ -62,6 +64,35 @@ test("treats 숙박 and 숙소 as TourAPI accommodation content type 32", async 
     assert.equal(requestUrls.at(-1).searchParams.get("contentTypeId"), "32");
     assert.deepEqual(filterTravelPlaces(result.places, filters).map((place) => place.sourcePlaceId), ["stay-1"]);
   }
+});
+
+test("matches 부산 search history against a 부산 TourAPI candidate using canonical region and theme fields", async () => {
+  const now = new Date("2026-10-15T12:00:00.000Z");
+  const repository = createTourApiRepository({
+    serviceKey: "test-key", mobileApp: "AI-Travel-Planner-test",
+    fetchImpl: async () => apiResponse([
+      { contentid: "busan-sea-1", contenttypeid: "12", areacode: "6", title: "\uBD80\uC0B0 \uBC14\uB2E4 \uC0B0\uCC45\uB85C", addr1: "\uBD80\uC0B0\uAD11\uC5ED\uC2DC \uD574\uC6B4\uB300\uAD6C" },
+    ]),
+  });
+  const { places } = await repository.listPlaces({ filters: { regions: [], types: [], themes: [], keywords: [] } });
+  const ranked = rankCandidatesWithRecentSearches({
+    candidates: places,
+    currentConditions: { regions: [], types: [], themes: [], keywords: [] },
+    historyRecords: [{
+      conditions: { regions: ["\uBD80\uC0B0"], types: [], themes: ["\uBC14\uB2E4"] },
+      searchedAt: now,
+    }],
+    now,
+  });
+
+  assert.equal(places[0].regionCode, "\uBD80\uC0B0");
+  assert.equal(places[0].region, "\uBD80\uC0B0\uAD11\uC5ED\uC2DC \uD574\uC6B4\uB300\uAD6C");
+  assert.equal(ranked.personalized, true);
+  assert.equal(ranked.items[0].personalizationScore, 2);
+  assert.deepEqual(ranked.items[0].personalizationReasons, [
+    "\uCD5C\uADFC \uAC80\uC0C9\uD55C \uBD80\uC0B0 \uC9C0\uC5ED\uACFC \uC77C\uCE58",
+    "\uCD5C\uADFC \uAC80\uC0C9\uD55C \uBC14\uB2E4 \uD14C\uB9C8\uC640 \uC77C\uCE58",
+  ]);
 });
 
 test("keeps missing photos empty and marks page-capped counts incomplete", async () => {

@@ -1,4 +1,5 @@
 import { filterTravelPlaces } from "../../shared/travelSearch.js";
+import { normalizeTravelRegion } from "../../shared/travelRegions.js";
 
 export const RECENT_SEARCH_WINDOW_DAYS = 30;
 const WINDOW_MS = RECENT_SEARCH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -46,7 +47,10 @@ export function countRecentSearchPreferences(records, { now = new Date() } = {})
     const hasRecognizedConditions = [conditions.regions, conditions.types, conditions.themes]
       .some((values) => Array.isArray(values) && values.some((value) => typeof value === "string" && value.trim()));
     if (!hasRecognizedConditions) continue;
-    addCounts(frequencies.regions, conditions.regions);
+    for (const region of conditions.regions || []) {
+      const canonicalRegion = normalizeTravelRegion(region);
+      if (canonicalRegion) frequencies.regions[canonicalRegion] = (frequencies.regions[canonicalRegion] || 0) + 1;
+    }
     addCounts(frequencies.types, conditions.types);
     addCounts(frequencies.themes, conditions.themes);
     validHistoryCount += 1;
@@ -63,13 +67,26 @@ function matchesPreferenceType(place, preferredType) {
   return place.type === preferredType;
 }
 
-function getPreferenceScore(place, frequencies) {
-  let score = frequencies.regions[place.regionCode] || 0;
+function getPreferenceContribution(place, frequencies) {
+  const reasons = [];
+  const candidateRegion = normalizeTravelRegion(place.regionCode) || normalizeTravelRegion(place.region);
+  const regionScore = candidateRegion ? frequencies.regions[candidateRegion] || 0 : 0;
+  let score = regionScore;
+  if (regionScore > 0) reasons.push(`최근 검색한 ${candidateRegion} 지역과 일치`);
   for (const [type, count] of Object.entries(frequencies.types)) {
-    if (matchesPreferenceType(place, type)) score += count;
+    if (matchesPreferenceType(place, type)) {
+      score += count;
+      reasons.push(`최근 검색한 ${type} 유형과 일치`);
+    }
   }
-  for (const theme of place.tags || []) score += frequencies.themes[theme] || 0;
-  return score;
+  for (const theme of place.tags || []) {
+    const count = frequencies.themes[theme] || 0;
+    if (count > 0) {
+      score += count;
+      reasons.push(`최근 검색한 ${theme} 테마와 일치`);
+    }
+  }
+  return { score, reasons };
 }
 
 /**
@@ -89,13 +106,18 @@ export function rankCandidatesWithRecentSearches({
     return { items: eligible.slice(0, limit), personalized: false, frequencies };
   }
 
-  const scored = eligible.map((place, index) => ({ place, index, score: getPreferenceScore(place, frequencies) }));
+  const scored = eligible.map((place, index) => ({ place, index, ...getPreferenceContribution(place, frequencies) }));
   if (!scored.some(({ score }) => score > 0)) {
     return { items: eligible.slice(0, limit), personalized: false, frequencies };
   }
   scored.sort((a, b) => b.score - a.score || a.index - b.index);
   return {
-    items: scored.slice(0, limit).map(({ place }) => place),
+    items: scored.slice(0, limit).map(({ place, reasons, score }) => ({
+      ...place,
+      recommendationReason: reasons.length ? reasons.join(" · ") : "일반 목록 · 최근 검색 취향 점수 없음",
+      personalizationReasons: reasons,
+      personalizationScore: score,
+    })),
     personalized: true,
     frequencies,
   };
@@ -120,4 +142,36 @@ export async function recommendForVerifiedActor({
     return { items: ordinary, personalized: false };
   }
   return rankCandidatesWithRecentSearches({ candidates, currentConditions, historyRecords, limit, now });
+}
+
+export async function recommendForBrowser({
+  browserId,
+  historyRepository,
+  candidates,
+  currentConditions,
+  limit,
+  now = new Date(),
+}) {
+  const eligible = filterTravelPlaces(candidates || [], currentConditions);
+  const ordinary = eligible.slice(0, limit);
+  if (typeof browserId !== "string" || !historyRepository?.listRecentConditions) {
+    return { items: ordinary, personalized: false, personalizationBasis: "none", personalizationReason: "unavailable" };
+  }
+  try {
+    const historyRecords = await historyRepository.listRecentConditions({ browserId, at: now });
+    const result = rankCandidatesWithRecentSearches({
+      candidates: eligible,
+      currentConditions,
+      historyRecords,
+      limit,
+      now,
+    });
+    return {
+      ...result,
+      personalizationBasis: "browser",
+      personalizationReason: result.personalized ? "applied" : historyRecords.length ? "no_matching_history_signal" : "no_history",
+    };
+  } catch {
+    return { items: ordinary, personalized: false, personalizationBasis: "browser", personalizationReason: "history_unavailable" };
+  }
 }
