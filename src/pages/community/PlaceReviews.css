@@ -209,3 +209,7 @@
 .cml-mapx .cml-adr{font-size:13px;color:var(--muted)}
 .cml-stars{display:inline-flex;gap:2px}
 .cml-rvs{margin-top:10px!important}
+
+/* sumin-bottom-pad */
+.cmh-root,.mt-root,.cmp-root,.cmq-root,.cml-root{padding-bottom:96px}
+.cmh-rail{position:static;align-self:start}
