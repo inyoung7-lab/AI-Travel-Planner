@@ -296,3 +296,21 @@ export async function createPost(body) {
   if (!r.ok) throw new Error(d.message || "등록하지 못했어요.");
   return d;
 }
+
+// 내 글 삭제 (실패하면 Error)
+export async function deletePost(postId, userId) {
+  let r;
+  try {
+    r = await fetch(`${API}/api/community/posts/${postId}/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+  } catch {
+    throw new Error("서버에 연결할 수 없어요.");
+  }
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || "삭제하지 못했어요.");
+  }
+}

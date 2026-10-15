@@ -37,6 +37,7 @@ const regionOf = (id) => {
   return t.startsWith("제주") ? "제주" : t;
 };
 
+const soon = () => alert("일정 만들기·보기는 AI 여행 일정 화면과 연결할 예정이에요.");
 const ddayLabel = (t) => (t.dday > 0 ? `D-${t.dday}` : t.dday === 0 ? "D-DAY" : "여행 중");
 
 export default function MyTrip() {
@@ -148,7 +149,7 @@ export default function MyTrip() {
               ))}
             </div>
             <span className="mt-sp"></span>
-            <span className="mt-btn mt-co"><PlusIco /> 새 일정 만들기</span>
+            <span className="mt-btn mt-co" style={{ cursor: "pointer" }} onClick={soon}><PlusIco /> 새 일정 만들기</span>
           </div>
 
           {showHero && (
@@ -178,8 +179,8 @@ export default function MyTrip() {
                   ))}
                 </div>
                 <div className="mt-nb">
-                  <span className="mt-btn mt-co">일정 보기</span>
-                  <span className="mt-btn mt-nv">일정 수정</span>
+                  <span className="mt-btn mt-co" style={{ cursor: "pointer" }} onClick={soon}>일정 보기</span>
+                  <span className="mt-btn mt-nv" style={{ cursor: "pointer" }} onClick={soon}>일정 수정</span>
                 </div>
               </div>
             </article>

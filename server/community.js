@@ -615,6 +615,37 @@ router.get("/hot-places", async (req, res) => {
   }
 });
 
+// 내 글 삭제 — POST /api/community/posts/:id/delete  { userId }
+router.post("/posts/:id/delete", async (req, res) => {
+  const id = Number(req.params.id);
+  const userId = String(req.body?.userId ?? "").trim();
+  if (!Number.isInteger(id)) return res.status(404).json({ message: "글을 찾을 수 없어요." });
+  if (!userId) return res.status(401).json({ message: "로그인이 필요해요." });
+  let connection;
+  try {
+    connection = await getConnection();
+    const opt = { outFormat: oracledb.OUT_FORMAT_OBJECT };
+    const r = await connection.execute("SELECT user_id FROM COMM_POST WHERE post_id = :id", { id }, opt);
+    if (r.rows.length === 0) return res.status(404).json({ message: "글을 찾을 수 없어요." });
+    if (r.rows[0].USER_ID !== userId) return res.status(403).json({ message: "내가 쓴 글만 삭제할 수 있어요." });
+    const q = (sql) => connection.execute(sql, { id });
+    // 연결된 데이터를 먼저 지워요 (DB에 자동 삭제 설정이 없어요)
+    await q("DELETE FROM COMM_COMMENT_LIKE WHERE comment_id IN (SELECT comment_id FROM COMM_COMMENT WHERE post_id = :id)");
+    await q("DELETE FROM COMM_COMMENT WHERE post_id = :id");
+    await q("DELETE FROM COMM_POST_LIKE WHERE post_id = :id");
+    await q("DELETE FROM COMM_POST_PLACE WHERE post_id = :id");
+    await q("DELETE FROM COMM_POST_IMAGE WHERE post_id = :id");
+    await q("DELETE FROM COMM_POST WHERE post_id = :id");
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[community] 글 삭제 오류:", err.message);
+    res.status(500).json({ message: "글을 삭제하지 못했어요." });
+  } finally {
+    if (connection) { try { await connection.close(); } catch (e) { console.error(e.message); } }
+  }
+});
+
 // 저장된 장소 검색 — GET /api/community/place-search?q=
 router.get("/place-search", async (req, res) => {
   const q = String(req.query.q ?? "").trim();

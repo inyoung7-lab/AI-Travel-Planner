@@ -4,6 +4,7 @@ import "./QuestionDetail.css";
 import { Pin, Thumb, Chat, Check, ChevDown, ChevRight } from "./Icons.jsx";
 import { loadPost, getUser, postComment, sendLike } from "./data/api.js";
 import CommentBox from "./CommentBox.jsx";
+import DeleteButton from "./DeleteButton.jsx";
 
 export default function QuestionDetail() {
   const { id } = useParams();
@@ -57,7 +58,8 @@ export default function QuestionDetail() {
     return (
       <div className="cmq-root">
         <div className="cmq-wrap">
-          <p style={{ padding: "80px 0", textAlign: "center" }}>글을 찾을 수 없어요.</p>
+          <p style={{ padding: "80px 0", textAlign: "center" }}>글을 찾을 수 없어요. (삭제되었을 수 있어요)</p>
+          <p style={{ textAlign: "center" }}><Link to="/community" style={{ color: "#E8695A", fontWeight: 700 }}>커뮤니티로 돌아가기</Link></p>
         </div>
       </div>
     );
@@ -92,13 +94,14 @@ export default function QuestionDetail() {
               ))}
               <div className="cmq-rvf">
                 <span onClick={() => toggleLike("post", post.id)} style={likeStyle(post.liked)}><Thumb /> {post.likes}</span>
-                <span><Chat /> 저장</span>
+                <span><Chat /> {list.length}</span>
+                <DeleteButton post={post} />
               </div>
             </article>
 
             <div className="cmq-ah">
               <div className="cmq-h2">답변 {list.length}개</div>
-              <span className="cmq-pl3 cmq-sortc">추천순 <ChevDown /></span>
+              
             </div>
             <CommentBox prefix="cmq" placeholder="답변을 남겨보세요." onSubmit={submitAnswer} />
             <div className="cmq-rvl">

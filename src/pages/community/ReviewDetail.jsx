@@ -5,9 +5,11 @@ import { Thumb, Chat, ChevDown, ChevRight, Heart, ImageIcon } from "./Icons.jsx"
 import { places, GRADIENTS } from "./data/mockPosts.js";
 import { loadPost, getUser, postComment, sendLike, toggleWish } from "./data/api.js";
 import CommentBox from "./CommentBox.jsx";
+import DeleteButton from "./DeleteButton.jsx";
 
 export default function ReviewDetail() {
   const { id } = useParams();
+  const [showAll, setShowAll] = useState(false);
   const [data, setData] = useState(undefined); // undefined = 불러오는 중, null = 글 없음
   const counted = useRef(null);
   const navigate = useNavigate();
@@ -80,7 +82,8 @@ export default function ReviewDetail() {
     return (
       <div className="cmp-root">
         <div className="cmp-wrap">
-          <p style={{ padding: "80px 0", textAlign: "center" }}>글을 찾을 수 없어요.</p>
+          <p style={{ padding: "80px 0", textAlign: "center" }}>글을 찾을 수 없어요. (삭제되었을 수 있어요)</p>
+          <p style={{ textAlign: "center" }}><Link to="/community" style={{ color: "#E8695A", fontWeight: 700 }}>커뮤니티로 돌아가기</Link></p>
         </div>
       </div>
     );
@@ -154,16 +157,17 @@ export default function ReviewDetail() {
               <div className="cmp-rvf">
                 <span onClick={() => toggleLike("post", post.id)} style={likeStyle(post.liked)}><Thumb /> {post.likes}</span>
                 <span onClick={share} style={{ cursor: "pointer" }}>공유</span>
+                <DeleteButton post={post} />
               </div>
             </article>
 
             <div className="cmp-ah">
               <div className="cmp-h2">댓글 {post.comments}</div>
-              <span className="cmp-pl3 cmp-sortc">최신순 <ChevDown /></span>
+              
             </div>
             <CommentBox prefix="cmp" placeholder="댓글을 남겨보세요." onSubmit={submitComment} />
             <div className="cmp-rvl">
-              {comments.map((c, ci) => (
+              {(showAll ? comments : comments.slice(0, 5)).map((c, ci) => (
                 <article className="cmp-an" key={ci}>
                   <div className="cmp-rvh">
                     <span className="cmp-av">{c.name[0]}</span>
@@ -189,9 +193,11 @@ export default function ReviewDetail() {
                 </article>
               ))}
             </div>
-            <div style={{ display: "flex", justifyContent: "center", marginTop: "24px" }}>
-              <span className="cmp-btn cmp-nv">댓글 더보기 <ChevDown /></span>
-            </div>
+            {!showAll && comments.length > 5 && (
+              <div style={{ display: "flex", justifyContent: "center", marginTop: "24px" }}>
+                <span className="cmp-btn cmp-nv" style={{ cursor: "pointer" }} onClick={() => setShowAll(true)}>댓글 더보기 ({comments.length - 5}) <ChevDown /></span>
+              </div>
+            )}
           </section>
 
           <aside>
