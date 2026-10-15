@@ -36,3 +36,7 @@
 .cmw-opt:hover{background:#FAF7EF}
 .cmw-opt span{color:var(--muted);font-size:13px}
 .cmw-none{padding:14px;color:var(--muted);font-size:14px}
+.cmw-trow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cmw-trow .cmw-stars{align-items:center;gap:2px}
+.cmw-star.cmw-sm{font-size:22px}
+.cmw-trow small{margin-left:8px;color:var(--muted);font-size:13px}

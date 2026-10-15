@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import "./CommunityHome.css";
 import { Pin, Thumb, Chat, Check, ImageIcon } from "./Icons.jsx";
 import { posts as mockPosts, places, waitingQuestions, hotPlaces as mockHot, GRADIENTS } from "./data/mockPosts.js";
-import { loadPostList, loadHot } from "./data/api.js";
+import { loadPostList, loadHot, placeDetailPath } from "./data/api.js";
 import Pager from "./Pager.jsx";
 import SortMenu from "./SortMenu.jsx";
 
@@ -19,7 +19,6 @@ function linkOf(p) {
   if (p.type === "review") return `/community/reviews/${p.id}`;
   if (p.type === "question") return `/community/questions/${p.id}`;
   if (p.type === "talk") return `/community/talks/${p.id}`;
-  if (p.type === "place") return `/community/place-reviews/${p.id}`;
   return null;
 }
 
@@ -68,7 +67,7 @@ function HotPlaces({ items }) {
           <div className="cmh-hxt">{curPlace.name}</div>
           <div className="cmh-hxm">이번 달 리뷰 <b>{cur.count}</b></div>
         </div>
-        <Link className="cmh-hxbtn" to={`/community/places/${cur.placeId}/reviews`}>
+        <Link className="cmh-hxbtn" to={placeDetailPath(cur.placeId)}>
           리뷰 보기
         </Link>
       </article>
@@ -130,10 +129,10 @@ function PostCard({ p }) {
               p.placeIds.map((id) => (
                 <span className="cmh-pchip" key={id}>
                   <Pin /> {places[id]?.name ?? `여행지 ${id}`}
-                  {p.type === "place" && p.rating && (
+                  {p.placeRatings?.[id] && (
                     <>
                       <span className="cmh-dv"></span>
-                      <span className="cmh-rt5">★ {p.rating.toFixed(1)}</span>
+                      <span className="cmh-rt5">★ {Number(p.placeRatings[id]).toFixed(1)}</span>
                     </>
                   )}
                 </span>
@@ -186,8 +185,6 @@ const API = "http://localhost:3000";
 const CATS = [
   { key: "all", label: "전체", n: "total" },
   { key: "review", label: "리뷰", n: "review" },
-  { key: "trip", label: "여행 리뷰", n: "trip", sub: true },
-  { key: "place", label: "장소 리뷰", n: "place", sub: true },
   { key: "question", label: "질문", n: "question" },
   { key: "talk", label: "소통", n: "talk" },
 ];
@@ -263,9 +260,9 @@ export default function CommunityHome() {
           /></div></div><div className="cmh-wrap"><section className="cmh-hot"><div className="cmh-ph2"><div className="cmh-h2">이번 달 가장 많이 리뷰된 여행지</div><span className="cmh-sub">유저들이 직접 다녀와서 리뷰를 남긴 곳 · 순위별로 자동으로 바뀌어요</span></div>{hot && hot.length > 0 && <HotPlaces items={hot} />}</section>
 <div className="cmh-board"><aside className="cmh-rail"><div className="cmh-rl"><div className="cmh-rtt">카테고리</div>
 {CATS.map((c) => (
-  <div key={c.key} className={"cmh-ni" + (c.sub ? " cmh-sub" : "") + (c.key === "review" ? " cmh-open" : "") + (cat === c.key ? " cmh-on" : "")} onClick={() => setCat(c.key)} style={{ cursor: "pointer" }}>
+  <div key={c.key} className={"cmh-ni" + (c.sub ? " cmh-sub" : "") + (cat === c.key ? " cmh-on" : "")} onClick={() => setCat(c.key)} style={{ cursor: "pointer" }}>
     <span>{c.label}</span>
-    <em>{fmt(counts && counts[c.n])}{c.key === "review" && (<> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg></>)}</em>
+    <em>{fmt(counts && counts[c.n])}</em>
   </div>
 ))}
 </div><div className="cmh-rl"><div className="cmh-rtt">지역</div>

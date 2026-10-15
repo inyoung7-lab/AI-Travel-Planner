@@ -3,6 +3,9 @@ import { posts, profiles, reviewDetails, questionDetails, places as placeTable, 
 
 const API = "http://localhost:3000";
 
+// 장소 상세 페이지 주소 — 장소 페이지를 만드는 팀원 화면의 주소로 바꾸면 모든 연결이 한 번에 바뀌어요
+export const placeDetailPath = (id) => `/places/${id}`;
+
 // ── 장소 이름·주소 (DB의 COMM_PLACE) ──
 // 화면들은 예시 장소표(placeTable)에서 이름을 찾아요. DB에만 있는 장소는 여기서 채워 넣어요.
 const ID_KEYS = new Set(["placeId", "placeIds", "wishedPlaceIds", "wishes"]);

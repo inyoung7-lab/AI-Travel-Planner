@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./MyTrip.css";
 import { places, placeInfo, GRADIENTS } from "../community/data/mockPosts.js";
-import { toggleWish } from "../community/data/api.js";
+import { toggleWish, placeDetailPath } from "../community/data/api.js";
 import { getUser, loadOverview, fmtDate, fmtShort } from "./api.js";
 import AddToTripModal from "./AddToTripModal.jsx";
 
@@ -232,7 +232,7 @@ export default function MyTrip() {
                     </span>
                   </div>
                   <div className="mt-sb">
-                    <Link to={`/community/places/${pid}/reviews`} className="mt-sn" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                    <Link to={placeDetailPath(pid)} className="mt-sn" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                       {nameOf(pid)}
                     </Link>
                     {regionOf(pid) && <div className="mt-sr"><PinIco /> {regionOf(pid)}</div>}

@@ -13,9 +13,24 @@ const GRADIENTS = [
 ];
 
 function typeOf(category, sub) {
-  if (category === "리뷰") return sub === "장소 리뷰" ? "place" : "review";
+  if (category === "리뷰") return "review"; // 장소 리뷰와 여행 리뷰를 하나로 합쳤어요
   if (category === "질문") return "question";
   return "talk";
+}
+
+// 장소별 별점 칸(COMM_POST_PLACE.rating)이 있는지 확인해요 (node server/setup-places.js 가 만들어요)
+let ppRatingOk = false;
+async function hasPpRating(connection) {
+  if (ppRatingOk) return true;
+  try {
+    const r = await connection.execute(
+      "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE table_name = 'COMM_POST_PLACE' AND column_name = 'RATING'"
+    );
+    ppRatingOk = r.rows[0][0] > 0;
+  } catch {
+    ppRatingOk = false;
+  }
+  return ppRatingOk;
 }
 
 function timeAgo(date) {
@@ -87,17 +102,22 @@ router.get("/posts", async (req, res) => {
 
     const ids = main.rows.map((r) => r.POST_ID);
     const placeMap = {};
+    const ratingMap = {};
     const imgMap = {};
     const topMap = {};
 
     if (ids.length > 0) {
       const binds = ids.map((_, i) => `:${i + 1}`).join(",");
 
+      const withRating = await hasPpRating(connection);
       const pl = await connection.execute(
-        `SELECT post_id, place_id FROM COMM_POST_PLACE WHERE post_id IN (${binds}) ORDER BY pp_id`,
+        `SELECT post_id, place_id, ${withRating ? "rating" : "NULL AS rating"} FROM COMM_POST_PLACE WHERE post_id IN (${binds}) ORDER BY pp_id`,
         ids, opt
       );
-      pl.rows.forEach((r) => (placeMap[r.POST_ID] ||= []).push(r.PLACE_ID));
+      pl.rows.forEach((r) => {
+        (placeMap[r.POST_ID] ||= []).push(r.PLACE_ID);
+        if (r.RATING) (ratingMap[r.POST_ID] ||= {})[r.PLACE_ID] = Number(r.RATING);
+      });
 
       const im = await connection.execute(
         `SELECT post_id, COUNT(*) AS cnt FROM COMM_POST_IMAGE WHERE post_id IN (${binds}) GROUP BY post_id`,
@@ -131,7 +151,10 @@ router.get("/posts", async (req, res) => {
       };
       if (r.REGION) post.region = r.REGION;
       if (placeMap[r.POST_ID]) post.placeIds = placeMap[r.POST_ID];
-      if (type === "place" && r.RATING) post.rating = Number(r.RATING);
+      // 장소별 별점 (예전 글은 글 하나에 매긴 별점을 그 장소 별점으로 보여줘요)
+      const pr = { ...(ratingMap[r.POST_ID] ?? {}) };
+      if (r.RATING && placeMap[r.POST_ID]?.length === 1 && !pr[placeMap[r.POST_ID][0]]) pr[placeMap[r.POST_ID][0]] = Number(r.RATING);
+      if (Object.keys(pr).length) post.placeRatings = pr;
       if (type === "question") {
         post.answers = r.ANS;
         if (topMap[r.POST_ID]) post.topAnswer = { label: "인기 답변", text: topMap[r.POST_ID] };
@@ -162,12 +185,17 @@ router.post("/posts", async (req, res) => {
   const title = String(b.title ?? "").trim();
   const content = String(b.content ?? "").trim();
   const region = String(b.region ?? "").trim();
-  const rating = b.rating == null || b.rating === "" ? null : Number(b.rating);
   const placeIds = [...new Set((Array.isArray(b.placeIds) ? b.placeIds : []).map(Number))].filter(Number.isInteger);
+  // 장소별 별점 (선택): { "장소번호": 1~5 }
+  const placeRatings = {};
+  for (const [k, v] of Object.entries(b.placeRatings && typeof b.placeRatings === "object" ? b.placeRatings : {})) {
+    const n = Number(v);
+    if (placeIds.includes(Number(k)) && Number.isInteger(n) && n >= 1 && n <= 5) placeRatings[Number(k)] = n;
+  }
 
   const KINDS = {
     trip: { category: "리뷰", sub: "여행 리뷰" },
-    place: { category: "리뷰", sub: "장소 리뷰" },
+    place: { category: "리뷰", sub: "여행 리뷰" }, // 장소 리뷰는 여행 리뷰로 합쳤어요
     question: { category: "질문", sub: null },
     talk: { category: "소통", sub: null },
   };
@@ -180,11 +208,7 @@ router.post("/posts", async (req, res) => {
   if (!content) return res.status(400).json({ message: "내용을 입력해 주세요." });
   if (Buffer.byteLength(content, "utf8") > 3900) return res.status(400).json({ message: "내용이 너무 길어요. (약 1,200자까지)" });
   if (region.length > 20) return res.status(400).json({ message: "지역 이름이 너무 길어요." });
-  if (kind === "place") {
-    if (placeIds.length !== 1) return res.status(400).json({ message: "여행지를 1곳 선택해 주세요." });
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return res.status(400).json({ message: "별점을 선택해 주세요." });
-  }
-  if (kind === "trip" && (placeIds.length < 1 || placeIds.length > 10)) {
+  if ((kind === "trip" || kind === "place") && (placeIds.length < 1 || placeIds.length > 10)) {
     return res.status(400).json({ message: "다녀온 여행지를 1~10곳 선택해 주세요." });
   }
 
@@ -198,23 +222,28 @@ router.post("/posts", async (req, res) => {
     if (mem.rows[0].CNT === 0) return res.status(401).json({ message: "회원 정보를 찾을 수 없어요. 다시 로그인해 주세요." });
 
     const ins = await connection.execute(
-      `INSERT INTO COMM_POST (user_id, category, sub_category, title, content, region, rating)
-       VALUES (:u, :category, :sub, :title, :content, :region, :rating)
+      `INSERT INTO COMM_POST (user_id, category, sub_category, title, content, region)
+       VALUES (:u, :category, :sub, :title, :content, :region)
        RETURNING post_id INTO :newId`,
       {
         u: userId, category: K.category, sub: K.sub, title, content,
         region: region || null,
-        rating: kind === "place" ? rating : null,
         newId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
       }
     );
     const newId = ins.outBinds.newId[0];
 
     {
+      const withRating = await hasPpRating(connection);
       for (const pid of placeIds.slice(0, 10)) {
-        await connection.execute(
-          "INSERT INTO COMM_POST_PLACE (post_id, place_id) VALUES (:id, :pid)", { id: newId, pid }
-        );
+        if (withRating) {
+          await connection.execute(
+            "INSERT INTO COMM_POST_PLACE (post_id, place_id, rating) VALUES (:id, :pid, :rt)",
+            { id: newId, pid, rt: placeRatings[pid] ?? null }
+          );
+        } else {
+          await connection.execute("INSERT INTO COMM_POST_PLACE (post_id, place_id) VALUES (:id, :pid)", { id: newId, pid });
+        }
       }
     }
     await connection.commit();
@@ -262,12 +291,16 @@ router.get("/posts/:id", async (req, res) => {
     const type = typeOf(r.CATEGORY, r.SUB_CATEGORY);
 
     // 여행지
+    const withRating = await hasPpRating(connection);
     const pl = await connection.execute(
-      "SELECT place_id FROM COMM_POST_PLACE WHERE post_id = :id ORDER BY pp_id",
+      `SELECT place_id, ${withRating ? "rating" : "NULL AS rating"} FROM COMM_POST_PLACE WHERE post_id = :id ORDER BY pp_id`,
       { id },
       opt
     );
     const placeIds = pl.rows.map((x) => x.PLACE_ID);
+    const placeRatings = {};
+    pl.rows.forEach((x) => { if (x.RATING) placeRatings[x.PLACE_ID] = Number(x.RATING); });
+    if (r.RATING && placeIds.length === 1 && !placeRatings[placeIds[0]]) placeRatings[placeIds[0]] = Number(r.RATING);
 
     // 여행지별 리뷰 개수
     const placeReviews = {};
@@ -444,6 +477,7 @@ router.get("/posts/:id", async (req, res) => {
       views: r.VIEW_COUNT,
       comments: cm.rows.length,
       placeIds,
+      placeRatings,
     };
     if (r.REGION) post.region = r.REGION;
     if (type === "question") post.answers = parents.length;
@@ -737,8 +771,10 @@ router.get("/places/:placeId", async (req, res) => {
       ? "ORDER BY p.created_at DESC"
       : "ORDER BY p.like_count DESC, p.created_at DESC";
 
+    const withRating = await hasPpRating(connection);
     const rv = await connection.execute(
-      `SELECT p.post_id, p.category, p.sub_category, p.content, p.rating, p.like_count, p.created_at,
+      `SELECT p.post_id, p.category, p.sub_category, p.content,
+              COALESCE(${withRating ? "pp.rating, " : ""}p.rating) AS rating, p.like_count, p.created_at,
               COALESCE(m.user_name, p.user_id) AS user_name,
               (SELECT COUNT(*) FROM COMM_POST_IMAGE i WHERE i.post_id = p.post_id) AS photos
          FROM COMM_POST p

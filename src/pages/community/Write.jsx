@@ -5,7 +5,7 @@ import { places } from "./data/mockPosts.js";
 import { getUser, createPost, searchLocalPlaces, searchOpenPlaces, savePlace, regionFromAddr } from "./data/api.js";
 
 const KINDS = [
-  { key: "trip", param: "review", label: "여행 리뷰", hint: "다녀온 여행을 후기로 남겨요. 다녀온 장소를 1곳 이상 태그해 주세요." },
+  { key: "trip", param: "review", label: "여행 리뷰", hint: "다녀온 여행이나 장소를 후기로 남겨요. 장소를 1곳 이상 태그하고, 장소마다 별점을 남길 수도 있어요." },
   { key: "question", param: "question", label: "질문", hint: "여행 준비 중 궁금한 걸 물어보세요. 관련 장소를 태그하면 더 잘 찾아져요." },
   { key: "talk", param: "talk", label: "소통", hint: "여행 이야기를 자유롭게 나눠요. 장소 태그는 선택이에요." },
 ];
@@ -33,6 +33,7 @@ export default function Write() {
   const [tags, setTags] = useState(
     initPlace && places[initPlace] ? [{ id: initPlace, name: places[initPlace].name, addr: places[initPlace].addr, region: regionFromAddr(places[initPlace].addr) }] : []
   );
+  const [ratings, setRatings] = useState({}); // 장소별 별점 (선택)
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]); // 검색 결과
   const [searching, setSearching] = useState(false);
@@ -114,6 +115,7 @@ export default function Write() {
         content: body.trim(),
         region: regions[0] || undefined,
         placeIds: tags.map((t) => t.id),
+        placeRatings: kind === "trip" ? Object.fromEntries(tags.filter((t) => ratings[t.id]).map((t) => [t.id, ratings[t.id]])) : undefined,
       });
       const to =
         kind === "trip" ? `/community/reviews/${r.id}`
@@ -152,12 +154,28 @@ export default function Write() {
           <div className="cmw-f">
             <div className="cmw-l">장소 태그 <small>{kind === "trip" ? "필수" : "선택"} · {tags.length}/{MAX_TAGS}</small></div>
             {tags.length > 0 && (
-              <div className="cmw-chips" style={{ marginBottom: "10px" }}>
+              <div style={{ display: "grid", gap: "8px", marginBottom: "10px" }}>
                 {tags.map((t) => (
-                  <span className="cmw-tag" key={t.id}>
-                    <b>{t.name}</b><i>{t.addr}</i>
-                    <button type="button" aria-label="태그 삭제" onClick={() => setTags(tags.filter((x) => x.id !== t.id))}>×</button>
-                  </span>
+                  <div className="cmw-trow" key={t.id}>
+                    <span className="cmw-tag">
+                      <b>{t.name}</b><i>{t.addr}</i>
+                      <button type="button" aria-label="태그 삭제" onClick={() => setTags(tags.filter((x) => x.id !== t.id))}>×</button>
+                    </span>
+                    {kind === "trip" && (
+                      <span className="cmw-stars" title="별점 (선택) — 같은 별을 한 번 더 누르면 취소돼요">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            type="button"
+                            key={n}
+                            className={"cmw-star cmw-sm" + (n <= (ratings[t.id] ?? 0) ? " cmw-on" : "")}
+                            onClick={() => setRatings({ ...ratings, [t.id]: ratings[t.id] === n ? 0 : n })}
+                            aria-label={`${n}점`}
+                          >★</button>
+                        ))}
+                        <small>{ratings[t.id] ? `${ratings[t.id]}점` : "별점 선택"}</small>
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

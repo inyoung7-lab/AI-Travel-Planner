@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import "./ReviewDetail.css";
 import { Thumb, Chat, ChevDown, ChevRight, Heart, ImageIcon } from "./Icons.jsx";
 import { places, GRADIENTS } from "./data/mockPosts.js";
-import { loadPost, getUser, postComment, sendLike, toggleWish } from "./data/api.js";
+import { loadPost, getUser, postComment, sendLike, toggleWish, placeDetailPath } from "./data/api.js";
 import CommentBox from "./CommentBox.jsx";
 import DeleteButton from "./DeleteButton.jsx";
 
@@ -97,7 +97,7 @@ export default function ReviewDetail() {
     <div className="cmp-root">
       <div className="cmp-wrap">
         <div className="cmp-crumb">
-          <Link to="/community" style={{ color: "inherit", textDecoration: "none" }}>커뮤니티</Link> <ChevRight /> 리뷰 <ChevRight /> <b>여행 리뷰</b>
+          <Link to="/community" style={{ color: "inherit", textDecoration: "none" }}>커뮤니티</Link> <ChevRight /> <b>여행 리뷰</b>
         </div>
         <div className="cmp-main2">
           <section>
@@ -123,7 +123,7 @@ export default function ReviewDetail() {
                     <div className="cmp-mth2" style={{ background: pl.bg }}><ImageIcon size={22} /></div>
                     <div className="cmp-pc3t">
                       <b>{pl.name}</b>
-                      <span>{pl.addr ? `${pl.addr} · ` : ""}리뷰 {pl.reviews}</span>
+                      <span>{pl.addr ? `${pl.addr} · ` : ""}리뷰 {pl.reviews}{data.post.placeRatings?.[pid] ? ` · ★ ${Number(data.post.placeRatings[pid]).toFixed(1)}` : ""}</span>
                     </div>
                     <span
                       className="cmp-btn cmp-nv cmp-sm"
@@ -132,8 +132,8 @@ export default function ReviewDetail() {
                     >
                       <Heart filled={(data.wishedPlaceIds ?? []).includes(pid)} /> 찜
                     </span>
-                    <Link className="cmp-btn cmp-ol cmp-sm" to={`/community/places/${pid}/reviews`}>
-                      이 여행지 리뷰 보기
+                    <Link className="cmp-btn cmp-ol cmp-sm" to={placeDetailPath(pid)}>
+                      이 여행지 보기
                     </Link>
                   </div>
                 );

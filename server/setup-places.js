@@ -22,6 +22,14 @@ try {
     if (e.message.includes("ORA-00955")) console.log("이미 있어요: COMM_PLACE");
     else throw e;
   }
+  // 글에 태그한 장소마다 남기는 별점(선택) 칸
+  try {
+    await c.execute("ALTER TABLE COMM_POST_PLACE ADD (rating NUMBER(1))");
+    console.log("✅ 장소별 별점 칸을 추가했어요: COMM_POST_PLACE.rating");
+  } catch (e) {
+    if (e.message.includes("ORA-01430")) console.log("이미 있어요: COMM_POST_PLACE.rating");
+    else throw e;
+  }
   const samples = [
     [1, "제주 애월", "제주특별자치도 제주시 애월읍", "제주"],
     [2, "제주 협재해변", "제주특별자치도 제주시 한림읍 협재리", "제주"],
