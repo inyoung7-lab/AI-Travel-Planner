@@ -5,6 +5,7 @@ import { Thumb, ChevRight, Heart, ImageIcon, Star, Plus, Pencil } from "./Icons.
 import { places, placeInfo, placeReviews as mockPlaceReviews, GRADIENTS } from "./data/mockPosts.js";
 import { loadPlace, getUser, toggleWish } from "./data/api.js";
 import SortMenu from "./SortMenu.jsx";
+import Pager from "./Pager.jsx";
 import AddToTripModal from "../mytrip/AddToTripModal.jsx";
 
 export default function PlaceReviews() {
@@ -13,6 +14,7 @@ export default function PlaceReviews() {
   const placeId = params.placeId ?? params.id;
   const navigate = useNavigate();
   const [sort, setSort] = useState("recommend");
+  const [page, setPage] = useState(1);
   const [adding, setAdding] = useState(false);
   const [data, setData] = useState(undefined); // undefined = 불러오는 중
 
@@ -32,6 +34,7 @@ export default function PlaceReviews() {
       alive = false;
     };
   }, [placeId, sort]);
+  useEffect(() => setPage(1), [placeId, sort]);
 
   async function wish() {
     const user = getUser();
@@ -51,12 +54,13 @@ export default function PlaceReviews() {
   if (data === undefined) return <div className="cml-root"><div className="cml-wrap" /></div>;
 
   const known = places[placeId];
-  const reviews = data.reviews;
+  const allReviews = data.reviews;
+  const reviews = allReviews.slice((page - 1) * 10, page * 10);
   // 이름은 예시 여행지 표에서 찾고, 없으면 번호로 보여줘요 (팀 PLACE 테이블이 정해지면 교체)
   const place = known ?? { name: `여행지 ${placeId}`, bg: GRADIENTS[Number(placeId) % GRADIENTS.length] };
   const info = placeInfo[placeId] ?? { tags: [], address: "" };
 
-  if (!known && reviews.length === 0) {
+  if (!known && allReviews.length === 0) {
     return (
       <div className="cml-root">
         <div className="cml-wrap">
@@ -151,9 +155,7 @@ export default function PlaceReviews() {
               ))}
             </div>
 
-            <div className="cml-pgn">
-              <span>‹</span><span className="cml-on">1</span><span>2</span><span>3</span><span>›</span>
-            </div>
+            <Pager prefix="cml" page={page} total={allReviews.length} size={10} onChange={setPage} />
           </section>
         </div>
       </div>

@@ -13,6 +13,7 @@ import QuestionDetail from "./pages/community/QuestionDetail.jsx";
 import PlaceReviews from "./pages/community/PlaceReviews.jsx";
 import Write from "./pages/community/Write.jsx";
 import TalkDetail from "./pages/community/TalkDetail.jsx";
+import PlaceReviewDetail from "./pages/community/PlaceReviewDetail.jsx";
 import MyTrip from "./pages/mytrip/MyTrip.jsx";
 
 function Home() {
@@ -35,6 +36,7 @@ function App() {
         <Route path="/community" element={<CommunityHome />} />
         <Route path="/community/write" element={<Write />} />
         <Route path="/community/talks/:id" element={<TalkDetail />} />
+        <Route path="/community/place-reviews/:id" element={<PlaceReviewDetail />} />
         <Route path="/community/reviews/:id" element={<ReviewDetail />} />
         <Route path="/community/questions/:id" element={<QuestionDetail />} />
         <Route path="/community/places/:id/reviews" element={<PlaceReviews />} />

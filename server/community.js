@@ -67,7 +67,7 @@ router.get("/posts", async (req, res) => {
     const orderSql = req.query.sort === "recommend"
       ? "ORDER BY p.like_count DESC, p.created_at DESC"
       : "ORDER BY p.created_at DESC";
-    const lim = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const lim = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 200);
 
     const main = await connection.execute(
       `SELECT p.post_id, p.category, p.sub_category, p.title,
@@ -612,6 +612,83 @@ router.get("/hot-places", async (req, res) => {
     if (connection) {
       try { await connection.close(); } catch (e) { console.error(e.message); }
     }
+  }
+});
+
+// 저장된 장소 검색 — GET /api/community/place-search?q=
+router.get("/place-search", async (req, res) => {
+  const q = String(req.query.q ?? "").trim();
+  if (!q) return res.json([]);
+  let connection;
+  try {
+    connection = await getConnection();
+    const r = await connection.execute(
+      `SELECT place_id, name, address, region FROM COMM_PLACE
+       WHERE INSTR(name, :q) > 0 OR INSTR(address, :q) > 0
+       FETCH FIRST 8 ROWS ONLY`,
+      { q }, { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(r.rows.map((x) => ({ id: x.PLACE_ID, name: x.NAME, addr: x.ADDRESS ?? "", region: x.REGION ?? "" })));
+  } catch (err) {
+    console.error("[community] 장소 검색 오류:", err.message);
+    res.json([]);
+  } finally {
+    if (connection) { try { await connection.close(); } catch (e) { console.error(e.message); } }
+  }
+});
+
+// 장소 번호로 이름·주소 가져오기 — GET /api/community/places-by-ids?ids=1,2,1001
+router.get("/places-by-ids", async (req, res) => {
+  const ids = [...new Set(String(req.query.ids ?? "").split(",").map(Number))].filter(Number.isInteger).slice(0, 100);
+  if (ids.length === 0) return res.json({});
+  let connection;
+  try {
+    connection = await getConnection();
+    const binds = {};
+    ids.forEach((v, i) => (binds["p" + i] = v));
+    const r = await connection.execute(
+      `SELECT place_id, name, address, region FROM COMM_PLACE WHERE place_id IN (${ids.map((_, i) => ":p" + i).join(",")})`,
+      binds, { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const out = {};
+    for (const x of r.rows) out[x.PLACE_ID] = { name: x.NAME, addr: x.ADDRESS ?? "", region: x.REGION ?? "" };
+    res.json(out);
+  } catch (err) {
+    console.error("[community] 장소 조회 오류:", err.message);
+    res.json({});
+  } finally {
+    if (connection) { try { await connection.close(); } catch (e) { console.error(e.message); } }
+  }
+});
+
+// 검색에서 고른 장소를 저장(이미 있으면 그 번호 돌려줌) — POST /api/community/places
+router.post("/places", async (req, res) => {
+  const b = req.body ?? {};
+  const name = String(b.name ?? "").trim().slice(0, 200);
+  const addr = String(b.addr ?? "").trim().slice(0, 300);
+  const region = String(b.region ?? "").trim().slice(0, 20);
+  const extKey = String(b.extKey ?? "").trim().slice(0, 100);
+  const lat = Number.isFinite(Number(b.lat)) ? Number(b.lat) : null;
+  const lng = Number.isFinite(Number(b.lng)) ? Number(b.lng) : null;
+  if (!name || !extKey) return res.status(400).json({ message: "장소 정보가 올바르지 않아요." });
+  let connection;
+  try {
+    connection = await getConnection();
+    const opt = { outFormat: oracledb.OUT_FORMAT_OBJECT };
+    const found = await connection.execute("SELECT place_id FROM COMM_PLACE WHERE ext_key = :k", { k: extKey }, opt);
+    if (found.rows.length > 0) return res.json({ placeId: found.rows[0].PLACE_ID });
+    const ins = await connection.execute(
+      `INSERT INTO COMM_PLACE (name, address, region, lat, lng, ext_key)
+       VALUES (:name, :addr, :region, :lat, :lng, :k) RETURNING place_id INTO :newId`,
+      { name, addr, region: region || null, lat, lng, k: extKey, newId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT } }
+    );
+    await connection.commit();
+    res.json({ placeId: ins.outBinds.newId[0] });
+  } catch (err) {
+    console.error("[community] 장소 저장 오류:", err.message);
+    res.status(500).json({ message: "장소를 저장하지 못했어요. (node server/setup-places.js 를 실행했는지 확인해 주세요)" });
+  } finally {
+    if (connection) { try { await connection.close(); } catch (e) { console.error(e.message); } }
   }
 });
 

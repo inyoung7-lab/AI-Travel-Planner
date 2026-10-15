@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import "./Write.css";
 import { places } from "./data/mockPosts.js";
-import { getUser, createPost } from "./data/api.js";
+import { getUser, createPost, searchLocalPlaces, searchOpenPlaces, savePlace, regionFromAddr } from "./data/api.js";
 
 const KINDS = [
   { key: "trip", param: "review", label: "여행 리뷰", hint: "다녀온 여행을 후기로 남겨요. 다녀온 장소를 1곳 이상 태그해 주세요." },
@@ -12,18 +12,12 @@ const KINDS = [
 const MAX_BODY = 1200; // 서버는 4000바이트(한글 약 1,300자)까지만 받아요
 const MAX_TAGS = 10;
 
-// 장소 검색 — 지금은 예시 장소표(mockPosts)에서 찾아요. 팀 장소 테이블이 정해지면 이 함수만 서버 검색으로 바꾸면 돼요.
-function searchPlaces(q) {
+// 서버가 꺼져 있을 때만 쓰는 예시 장소 검색
+function searchMock(q) {
   const k = q.trim().replace(/\s+/g, "");
-  if (!k) return [];
   return Object.entries(places)
-    .map(([id, p]) => ({ id: Number(id), name: p.name, addr: p.addr }))
+    .map(([id, p]) => ({ id: Number(id), name: p.name, addr: p.addr, region: regionFromAddr(p.addr) }))
     .filter((p) => (p.name + p.addr).replace(/\s+/g, "").includes(k));
-}
-// 주소 맨 앞 단어로 지역을 정해요 (제주특별자치도 → 제주)
-function regionOfAddr(addr) {
-  const t = (addr || "").split(" ")[0];
-  return t.startsWith("제주") ? "제주" : t.replace(/(특별시|광역시|특별자치시|특별자치도|도)$/, "");
 }
 
 export default function Write() {
@@ -37,11 +31,38 @@ export default function Write() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tags, setTags] = useState(
-    initPlace && places[initPlace] ? [{ id: initPlace, name: places[initPlace].name, addr: places[initPlace].addr }] : []
+    initPlace && places[initPlace] ? [{ id: initPlace, name: places[initPlace].name, addr: places[initPlace].addr, region: regionFromAddr(places[initPlace].addr) }] : []
   );
   const [q, setQ] = useState("");
+  const [results, setResults] = useState([]); // 검색 결과
+  const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  // 검색어를 멈추면 0.4초 뒤에 검색해요: 저장된 장소 → 무료 주소 검색
+  useEffect(() => {
+    const k = q.trim();
+    if (!k) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    let alive = true;
+    const timer = setTimeout(async () => {
+      const [local, open] = await Promise.all([searchLocalPlaces(k), searchOpenPlaces(k)]);
+      if (!alive) return;
+      const base = local ?? searchMock(k);
+      const seen = new Set(base.map((x) => x.name + "|" + x.addr));
+      const extra = open.filter((x) => !seen.has(x.name + "|" + x.addr));
+      setResults([...base, ...extra]);
+      setSearching(false);
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [q]);
 
   if (!user) {
     return (
@@ -58,14 +79,25 @@ export default function Write() {
   }
 
   const cur = KINDS.find((k) => k.key === kind);
-  const results = searchPlaces(q).filter((r) => !tags.some((t) => t.id === r.id));
-  const regions = [...new Set(tags.map((t) => regionOfAddr(t.addr)).filter(Boolean))];
+  const shown = results.filter((r) => !tags.some((t) => (r.id && t.id === r.id) || (t.extKey && t.extKey === r.extKey)));
+  const regions = [...new Set(tags.map((t) => t.region || regionFromAddr(t.addr)).filter(Boolean))];
 
-  function addTag(r) {
-    if (tags.length >= MAX_TAGS) return setErr(`장소는 ${MAX_TAGS}곳까지 태그할 수 있어요.`);
-    setTags([...tags, r]);
-    setQ("");
+  function pickKind(k) {
+    setKind(k);
     setErr("");
+  }
+
+  async function addTag(r) {
+    if (tags.length >= MAX_TAGS) return setErr(`장소는 ${MAX_TAGS}곳까지 태그할 수 있어요.`);
+    setErr("");
+    try {
+      // 검색(무료 주소 API)에서 고른 장소는 DB에 저장하고 번호를 받아요
+      const id = r.id ?? (await savePlace(r));
+      setTags((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { ...r, id }]));
+      setQ("");
+    } catch (e) {
+      setErr(e.message);
+    }
   }
 
   async function submit() {
@@ -134,14 +166,15 @@ export default function Write() {
                 className="cmw-in"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (results[0]) addTag(results[0]); } }}
-                placeholder="장소 이름이나 주소를 검색해 태그하세요 (예: 애월, 여수)"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (shown[0]) addTag(shown[0]); } }}
+                placeholder="장소 이름이나 주소를 검색해 태그하세요 (예: 애월 카페, 성산일출봉)"
               />
               {q.trim() && (
                 <div className="cmw-dd">
-                  {results.length === 0 && <div className="cmw-none">검색 결과가 없어요.</div>}
-                  {results.map((r) => (
-                    <button type="button" className="cmw-opt" key={r.id} onClick={() => addTag(r)}>
+                  {searching && shown.length === 0 && <div className="cmw-none">검색 중…</div>}
+                  {!searching && shown.length === 0 && <div className="cmw-none">검색 결과가 없어요. 다른 이름이나 주소로 검색해 보세요.</div>}
+                  {shown.map((r) => (
+                    <button type="button" className="cmw-opt" key={r.id ?? r.extKey} onClick={() => addTag(r)}>
                       <b>{r.name}</b><span>{r.addr}</span>
                     </button>
                   ))}

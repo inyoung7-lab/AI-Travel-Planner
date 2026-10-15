@@ -205,7 +205,13 @@ export default function ReviewDetail() {
                 </div>
               </div>
               <div className="cmp-pfst">
-                <div><b>{profile.reviews}</b><span>리뷰</span></div>
+                {post.authorId ? (
+                  <Link to={`/community?author=${encodeURIComponent(post.authorId)}&name=${encodeURIComponent(post.author)}`} style={{ textDecoration: "none", color: "inherit", cursor: "pointer", textAlign: "center", display: "block" }} title={`${post.author}의 글 모아보기`}>
+                    <b>{profile.reviews}</b><span>리뷰 ›</span>
+                  </Link>
+                ) : (
+                  <div><b>{profile.reviews}</b><span>리뷰</span></div>
+                )}
                 <div><b>{profile.trips}</b><span>다녀온 여행지</span></div>
                 <div><b>{profile.likes}</b><span><Thumb /></span></div>
               </div>
@@ -217,16 +223,7 @@ export default function ReviewDetail() {
                 </div>
               </div>
               )}
-              <div className="cmp-pfb">
-                {post.authorId ? (
-                  <Link className="cmp-p1" style={{ textDecoration: "none" }} to={`/community?author=${encodeURIComponent(post.authorId)}&name=${encodeURIComponent(post.author)}`}>
-                    {post.author}의 리뷰 모아보기
-                  </Link>
-                ) : (
-                  <span className="cmp-p1">{post.author}의 리뷰 모아보기</span>
-                )}
-                <span className="cmp-p2">다녀온 여행 보기</span>
-              </div>
+              
             </div>
 
             <div className="cmp-card cmp-sd" style={{ marginTop: "16px" }}>

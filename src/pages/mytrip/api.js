@@ -1,4 +1,5 @@
 // 나의 여행 데이터를 서버(DB)에서 가져와요.
+import { ensurePlaces } from "../community/data/api.js";
 const API = "http://localhost:3000";
 
 // 로그인한 회원 (팀 로그인 화면이 브라우저에 저장해 둔 정보)
@@ -23,7 +24,7 @@ export async function loadOverview(userId) {
     const d = await r.json().catch(() => ({}));
     throw new Error(d.message || "나의 여행을 불러오지 못했어요.");
   }
-  return r.json();
+  return ensurePlaces(await r.json());
 }
 
 // 여행지를 내 일정에 추가 (실패하면 Error)

@@ -4,6 +4,7 @@ import "./CommunityHome.css";
 import { Pin, Thumb, Chat, Check, ImageIcon } from "./Icons.jsx";
 import { posts as mockPosts, places, waitingQuestions, hotPlaces as mockHot, GRADIENTS } from "./data/mockPosts.js";
 import { loadPostList, loadHot } from "./data/api.js";
+import Pager from "./Pager.jsx";
 import SortMenu from "./SortMenu.jsx";
 
 const CATEGORY = {
@@ -18,7 +19,7 @@ function linkOf(p) {
   if (p.type === "review") return `/community/reviews/${p.id}`;
   if (p.type === "question") return `/community/questions/${p.id}`;
   if (p.type === "talk") return `/community/talks/${p.id}`;
-  if (p.type === "place" && p.placeIds) return `/community/places/${p.placeIds[0]}/reviews`;
+  if (p.type === "place") return `/community/place-reviews/${p.id}`;
   return null;
 }
 
@@ -201,9 +202,10 @@ const fmt = (v) => (v == null ? "" : Number(v).toLocaleString());
 export default function CommunityHome() {
   const [cat, setCat] = useState("all");
   const [region, setRegion] = useState("전체");
+  const [page, setPage] = useState(1);
   const [posts, setPosts] = useState(null); // null = 불러오는 중
   const [counts, setCounts] = useState(null);
-  const [sort, setSort] = useState("recommend");
+  const [sort, setSort] = useState("latest");
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [hot, setHot] = useState(null);
@@ -223,8 +225,11 @@ export default function CommunityHome() {
   // 글 목록: 카테고리·지역을 바꿀 때마다 DB에서 다시 가져와요 (서버가 꺼져 있으면 예시 글)
   useEffect(() => {
     let alive = true;
-    loadPostList({ category: cat, region, sort, q, author }).then((data) => {
-      if (alive) setPosts(data ?? mockPosts);
+    loadPostList({ category: cat, region, sort, q, author, limit: 200 }).then((data) => {
+      if (alive) {
+        setPosts(data ?? mockPosts);
+        setPage(1);
+      }
     });
     return () => {
       alive = false;
@@ -239,7 +244,9 @@ export default function CommunityHome() {
     );
   }, []);
 
-  const list = posts ?? [];
+  const PAGE_SIZE = 10;
+  const all = posts ?? [];
+  const list = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const searchNow = () => setQ(qInput.trim());
   const catLabel = CATS.find((c) => c.key === cat).label;
 
@@ -265,7 +272,7 @@ export default function CommunityHome() {
   <div key={r} className={"cmh-ri" + (region === r ? " cmh-on" : "")} onClick={() => setRegion(r)} style={{ cursor: "pointer" }}><i></i><span>{r}</span><em>{fmt(counts && (counts.regions[r] ?? 0))}</em></div>
 ))}
 <div className="cmh-more2">더보기 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></div></div></aside>
-<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{list.length}</b></div><SortMenu
+<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{all.length}</b></div><SortMenu
             className="cmh-pl3 cmh-sortc"
             value={sort}
             onChange={setSort}
@@ -297,7 +304,7 @@ export default function CommunityHome() {
             </Fragment>
           ))}
         </div>
-<div className="cmh-pgn"><span>‹</span><span className="cmh-on">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>›</span></div></section></div></div>
+<Pager prefix="cmh" page={page} total={all.length} size={PAGE_SIZE} onChange={(n) => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }} /></section></div></div>
     </div>
   );
 }
