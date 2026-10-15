@@ -9,6 +9,7 @@ import PlaceReviews from "./pages/community/PlaceReviews.jsx";
 import MyTrip from "./pages/mytrip/MyTrip.jsx";
 import Home from "./pages/Home.jsx";
 import SearchResults from "./pages/SearchResults.jsx";
+import TrendingPlaceDetail from "./pages/TrendingPlaceDetail.jsx";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<SearchResults />} />
+        <Route path="/trending/:id" element={<TrendingPlaceDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/community" element={<CommunityHome />} />

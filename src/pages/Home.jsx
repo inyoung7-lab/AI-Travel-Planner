@@ -21,12 +21,12 @@ function SearchBox({ initial = "" }) {
   );
 }
 
-function PlaceCard({ place, index, showRank = false }) {
+function PlaceCard({ place, index, showRank = false, detailType = "team" }) {
   const [saved, setSaved] = useState(false);
   const [detailMessage, setDetailMessage] = useState("");
   const navigate = useNavigate();
   const showDetail = () => {
-    if (!openPlaceDetail(place.id, navigate)) setDetailMessage("상세페이지 준비 중");
+    if (!openPlaceDetail(place.id, navigate, detailType)) setDetailMessage("상세페이지 준비 중");
   };
 
   return (
@@ -81,7 +81,7 @@ export default function Home() {
       <section className="travel-section travel-trending">
         <div className="travel-section-head"><div><h2>요즘 뜨는 여행지</h2><p>화면 확인을 위한 예시 데이터입니다.</p></div><span className="travel-data-badge">예시 데이터</span></div>
         <div className="travel-trending-layout">
-          <div className="travel-card-grid">{examplePlaces.slice(0, 3).map((place, index) => <PlaceCard key={place.id} place={place} index={index} showRank />)}</div>
+          <div className="travel-card-grid">{examplePlaces.slice(0, 3).map((place, index) => <PlaceCard key={place.id} place={place} index={index} showRank detailType="trending" />)}</div>
           <TrendChart />
         </div>
       </section>
