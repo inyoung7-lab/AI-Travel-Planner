@@ -188,8 +188,8 @@ const CATS = [
   { key: "question", label: "질문", n: "question" },
   { key: "talk", label: "소통", n: "talk" },
 ];
-const REGIONS = ["서울", "부산", "제주", "강원", "경기", "전남", "경북", "경남"];
-const MORE_REGIONS = ["인천", "대구", "대전", "광주", "울산", "세종", "충북", "충남", "전북"];
+// 위에서 아래로, 북쪽에서 남쪽 순서 (수도권 → 강원 → 충청 → 호남 → 영남 → 제주)
+const REGIONS = ["서울", "인천", "경기", "강원", "세종", "대전", "충북", "충남", "전북", "광주", "전남", "대구", "경북", "울산", "경남", "부산", "제주"];
 // 서버가 꺼져 있을 때만 보여주는 예시 숫자
 const FALLBACK_COUNTS = {
   total: 1284, review: 862, trip: 318, place: 544, question: 322, talk: 100,
@@ -200,7 +200,6 @@ const fmt = (v) => (v == null ? "" : Number(v).toLocaleString());
 export default function CommunityHome() {
   const [region, setRegion] = useState("전체");
   const [page, setPage] = useState(1);
-  const [moreRegions, setMoreRegions] = useState(false);
   const [posts, setPosts] = useState(null); // null = 불러오는 중
   const [counts, setCounts] = useState(null);
   const [sort, setSort] = useState("latest");
@@ -267,10 +266,10 @@ export default function CommunityHome() {
 ))}
 </div><div className="cmh-rl"><div className="cmh-rtt">지역</div>
 <div className={"cmh-ri" + (region === "전체" ? " cmh-on" : "")} onClick={() => setRegion("전체")} style={{ cursor: "pointer" }}><i></i><span>전체</span><em>{fmt(counts && counts.total)}</em></div>
-{(moreRegions ? [...REGIONS, ...MORE_REGIONS] : REGIONS).map((r) => (
+{REGIONS.map((r) => (
   <div key={r} className={"cmh-ri" + (region === r ? " cmh-on" : "")} onClick={() => setRegion(r)} style={{ cursor: "pointer" }}><i></i><span>{r}</span><em>{fmt(counts && (counts.regions[r] ?? 0))}</em></div>
 ))}
-<div className="cmh-more2" style={{ cursor: "pointer" }} onClick={() => setMoreRegions(!moreRegions)}>{moreRegions ? "접기" : "더보기"} <svg style={moreRegions ? { transform: "rotate(180deg)" } : undefined} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg></div></div></aside>
+</div></aside>
 <section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{all.length}</b></div><SortMenu
             className="cmh-pl3 cmh-sortc"
             value={sort}
