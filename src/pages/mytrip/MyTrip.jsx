@@ -122,15 +122,12 @@ export default function MyTrip() {
             <div><b>{stats.wishes}</b><span>찜한 여행지</span></div>
           </div>
           <div className="mt-pfb">
-            <span className="mt-p2" style={{ cursor: "pointer" }} onClick={() => pastRef.current?.scrollIntoView({ behavior: "smooth" })}>
-              다녀온 여행 보기
-            </span>
             <span
               className="mt-p1"
               style={{ cursor: "pointer" }}
-              onClick={() => navigate(`/community?author=${encodeURIComponent(data.user.id)}&name=${encodeURIComponent(data.user.name)}&type=review`)}
+              onClick={() => navigate(`/community?author=${encodeURIComponent(data.user.id)}&name=${encodeURIComponent(data.user.name)}`)}
             >
-              내 여행 리뷰 보기
+              내 게시글 보기
             </span>
           </div>
         </div>
