@@ -38,11 +38,12 @@ router.get("/posts", async (req, res) => {
     const main = await connection.execute(
       `SELECT p.post_id, p.category, p.sub_category, p.title,
               DBMS_LOB.SUBSTR(p.content, 150, 1) AS excerpt,
-              p.region, p.rating, p.like_count, p.created_at, m.user_name,
+              p.region, p.rating, p.like_count, p.created_at,
+              COALESCE(m.user_name, p.user_id) AS user_name,
               (SELECT COUNT(*) FROM COMM_COMMENT c WHERE c.post_id = p.post_id) AS cmt,
               (SELECT COUNT(*) FROM COMM_COMMENT c WHERE c.post_id = p.post_id AND c.parent_id IS NULL) AS ans
          FROM COMM_POST p
-         JOIN MEMBER m ON m.user_id = p.user_id
+         LEFT JOIN MEMBER m ON m.user_id = p.user_id
         ORDER BY p.created_at DESC
         FETCH FIRST 20 ROWS ONLY`,
       [],
