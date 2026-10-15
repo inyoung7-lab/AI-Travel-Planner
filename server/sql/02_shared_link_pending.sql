@@ -1,0 +1,45 @@
+-- NOT EXECUTABLE. This is a handoff checklist, not DDL.
+-- Do not invent or run PLACE/MEMBER foreign keys until their real definitions are reviewed.
+-- No CREATE/ALTER/DROP statement is intentionally included in this file.
+
+-- Dependency check result:
+-- 01_main_search_create.sql creates TRAVEL_SEARCH_LOG, TRAVEL_SEARCH_PLACE, and
+-- V_TRAVEL_DAILY_INTEREST. Its only FK is TRAVEL_SEARCH_PLACE.SEARCH_ID ->
+-- TRAVEL_SEARCH_LOG.SEARCH_ID. It does not create or reference TRAVEL_PLACE_DATA,
+-- TRAVEL_PLACE_THEME, PLACE, or MEMBER.
+--
+-- If the team chooses a separate external catalog, the eventual order is:
+--   1. Approve TRAVEL_PLACE_DATA as a separate catalog and confirm its final DDL.
+--   2. Create TRAVEL_PLACE_DATA and its PK.
+--   3. Create TRAVEL_PLACE_THEME with its FK to TRAVEL_PLACE_DATA.
+--   4. Apply 01_main_search_create.sql (independent search log/result objects).
+--   5. Only if approved and column types match, add an FK from the result identity
+--      (SOURCE_CODE, SOURCE_PLACE_ID) to the catalog PK in a separately reviewed script.
+-- If PLACE is chosen as the canonical catalog, replace steps 1-5 with a mapping/FK plan
+-- based on the actual PLACE DDL. Do not apply both catalog alternatives.
+-- The exact CREATE/ALTER statements for these unresolved links are intentionally withheld.
+
+-- 1. Obtain the existing PLACE DDL from the DB owner:
+--    * actual primary-key column name and Oracle datatype/length
+--    * unique constraints and existing external-source mapping columns, if any
+--    * whether PLACE already contains the tourism fields proposed for TRAVEL_PLACE_DATA
+--    * the exact PLACE ID consumed by the other team's detail route
+-- 2. Decide the place data ownership model:
+--    A. integrate source identifiers/fields into the existing PLACE model, or
+--    B. retain a separate TRAVEL_PLACE_DATA catalog keyed by
+--       (SOURCE_CODE VARCHAR2(40), SOURCE_PLACE_ID VARCHAR2(120)).
+-- 3. Only after that decision, prepare and review the corresponding FK/mapping DDL.
+--    The target column names and types are intentionally omitted here.
+-- 4. Obtain MEMBER DDL and the authentication contract:
+--    * actual MEMBER primary-key column and datatype
+--    * server-side authenticated principal and mapping to MEMBER
+--    * do not accept request-body userId as the actor identity
+-- 5. Decide whether ACTOR_KEY remains a server-authenticated opaque key or becomes
+--    a foreign key to MEMBER. Only then write any MEMBER FK DDL.
+
+-- Required review evidence before adding real connection SQL:
+-- PLACE DDL: [DB owner supplies]
+-- MEMBER DDL: [DB owner supplies]
+-- Detail route ID contract: [detail-page owner supplies]
+-- Catalog ownership decision: [team decision]
+-- Authenticated principal mapping: [server/auth owner supplies]
