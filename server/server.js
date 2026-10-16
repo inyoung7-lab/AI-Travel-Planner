@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
 import loginRouter from "./login.js";
+import communityRouter from "./community.js";
+import mytripRouter from "./mytrip.js";
 import { createSearchHandler } from "./search.js";
 import { createTravelPlaceRepository } from "./repositories/travelPlaceRepository.js";
 import { createSearchHistoryRepository, isOracleConnectionConfigured } from "./repositories/searchHistoryRepository.js";
@@ -45,6 +47,8 @@ app.use(cors({ origin: process.env.WEB_ORIGIN || "http://localhost:5173", creden
 app.use(express.json());
 
 app.use("/api/login", loginRouter);
+app.use("/api/community", communityRouter);
+app.use("/api/mytrip", mytripRouter);
 const placeRepository = createTravelPlaceRepository();
 app.post("/api/search", browserIdentityMiddleware, createSearchHandler(placeRepository, { historyRepository: searchHistoryRepository }));
 app.get("/api/recommendations", browserIdentityMiddleware, createHomeRecommendationsHandler(placeRepository, { historyRepository: searchHistoryRepository }));

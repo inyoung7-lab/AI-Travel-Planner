@@ -273,3 +273,7 @@
 .cmp-mo b{color:#fff;font-size:26px;font-weight:800}
 .cmp-qb{margin-top:16px!important}
 .cmp-qb:first-of-type{margin-top:20px!important}
+
+/* sumin-bottom-pad */
+.cmh-root,.mt-root,.cmp-root,.cmq-root,.cml-root{padding-bottom:96px}
+.cmh-rail{position:static;align-self:start}

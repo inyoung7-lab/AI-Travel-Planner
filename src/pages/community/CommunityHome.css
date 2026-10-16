@@ -328,3 +328,7 @@
 .cmh-hxr{cursor:pointer;transition:background .2s,border-color .2s}
 .cmh-hxr:hover{background:#FFF6F1}
 @media (prefers-reduced-motion:reduce){.cmh-hxf{animation:none}.cmh-hxp b{animation:none;width:100%}}
+
+/* sumin-bottom-pad */
+.cmh-root,.mt-root,.cmp-root,.cmq-root,.cml-root{padding-bottom:96px}
+.cmh-rail{position:static;align-self:start}

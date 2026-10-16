@@ -259,3 +259,7 @@
 .cmq-wr2{background:#FDEBE2;color:#C4412F;font-size:11px;font-weight:700;border-radius:999px;padding:0 8px;line-height:20px}
 .cmq-bth,.cmq-hsi,.cmq-thm,.cmq-mth,.cmq-mth2,.cmq-cth,.cmq-gbig,.cmq-gth div,.cmq-plc3,.cmq-bans,.cmq-rt,.cmq-rep,.cmq-wph,.cmq-phi,.cmq-rth,.cmq-mapb,.cmq-plt,.cmq-plq,.cmq-him,.cmq-wbox .cmq-wph{border-radius:16px!important}
 .cmq-wbox .cmq-wph{padding:0 16px!important;line-height:1!important;align-items:center!important;height:64px!important}
+
+/* sumin-bottom-pad */
+.cmh-root,.mt-root,.cmp-root,.cmq-root,.cml-root{padding-bottom:96px}
+.cmh-rail{position:static;align-self:start}
