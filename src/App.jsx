@@ -1,9 +1,4 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route
-} from "react-router-dom";
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
@@ -14,22 +9,18 @@ import PlaceReviews from "./pages/community/PlaceReviews.jsx";
 import Write from "./pages/community/Write.jsx";
 import TalkDetail from "./pages/community/TalkDetail.jsx";
 import MyTrip from "./pages/mytrip/MyTrip.jsx";
-
-function Home() {
-  return (
-    <main>
-      <h1>메인페이지</h1>
-    </main>
-  );
-}
+import Home from "./pages/Home.jsx";
+import SearchResults from "./pages/SearchResults.jsx";
+import TrendingPlaceDetail from "./pages/TrendingPlaceDetail.jsx";
 
 function App() {
   return (
     <BrowserRouter>
       <Header />
-
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/search" element={<SearchResults />} />
+        <Route path="/trending/:id" element={<TrendingPlaceDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/community" element={<CommunityHome />} />
