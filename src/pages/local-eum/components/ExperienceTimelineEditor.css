@@ -1,0 +1,48 @@
+.le-timeline-card { margin: 24px 0; padding: 28px 32px; border: 1px solid var(--le-line); border-radius: 20px; background: #fff; box-shadow: 0 8px 28px rgba(30,48,66,.045); }
+.le-timeline-intro { margin: 17px 0 20px; color: var(--le-muted); font-size: 13px; line-height: 1.65; }
+.le-timeline-table-wrap { overflow-x: auto; border: 1px solid var(--le-line); border-radius: 12px; }
+.le-timeline-table { width: 100%; border-collapse: collapse; text-align: left; }
+.le-timeline-table th { padding: 12px 11px; background: var(--le-cream); color: var(--le-muted); font-size: 11px; font-weight: 750; white-space: nowrap; }
+.le-timeline-table td { min-width: 92px; padding: 12px 10px; border-top: 1px solid var(--le-line); vertical-align: top; }
+.le-timeline-table td:nth-child(4) { min-width: 160px; }
+.le-timeline-table td:nth-child(5) { min-width: 220px; }
+.le-timeline-table input, .le-timeline-table textarea { display: block; width: 100%; border: 1px solid #E7E1D4; border-radius: 8px; color: var(--le-ink); font: inherit; font-size: 12px; }
+.le-timeline-table input { min-height: 38px; padding: 0 9px; }
+.le-timeline-table textarea { min-height: 54px; padding: 8px 9px; resize: vertical; line-height: 1.5; }
+.le-timeline-table input:focus, .le-timeline-table textarea:focus { outline: 2px solid rgba(232,105,90,.23); border-color: var(--le-coral); }
+.le-step-order { display: inline-flex; justify-content: center; align-items: center; width: 31px; height: 31px; border-radius: 10px; background: var(--le-peach-bg); color: #B8402F; font-size: 12px; font-weight: 800; }
+.le-step-time { display: block; color: var(--le-navy); font-size: 13px; white-space: nowrap; }
+.le-step-offset { display: block; margin-top: 5px; color: var(--le-muted); font-size: 10px; }
+.le-step-offset-input { display: flex; align-items: center; gap: 4px; margin-top: 8px; color: var(--le-muted); font-size: 10px; white-space: nowrap; }
+.le-step-offset-input input { width: 64px !important; min-height: 31px !important; padding: 0 6px !important; text-align: right; }
+.le-step-duration { display: flex; align-items: center; gap: 5px; }
+.le-step-duration input { width: 60px; text-align: right; }
+.le-step-duration span { color: var(--le-muted); font-size: 11px; }
+.le-step-title { font-weight: 700 !important; }
+.le-step-actions { display: flex; align-items: center; gap: 4px; }
+.le-step-actions button { min-width: 30px; height: 30px; border: 1px solid var(--le-line); border-radius: 7px; background: #fff; color: var(--le-navy); cursor: pointer; font-size: 12px; }
+.le-step-actions button:last-child { padding: 0 7px; color: #B8402F; }
+.le-step-actions button:disabled { opacity: .38; cursor: not-allowed; }
+.le-step-error { display: block; margin-top: 5px; color: #B8402F; font-size: 10px; line-height: 1.4; }
+.le-timeline-total { margin-top: 13px; color: var(--le-muted); font-size: 11px; text-align: right; }
+.le-timeline-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.le-timeline-footer button { min-height: 42px; padding: 0 15px; border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 750; }
+.le-timeline-footer button:disabled { opacity: .5; cursor: not-allowed; }
+.le-timeline-empty, .le-timeline-state { padding: 22px; border-radius: 12px; background: var(--le-cream); color: #4B5666; font-size: 13px; line-height: 1.6; }
+.le-timeline-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.le-timeline-empty button { min-height: 38px; padding: 0 13px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; }
+.le-timeline-error { background: #FDE4DF; color: #B8402F; }
+.le-timeline-summary-error { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 12px; }
+
+@media (max-width: 760px) {
+  .le-timeline-card { padding: 22px 18px; }
+  .le-timeline-table, .le-timeline-table tbody, .le-timeline-table tr, .le-timeline-table td { display: block; width: 100%; }
+  .le-timeline-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .le-timeline-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 13px; border-top: 1px solid var(--le-line); }
+  .le-timeline-table td { min-width: 0 !important; padding: 0; border: 0; }
+  .le-timeline-table td::before { display: block; margin-bottom: 6px; color: var(--le-muted); content: attr(data-label); font-size: 10px; font-weight: 700; }
+  .le-timeline-table td:nth-child(1) { grid-column: 1 / -1; }
+  .le-timeline-table td:nth-child(5) { grid-column: 1 / -1; }
+  .le-timeline-table td:nth-child(6) { grid-column: 1 / -1; }
+  .le-step-actions { justify-content: flex-end; }
+}
