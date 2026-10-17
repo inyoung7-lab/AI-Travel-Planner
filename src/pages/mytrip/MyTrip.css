@@ -173,3 +173,7 @@
 .mt-nx .mt-nimg{border-radius:0!important}
 .mt-fl2{display:flex;align-items:center;gap:14px}
 .mt-fcnt b{font:inherit!important;color:inherit!important;letter-spacing:inherit!important}
+
+/* sumin-bottom-pad */
+.cmh-root,.mt-root,.cmp-root,.cmq-root,.cml-root{padding-bottom:96px}
+.cmh-rail{position:static;align-self:start}

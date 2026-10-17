@@ -28,3 +28,4 @@ dist-ssr
 Wallet/
 node_modules/
 dist/
+/server/data/
