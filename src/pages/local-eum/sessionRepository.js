@@ -186,10 +186,20 @@ export async function loadHostProfile(userId) {
     throw error;
   }
   await assertHost(userId);
+  const ownHostResult = await supabase.rpc('lc_my_host_id');
+  if (ownHostResult.error?.code === 'PGRST202') {
+    throw new Error('호스트 프로필 조회 함수가 아직 배포되지 않았습니다. 운영팀에 문의해 주세요.');
+  }
+  const hostId = unwrap(ownHostResult, '내 호스트 ID를 확인하지 못했습니다.');
+  if (!hostId) {
+    const error = new Error('이 HOST 계정에 연결된 호스트 프로필이 없습니다. 운영팀에 문의해 주세요.');
+    error.code = 'HOST_PROFILE_NOT_FOUND';
+    throw error;
+  }
   const result = await supabase
     .from('lc_hosts')
-    .select('host_id,auth_user_id,display_name,bio,approval_status,is_public')
-    .eq('auth_user_id', userId)
+    .select('host_id,display_name,bio,approval_status,is_public')
+    .eq('host_id', hostId)
     .maybeSingle();
   const host = unwrap(result, '호스트 프로필을 불러오지 못했습니다.');
   if (!host) {

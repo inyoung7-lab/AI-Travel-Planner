@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { hasHostProfileChanges } from './hostProfileState.js';
 import {
   getAuthSession,
   getSupabaseSetupMessage,
@@ -26,10 +27,7 @@ export default function HostProfileEdit() {
   const userId = authSession?.user?.id;
   const current = pageState?.userId === userId ? pageState : null;
   const loading = Boolean(userId && !current);
-  const changed = Boolean(current && (
-    current.draft.displayName.trim() !== current.host.display_name.trim()
-    || current.draft.bio.trim() !== (current.host.bio || '').trim()
-  ));
+  const changed = hasHostProfileChanges(current);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return undefined;
