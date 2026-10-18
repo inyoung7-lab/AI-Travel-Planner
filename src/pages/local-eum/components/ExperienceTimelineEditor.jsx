@@ -21,6 +21,7 @@ export default function ExperienceTimelineEditor({
   startTime,
   sessionDuration,
   steps,
+  translationAvailable = false,
   onChange,
   onSave,
   changed,
@@ -42,6 +43,7 @@ export default function ExperienceTimelineEditor({
       duration_min: 15,
       title: '',
       description: '',
+      translations: {},
     }]);
   }
 
@@ -96,7 +98,33 @@ export default function ExperienceTimelineEditor({
                     </td>
                     <td data-label="소요"><label className="le-step-duration"><input aria-label={`${order}번 일정 소요 시간(분)`} type="number" min="1" max="1440" step="1" value={step.duration_min} onChange={(event) => update(index, 'duration_min', event.target.value)} /><span>분</span></label>{errors[`duration-${order}`] ? <span className="le-step-error">{errors[`duration-${order}`]}</span> : null}</td>
                     <td data-label="활동 제목"><input className="le-step-title" aria-label={`${order}번 일정 제목`} maxLength="200" value={step.title} onChange={(event) => update(index, 'title', event.target.value)} placeholder="예: 호스트와 만남" />{errors[`title-${order}`] ? <span className="le-step-error">{errors[`title-${order}`]}</span> : null}</td>
-                    <td data-label="상세 내용"><textarea aria-label={`${order}번 일정 상세 내용`} maxLength="4000" rows="2" value={step.description || ''} onChange={(event) => update(index, 'description', event.target.value)} placeholder="참가자가 알아야 할 내용을 적어 주세요." /></td>
+                    <td data-label="상세 내용">
+                      <textarea aria-label={`${order}번 일정 상세 내용`} maxLength="4000" rows="2" value={step.description || ''} onChange={(event) => update(index, 'description', event.target.value)} placeholder="참가자가 알아야 할 내용을 적어 주세요." />
+                      <details className="le-step-translations">
+                        <summary>영어·일본어 일정 번역</summary>
+                        {!translationAvailable ? <p className="le-field-hint">번역 저장은 언어 확장 SQL 적용 후 가능합니다.</p> : null}
+                        {['en', 'ja'].map((language) => {
+                          const translated = step.translations?.[language] || {};
+                          return <fieldset className="le-step-translation" key={language} disabled={!translationAvailable || saving}>
+                            <legend>{language === 'en' ? 'English' : '日本語'}</legend>
+                            <input aria-label={`${order}번 일정 ${language} 제목`} maxLength="200" value={translated.title || ''} placeholder="일정 제목"
+                              onChange={(event) => {
+                                const translations = { ...(step.translations || {}), [language]: { ...translated, title: event.target.value, review_status: 'DRAFT' } };
+                                update(index, 'translations', translations);
+                              }} />
+                            <textarea aria-label={`${order}번 일정 ${language} 설명`} rows="2" maxLength="4000" value={translated.description || ''} placeholder="일정 설명"
+                              onChange={(event) => {
+                                const translations = { ...(step.translations || {}), [language]: { ...translated, description: event.target.value, review_status: 'DRAFT' } };
+                                update(index, 'translations', translations);
+                              }} />
+                            <label><input type="checkbox" checked={translated.review_status === 'REVIEWED'} onChange={(event) => {
+                              const translations = { ...(step.translations || {}), [language]: { ...translated, review_status: event.target.checked ? 'REVIEWED' : 'DRAFT' } };
+                              update(index, 'translations', translations);
+                            }} /> 검수 완료</label>
+                          </fieldset>;
+                        })}
+                      </details>
+                    </td>
                     <td data-label="관리"><div className="le-step-actions"><button type="button" aria-label={`${order}번 일정 위로`} onClick={() => moveStep(index, -1)} disabled={index === 0}>↑</button><button type="button" aria-label={`${order}번 일정 아래로`} onClick={() => moveStep(index, 1)} disabled={index === steps.length - 1}>↓</button><button type="button" aria-label={`${order}번 일정 삭제`} onClick={() => removeStep(index)}>삭제</button></div></td>
                   </tr>
                 );

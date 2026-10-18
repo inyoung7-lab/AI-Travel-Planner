@@ -1,5 +1,5 @@
-const STORAGE_IMAGE_PATH = /^experiences\/[1-9]\d*\/cover\.webp$/;
-const LOCAL_IMAGE_PATH = /^\/images\/local-eum\/(?:[A-Za-z0-9_-]+\.(?:png|jpe?g|webp|avif)|experiences\/[1-9]\d*\/cover\.webp)$/i;
+const STORAGE_IMAGE_PATH = /^experiences\/[1-9]\d*\/cover(?:-v[1-9]\d*)?\.webp$/;
+const LOCAL_IMAGE_PATH = /^\/images\/local-eum\/(?:[A-Za-z0-9_-]+\.(?:png|jpe?g|webp|avif)|experiences\/[1-9]\d*\/cover(?:-v[1-9]\d*)?\.webp)$/i;
 
 function validHttpsUrl(value) {
   try {
@@ -22,11 +22,11 @@ export function resolveExperienceImageUrl(src, storageClient) {
 
 export function isGeneratedExperienceImage(src) {
   if (typeof src !== 'string') return false;
-  if (STORAGE_IMAGE_PATH.test(src) || /^\/images\/local-eum\/experiences\/[1-9]\d*\/cover\.webp$/.test(src)) return true;
+  if (STORAGE_IMAGE_PATH.test(src) || /^\/images\/local-eum\/experiences\/[1-9]\d*\/cover(?:-v[1-9]\d*)?\.webp$/.test(src)) return true;
   try {
     const url = new URL(src);
     return url.protocol === 'https:'
-      && /\/storage\/v1\/object\/public\/local-eum-media\/experiences\/[1-9]\d*\/cover\.webp$/.test(url.pathname);
+      && /\/storage\/v1\/object\/public\/local-eum-media\/experiences\/[1-9]\d*\/cover(?:-v[1-9]\d*)?\.webp$/.test(url.pathname);
   } catch {
     return false;
   }

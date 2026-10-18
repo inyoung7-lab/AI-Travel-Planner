@@ -18,6 +18,8 @@
 | DEMO-08 | 108 | `experiences/108/cover.webp` |
 | DEMO-09 | 109 | `experiences/109/cover.webp` |
 | DEMO-10 | 110 | `experiences/110/cover.webp` |
+| DEMO-MASAN-MARKET-WALK | 111 | `experiences/111/cover.webp` |
+| DEMO-MASAN-ART-WALK | 112 | `experiences/112/cover.webp` |
 
 이미지는 1200×800 WebP이며 각각 174–361 KB입니다. 버킷은 공개 읽기 전용으로 사용합니다. 앱에서 업로드·삭제 권한을 열지 않습니다. 이미지 변경은 HOST 이미지 관리 화면을 구현하기 전까지 프로젝트 관리자만 Dashboard에서 합니다.
 
@@ -25,8 +27,8 @@
 
 1. Supabase Dashboard에서 프로젝트가 `local-eum-dev`이고 프로젝트 ref가 `rhkaxmqdkztpbljkunxb`인지 확인합니다.
 2. SQL Editor에서 `storage-covers.review.sql`의 STEP A만 실행해 버킷을 만듭니다. 이 단계는 `local-eum-media`가 이미 설정과 다르면 중단합니다.
-3. Storage 메뉴에서 `local-eum-media`를 열고 위 표의 상대 경로에 파일을 업로드합니다. 예를 들어 DEMO-01은 `experiences/102/cover.webp`입니다.
-4. 10개 파일이 모두 올라온 뒤 SQL Editor에서 같은 파일의 STEP B를 실행해 `lc_experiences.hero_image_url`과 `hero_image_alt` 두 컬럼만 채웁니다.
+3. Storage 메뉴에서 `local-eum-media`를 열고 위 표의 상대 경로에 파일을 업로드합니다. 예를 들어 DEMO-01은 `experiences/102/cover.webp`입니다. 기존 연결을 유지한 채 추가하는 경우 새 체험 경로만 추가합니다.
+4. 새 체험은 검토 SQL에서 Storage 객체의 크기와 MIME을 확인한 뒤 `lc_experiences.hero_image_url`과 `hero_image_alt`를 연결합니다. 기존 10개 처리용 STEP B를 신규 데이터에 다시 사용하지 않습니다.
 5. Table Editor에서 `lc_experiences`의 `demo_code`, `hero_image_url`, `hero_image_alt`를 확인하고 `/local-eum`에서 카드와 상세 화면을 새로고침합니다.
 
 ## 진행 상태 (2026-10-17)
@@ -45,4 +47,23 @@
 
 HOST 로그인/저장과 카카오 지도 동작 검증은 별도 후속 작업입니다. 이번 이미지 연결 작업에서 커밋/Push는 수행하지 않았습니다.
 
-Storage에 이미 같은 버킷이나 object가 존재하는 경우 먼저 확인하고 덮어쓰지 않습니다.
+### 추가 체험 연결 (2026-10-17)
+
+신규 HOST `마산 골목 이야기`의 체험 111, 112를 `local-eum-dev` (`rhkaxmqdkztpbljkunxb`)에 추가했습니다. 아래 두 WebP는 생성형 시연 이미지이며 실제 시설 사진이 아닙니다.
+
+| 체험 | 로컬 파일 | Storage 크기 | 공개 URL |
+| --- | --- | ---: | --- |
+| 마산어시장 바다밥상 탐방 (111) | `experiences/111/cover.webp` | 238,854 bytes | `https://rhkaxmqdkztpbljkunxb.supabase.co/storage/v1/object/public/local-eum-media/experiences/111/cover.webp` |
+| 문신미술관 예술 산책 (112) | `experiences/112/cover.webp` | 245,430 bytes | `https://rhkaxmqdkztpbljkunxb.supabase.co/storage/v1/object/public/local-eum-media/experiences/112/cover.webp` |
+
+Storage 업로드와 MIME/크기 검사는 완료했습니다. SQL의 공개 전 검증이 두 객체를 확인한 뒤 체험에 연결했으며, 목록/상세 화면에서 이미지(1200×800)와 AI 생성 시연 이미지 대체 텍스트를 확인했습니다. 두 주소의 Kakao 지도 타일과 마커도 상세 페이지에서 확인했으며, 정책에 따라 좌표는 DB에 저장하지 않았습니다. 인증 사용자의 호스트 수정 권한은 SQL Editor에서 JWT UID를 설정한 롤백 전용 검사로 본인 체험/프로필은 허용되고 기존 호스트 소유 행은 차단됨을 확인했습니다. 실제 신규 계정으로 로그인하는 검사는 계정 암호를 받거나 사용하지 않아 진행하지 않았습니다. 동일 경로에 이미 객체가 있으면 덮어쓰지 말고 먼저 확인합니다.
+
+### 언어·친구 3개 도시 시연 이미지 (2026-10-18)
+
+| 체험 | 로컬 원본 | Storage 경로 | 크기 |
+|---|---|---|---:|
+| 서울숲 언어 친구 (113) | `public/images/local-eum/experiences/113/cover.webp` | `experiences/113/cover.webp` | 120,258 bytes |
+| 부산 로컬 친구 (114) | `public/images/local-eum/experiences/114/cover.webp` | `experiences/114/cover.webp` | 98,066 bytes |
+| 창동 한·일 문화 친구 (115) | `public/images/local-eum/experiences/115/cover-v2.webp` | `experiences/115/cover-v2.webp` | 205,608 bytes |
+
+세 파일은 AI 생성 시연 이미지이며 실제 장소 사진이 아닙니다. 모두 WebP 1200×800이고 `local-eum-media`에 새 경로로 업로드했습니다. Storage의 MIME·크기와 공개 URL HTTP 200을 확인한 후 체험 #113–#115에 연결했습니다. 창동의 첫 시안은 `storage-upload/backups/experiences/115-first-draft.webp`에 보존했으며 원격 Storage에 올리지 않았습니다. 앱에서는 `cover-v2.webp`만 참조합니다. 상세한 DB 확인 기록은 `migrations/20261018_local_eum_language_friends_three_city.applied.md`에 있습니다.

@@ -16,7 +16,7 @@ function client() {
   return publicSupabase;
 }
 
-const sessionColumns = 'session_id,experience_id,starts_at,ends_at,min_people,capacity,fee_amount,status,meeting_place,meeting_place_id,seed_code';
+const sessionColumns = 'session_id,experience_id,starts_at,ends_at,min_people,capacity,fee_amount,status,recruit_deadline,meeting_place,meeting_place_id,seed_code';
 
 export async function listExperiences() {
   const db = client();

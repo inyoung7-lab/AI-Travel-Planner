@@ -29,3 +29,5 @@ Wallet/
 node_modules/
 dist/
 /server/data/
+supabase/.temp/
+.vercel/

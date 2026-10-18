@@ -1,0 +1,67 @@
+.lea-page { max-width:1050px; margin:0 auto; }
+.lea-back { margin:0 0 16px; font-size:13px; }
+.lea-heading { margin:0 0 25px; text-align:center; }
+.lea-heading h1 { margin:8px 0; font-size:30px; letter-spacing:-.05em; }
+.lea-heading p { color:#727780; font-size:13px; }
+.lea-layout { display:grid; grid-template-columns:minmax(0,1fr) 330px; align-items:start; gap:22px; }
+.lea-form.let-section,.lea-summary.let-section { margin-top:0; }
+.lea-form-heading { display:flex; align-items:center; justify-content:space-between; gap:15px; }
+.lea-form-heading h2 { margin:0 0 16px; }
+.lea-required { padding:7px 10px; border-radius:18px; background:#F0EEE8; color:#596372; font-size:10px; font-weight:700; }
+.lea-auth-state { padding:10px 12px; margin:0 0 17px; border-radius:8px; background:#F4F5F3; color:#596372; font-size:11px; }
+.lea-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+.lea-field { display:flex; flex-direction:column; gap:7px; min-width:0; font-size:11px; font-weight:700; }
+.lea-field input,.lea-field select,.lea-field textarea { width:100%; min-height:44px; padding:10px 12px; border:1px solid #DCD5C7; border-radius:9px; background:#fff; color:#1E3042; font:inherit; font-size:13px; font-weight:450; }
+.lea-field textarea { min-height:88px; resize:vertical; }
+.lea-field-wide { grid-column:1 / -1; }
+.lea-field :is(input,select,textarea)[aria-invalid="true"] { border-color:#B44435; }
+.lea-field-error { display:block; color:#AC3F30; font-size:10px; line-height:1.5; }
+.lea-payment-options { min-width:0; padding:0; margin:23px 0 15px; border:0; }
+.lea-payment-options legend { margin-bottom:9px; font-size:12px; font-weight:750; }
+.lea-payment-option { display:flex; align-items:center; gap:11px; min-height:63px; padding:11px 13px; border:1px solid #DCD5C7; border-radius:10px; }
+.lea-payment-option + .lea-payment-option { margin-top:8px; }
+.lea-payment-option.is-selected { border-color:#657487; background:#F3F5F6; }
+.lea-payment-option input,.lea-radio-placeholder { flex:0 0 16px; width:16px; height:16px; accent-color:#526477; }
+.lea-payment-option>span:nth-of-type(1) { display:grid; gap:4px; flex:1; }
+.lea-payment-option strong { font-size:12px; }
+.lea-payment-option small { color:#727780; font-size:10px; line-height:1.5; }
+.lea-payment-option b { color:#596372; font-size:10px; white-space:nowrap; }
+.lea-payment-option.is-disabled { color:#727780; background:#F8F8F6; }
+.lea-consent { display:flex; align-items:flex-start; gap:10px; padding:13px; border-radius:9px; background:#F4F5F3; cursor:pointer; }
+.lea-consent input { flex:0 0 16px; width:16px; height:16px; margin:2px 0 0; accent-color:#526477; }
+.lea-consent span { display:grid; gap:5px; }
+.lea-consent strong { font-size:11px; }
+.lea-consent small { color:#727780; font-size:10px; line-height:1.6; }
+.lea-submit-error { padding:10px 12px; margin:12px 0 0; border-radius:8px; background:#FDE4DF; color:#AC3F30; font-size:12px; }
+.lea-submit.let-button { display:block; width:100%; min-height:48px; margin-top:17px; background:#526477; font-size:13px; font-weight:750; }
+.lea-submit.let-button:hover:not(:disabled) { background:#405367; }
+.lea-submit.let-button:disabled { cursor:wait; opacity:.65; }
+.lea-submit-note { margin:10px 0 0; color:#727780; font-size:10px !important; text-align:center; }
+.lea-summary .let-image-frame,.lea-summary .let-image-fallback { height:155px; min-height:155px; margin-bottom:15px; border-radius:10px; }
+.lea-summary .let-overline { margin-top:5px; }
+.lea-summary h2 { margin:7px 0 9px; font-size:18px; }
+.lea-summary-meta { color:#727780; font-size:11px !important; line-height:1.8 !important; }
+.lea-price-list,.lea-receipt-list { margin:15px 0 0; border-top:1px solid #EEE8DC; }
+.lea-price-list>div,.lea-receipt-list>div { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:9px 0; }
+.lea-price-list dt,.lea-receipt-list dt { color:#596372; font-size:11px; }
+.lea-price-list dd,.lea-receipt-list dd { margin:0; font-size:12px; font-weight:700; text-align:right; overflow-wrap:anywhere; }
+.lea-price-list .lea-total { margin-top:4px; padding-top:13px; border-top:1px solid #EEE8DC; }
+.lea-price-list .lea-total dt,.lea-price-list .lea-total dd { font-size:17px; font-weight:800; }
+.lea-price-list .lea-total dd { color:#526477; }
+.lea-demo-copy { margin:11px 0 0; color:#727780; font-size:10px !important; }
+.lea-receipt { max-width:720px; margin:20px auto 0; }
+.lea-receipt h1 { margin:7px 0 10px; font-size:28px; }
+.lea-receipt-status { display:inline-block; padding:8px 11px; border-radius:8px; background:#F0EEE8; color:#405367; font-size:12px !important; font-weight:750; }
+.lea-receipt-list { margin-top:18px; }
+.lea-receipt-list dd { max-width:65%; }
+.lea-demo-warning { padding:14px; margin-top:17px; border:1px solid #DCD5C7; border-radius:10px; background:#F4F5F3; color:#405367; font-size:12px; line-height:1.7; }@media(max-width:760px) {
+  .lea-layout { grid-template-columns:1fr; }
+  .lea-summary .let-image-frame,.lea-summary .let-image-fallback { height:190px; min-height:190px; }
+}
+@media(max-width:480px) {
+  .lea-fields { grid-template-columns:1fr; }
+  .lea-field-wide { grid-column:auto; }
+  .lea-heading h1 { font-size:26px; }
+  .lea-form.let-section,.lea-summary.let-section,.lea-receipt.let-section { padding:19px; }
+  .lea-payment-option { padding:10px; gap:8px; }
+}

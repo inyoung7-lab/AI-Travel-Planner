@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.git
+.vercel
+node_modules
+dist
+Wallet
+docs
+scripts
+server
+supabase
