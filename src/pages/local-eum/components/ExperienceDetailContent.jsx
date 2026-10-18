@@ -1,4 +1,5 @@
 import ExperienceImage from './ExperienceImage.jsx';
+import { Link } from 'react-router-dom';
 import PlaceMap from '../maps/PlaceMap.jsx';
 import { REGION_LABELS, formatKst, formatWon, sessionDuration, timelineRows } from '../experiencePresentation.js';
 
@@ -17,6 +18,14 @@ function PlaceSection({ title, place, legacyText }) {
       {place.directions ? <p className="let-description">{place.directions}</p> : null}
     </> : <p className="let-muted">{legacyText || '확인된 장소가 아직 등록되지 않았습니다.'}{legacyText ? ' · 지도 주소 확인 전' : ''}</p>}
   </section>;
+}
+
+function canApplyToSession(session) {
+  if (!session || session.status !== 'RECRUITING') return false;
+  const now = Date.now();
+  const startsAt = Date.parse(session.starts_at);
+  const deadline = session.recruit_deadline ? Date.parse(session.recruit_deadline) : null;
+  return Number.isFinite(startsAt) && startsAt > now && (deadline === null || (Number.isFinite(deadline) && deadline > now));
 }
 
 export default function ExperienceDetailContent({ record, session, onSessionChange, preview = false }) {
@@ -45,6 +54,7 @@ export default function ExperienceDetailContent({ record, session, onSessionChan
           </select>
         </label> : null}
         <p className="let-session-time">{session ? `${formatKst(session.starts_at, { year:'numeric',month:'long',day:'numeric',weekday:'short' })} · ${formatKst(session.starts_at, {hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}–${formatKst(session.ends_at, {hour:'2-digit',minute:'2-digit',hourCycle:'h23'})} (한국 시각)` : '공개된 운영 회차가 없습니다.'}</p>
+        {canApplyToSession(session) ? <Link className="let-button lea-detail-apply" to={`/local-eum/experiences/${experience.experience_id}?session=${session.session_id}&apply=1`}>참가 신청</Link> : null}
       </div>
     </div>
     <div className="let-detail-columns">
