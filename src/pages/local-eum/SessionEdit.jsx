@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ExperienceDetailContent from './components/ExperienceDetailContent.jsx';
 import ExperienceTimelineEditor from './components/ExperienceTimelineEditor.jsx';
+import AiExperienceAgent from './components/AiExperienceAgent.jsx';
+import LocalEumLanguageSelector from './components/LocalEumLanguageSelector.jsx';
+import { translate, localizedField } from './localEumI18n.js';
+import { setLocalEumLocale, useLocalEumLocale } from './localEumLocaleStore.js';
 import { validateExperienceSteps } from './experienceStepValidation.js';
 import {
   getAuthSession,
@@ -12,6 +16,9 @@ import {
   loadExperienceSteps,
   loadSession,
   saveSession,
+  cancelSession,
+  cancelExperience,
+  createSession,
   saveExperienceDescription,
   saveExperienceSteps,
   signIn,
@@ -19,9 +26,8 @@ import {
   toKstFields,
   watchAuthSession,
 } from './sessionRepository.js';
+import { createDraftSessionPayload } from './sessionLifecycle.js';
 import './SessionEdit.css';
-
-const won = new Intl.NumberFormat('ko-KR');
 
 function toForm(session) {
   const { date, time } = toKstFields(session.starts_at);
@@ -75,7 +81,7 @@ function validate(form) {
   if (!form.meeting_place.trim() || form.meeting_place.trim().length > 200) {
     errors.meeting_place = '공개 가능한 만남 장소를 1~200자로 입력해 주세요.';
   }
-  if (!['DRAFT', 'RECRUITING'].includes(form.status)) {
+  if (!['DRAFT', 'RECRUITING', 'CANCELLED'].includes(form.status)) {
     errors.status = '모집 상태를 선택해 주세요.';
   }
 
@@ -93,8 +99,12 @@ function Field({ label, htmlFor, hint, error, children }) {
   );
 }
 
-export default function SessionEdit() {
-  const { sessionId } = useParams();
+export default function SessionEdit({ embedded = false, embeddedSessionId, editorPanel = 'description', onEditorPanelChange, onEditorStateChange, onDataChanged, onExperiencesChanged, onSelectSession } = {}) {
+  const locale = useLocalEumLocale();
+  const t = (key, values) => translate(locale, key, values);
+  const params = useParams();
+  const sessionId = embedded ? embeddedSessionId : params.sessionId;
+  const PageTag = embedded ? 'div' : 'main';
   const navigate = useNavigate();
   const [authSession, setAuthSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(() => isSupabaseConfigured());
@@ -109,6 +119,7 @@ export default function SessionEdit() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
+  const [experienceCancelMessage, setExperienceCancelMessage] = useState('');
   const [loadError, setLoadError] = useState('');
   const [choicesState, setChoicesState] = useState(null);
   const [stepsState, setStepsState] = useState(null);
@@ -116,8 +127,15 @@ export default function SessionEdit() {
   const [stepsSaving, setStepsSaving] = useState(false);
   const [stepsMessage, setStepsMessage] = useState('');
   const [experienceDescriptions, setExperienceDescriptions] = useState({});
+  const [experienceLocalizations, setExperienceLocalizations] = useState({});
   const [experienceDescriptionSaving, setExperienceDescriptionSaving] = useState(false);
   const [experienceDescriptionMessage, setExperienceDescriptionMessage] = useState('');
+  const [addSessionOpen, setAddSessionOpen] = useState(false);
+  const [newSessionForm, setNewSessionForm] = useState(null);
+  const [newSessionError, setNewSessionError] = useState('');
+  const [addingSession, setAddingSession] = useState(false);
+  const [reloadCount, setReloadCount] = useState(0);
+  const [agentBusy, setAgentBusy] = useState(false);
 
   const requestKey = authSession?.user?.id ? `${authSession.user.id}:${sessionId}` : '';
   const currentRecord = loadedKey === requestKey ? record : null;
@@ -132,10 +150,22 @@ export default function SessionEdit() {
   const currentExperienceDescription = currentRecord && Object.hasOwn(experienceDescriptions, currentRecord.experience.experience_id)
     ? experienceDescriptions[currentRecord.experience.experience_id]
     : currentRecord?.experience?.detail_description || '';
-  const experienceDescriptionChanged = Boolean(currentRecord
-    && currentExperienceDescription.trim() !== (currentRecord.experience.detail_description || '').trim());
+  const currentExperienceLocalization = currentRecord && Object.hasOwn(experienceLocalizations, currentRecord.experience.experience_id)
+    ? experienceLocalizations[currentRecord.experience.experience_id]
+    : { translations: currentRecord?.experience?.translations || {}, availableLanguages: currentRecord?.experience?.available_languages || [] };
+  const experienceDescriptionChanged = Boolean(currentRecord && (
+    currentExperienceDescription.trim() !== (currentRecord.experience.detail_description || '').trim()
+    || JSON.stringify(currentExperienceLocalization) !== JSON.stringify({
+      translations: currentRecord.experience.translations || {},
+      availableLanguages: currentRecord.experience.available_languages || [],
+    })
+  ));
   const hasUnsavedChanges = Boolean((currentRecord && currentForm && JSON.stringify(currentForm) !== JSON.stringify(toForm(currentRecord.session)))
-    || stepsChanged || experienceDescriptionChanged);
+    || stepsChanged || experienceDescriptionChanged || addSessionOpen);
+
+  useEffect(() => {
+    onEditorStateChange?.({ dirty: hasUnsavedChanges, busy: saving || stepsSaving || experienceDescriptionSaving || addingSession || agentBusy });
+  }, [hasUnsavedChanges, saving, stepsSaving, experienceDescriptionSaving, addingSession, agentBusy, onEditorStateChange]);
 
   useEffect(() => {
     let active = true;
@@ -206,7 +236,7 @@ export default function SessionEdit() {
       });
 
     return () => { active = false; };
-  }, [authSession?.user?.id, sessionId]);
+  }, [authSession?.user?.id, sessionId, reloadCount]);
 
   useEffect(() => {
     const userId = authSession?.user?.id;
@@ -265,6 +295,10 @@ export default function SessionEdit() {
       ...current,
       [currentRecord.experience.experience_id]: currentRecord.experience.detail_description || '',
     }));
+    setExperienceLocalizations((current) => ({ ...current, [currentRecord.experience.experience_id]: {
+      translations: currentRecord.experience.translations || {},
+      availableLanguages: currentRecord.experience.available_languages || [],
+    } }));
     setErrors({});
     setExperienceDescriptionMessage('');
     setMessage('입력 중이던 변경사항을 되돌렸습니다.');
@@ -279,6 +313,7 @@ export default function SessionEdit() {
         authSession.user.id,
         currentRecord.experience,
         currentExperienceDescription,
+        currentExperienceLocalization,
       );
       setRecord((current) => current?.experience?.experience_id === refreshedExperience.experience_id
         ? { ...current, experience: refreshedExperience }
@@ -287,7 +322,12 @@ export default function SessionEdit() {
         ...current,
         [refreshedExperience.experience_id]: refreshedExperience.detail_description || '',
       }));
+      setExperienceLocalizations((current) => ({ ...current, [refreshedExperience.experience_id]: {
+        translations: refreshedExperience.translations || {},
+        availableLanguages: refreshedExperience.available_languages || [],
+      } }));
       setExperienceDescriptionMessage('체험 소개를 저장하고 데이터베이스에서 다시 불러왔습니다.');
+      onDataChanged?.();
     } catch (error) {
       setExperienceDescriptionMessage(error.message || '체험 소개를 저장하지 못했습니다. 입력한 내용은 그대로 남아 있습니다.');
     } finally {
@@ -297,6 +337,7 @@ export default function SessionEdit() {
 
   async function submit(event) {
     event.preventDefault();
+    if (session.status === 'CANCELLED') return;
     const nextErrors = validate(currentForm);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -326,6 +367,7 @@ export default function SessionEdit() {
       setRecord(refreshed);
       setForm(toForm(refreshed.session));
       setMessage('Supabase에 저장한 뒤 다시 조회했습니다. 아래 내용은 데이터베이스의 최신 값입니다.');
+      onDataChanged?.();
     } catch (error) {
       setMessage(error.message || '저장에 실패했습니다. 다시 시도해 주세요.');
     } finally {
@@ -351,6 +393,7 @@ export default function SessionEdit() {
       setSteps(refreshedSteps);
       setStepsState({ experienceId: refreshed.experience.experience_id, items: refreshedSteps, loading: false, error: '' });
       setStepsMessage('Supabase에 상세 일정을 저장하고 다시 조회했습니다.');
+      onDataChanged?.();
     } catch (error) {
       setStepsMessage(error.message || '상세 일정을 저장하지 못했습니다. 입력한 내용은 그대로 남아 있습니다.');
     } finally {
@@ -379,6 +422,8 @@ export default function SessionEdit() {
       await signOut();
       setRecord(null);
       setForm(null);
+      setAddSessionOpen(false);
+      setNewSessionForm(null);
       setMessage('로그아웃했습니다.');
     } catch (error) {
       setAuthError(error.message);
@@ -387,7 +432,7 @@ export default function SessionEdit() {
 
   if (!isSupabaseConfigured()) {
     return (
-      <main className="le-session-page">
+      <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}>
         <div className="le-shell">
           <section className="le-auth-card" aria-labelledby="le-config-title">
             <span className="le-eyebrow le-eyebrow-dark">LOCAL EUM · SUPABASE</span>
@@ -402,25 +447,17 @@ export default function SessionEdit() {
             <p className="le-auth-hint">키 위치: Supabase Dashboard → Project Settings → API Keys 또는 Connect. secret/service-role 키는 절대 사용하지 마세요. 키를 채팅이나 GitHub에 올릴 필요가 없습니다.</p>
           </section>
         </div>
-      </main>
+      </PageTag>
     );
   }
 
   if (authLoading) {
-    return <main className="le-session-page"><div className="le-loading">Supabase 로그인 상태를 확인하는 중입니다…</div></main>;
-  }
-
-  if (authError && !authSession) {
-    return (
-      <main className="le-session-page">
-        <div className="le-shell"><div className="le-loading le-loading-error" role="alert">{authError}</div></div>
-      </main>
-    );
+    return <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}><div className="le-loading">Supabase 로그인 상태를 확인하는 중입니다…</div></PageTag>;
   }
 
   if (!authSession) {
     return (
-      <main className="le-session-page">
+      <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}>
         <div className="le-shell">
           <div className="le-crumbs" aria-label="현재 위치"><span>로컬이음</span><span aria-hidden="true">/</span><strong>호스트 로그인</strong></div>
           <section className="le-auth-card" aria-labelledby="le-login-title">
@@ -440,23 +477,30 @@ export default function SessionEdit() {
             <p className="le-auth-hint">테스트 계정이 아직 없다면 Supabase Dashboard → Authentication → Users에서 테스트 사용자만 만들어 주세요. 비밀번호를 코드나 채팅에 저장할 필요가 없습니다.</p>
           </section>
         </div>
-      </main>
+      </PageTag>
     );
   }
 
   if (loading) {
-    return <main className="le-session-page"><div className="le-loading">운영 회차를 불러오는 중입니다…</div></main>;
+    return <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}><div className="le-loading">운영 회차를 불러오는 중입니다…</div></PageTag>;
   }
 
   if (currentLoadError || !currentRecord || !currentForm) {
     return (
-      <main className="le-session-page">
+      <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}>
         <div className="le-shell">
           <div className="le-auth-toolbar"><span>{authSession.user.email}로 로그인됨</span><button type="button" onClick={handleSignOut}>로그아웃</button></div>
-          <div className="le-loading le-loading-error" role="alert">{currentLoadError || '운영 회차를 불러올 수 없습니다.'}</div>
+          <div className="le-loading le-loading-error" role="alert">
+            <p>{currentLoadError || '운영 회차를 불러올 수 없습니다.'}</p>
+            <button type="button" className="le-button-primary" onClick={() => {
+              setLoadError('');
+              setLoadErrorKey('');
+              setReloadCount((count) => count + 1);
+            }}>다시 불러오기</button>
+          </div>
           {authError ? <p className="le-message le-message-error" role="alert">{authError}</p> : null}
         </div>
-      </main>
+      </PageTag>
     );
   }
 
@@ -470,14 +514,138 @@ export default function SessionEdit() {
   const sessionsForExperience = selectableExperiences.find(
     (item) => item.experience_id === experience.experience_id,
   )?.sessions || [];
+  const experienceCancelled = experience.status === 'CANCELLED';
+  const cancelled = session.status === 'CANCELLED' || experienceCancelled;
+  const sessionStatusLabel = experienceCancelled ? '체험 운영 취소' : session.status === 'CANCELLED' ? '운영 취소' : session.status === 'RECRUITING' ? '모집 중' : '준비 중';
 
   function selectSession(nextSessionId) {
     if (hasUnsavedChanges && !window.confirm('저장하지 않은 체험 소개, 회차 또는 일정 변경이 있습니다. 이동하면 입력 내용이 사라집니다. 계속할까요?')) return;
+    setAddSessionOpen(false);
+    setNewSessionForm(null);
+    setNewSessionError('');
     setErrors({});
     setMessage('');
     setStepsMessage('');
     setExperienceDescriptionMessage('');
-    navigate(`/local-eum/host/sessions/${nextSessionId}/edit`);
+    if (embedded) onSelectSession?.(nextSessionId, experience.experience_id);
+    else navigate(`/local-eum/host/sessions/${nextSessionId}/edit`);
+  }
+
+  function startAddingSession() {
+    if (hasUnsavedChanges) {
+      setMessage('현재 입력 중인 내용을 먼저 저장하거나 취소한 뒤 새 회차를 추가해 주세요.');
+      return;
+    }
+    setNewSessionForm({
+      date: '',
+      time: formValues.time,
+      meeting_place: formValues.meeting_place,
+      min_people: formValues.min_people,
+      capacity: formValues.capacity,
+      fee_amount: formValues.fee_amount,
+    });
+    setNewSessionError('');
+    setAddSessionOpen(true);
+  }
+
+  async function submitNewSession(event) {
+    event.preventDefault();
+    setNewSessionError('');
+    let payload;
+    try {
+      payload = createDraftSessionPayload(newSessionForm, durationMinutes);
+    } catch (error) {
+      setNewSessionError(error.message);
+      return;
+    }
+
+    setAddingSession(true);
+    try {
+      const created = await createSession(authSession.user.id, experience.experience_id, payload);
+      setAddSessionOpen(false);
+      let items;
+      try {
+        items = await loadHostExperiences(authSession.user.id, host.host_id);
+      } catch {
+        setNewSessionError(`회차 #${created.session_id}는 저장됐습니다. 목록을 다시 불러오지 못했으니 새로고침해 확인해 주세요.`);
+        return;
+      }
+      setChoicesState({ userId: authSession.user.id, hostId: host.host_id, items, error: '' });
+      const visible = items.some((item) => item.experience_id === experience.experience_id
+        && item.sessions.some((itemSession) => itemSession.session_id === created.session_id));
+      if (!visible) {
+        setNewSessionError('회차는 저장됐지만 목록에서 다시 확인되지 않았습니다. 새로고침 후 운영 회차 목록을 확인해 주세요.');
+        return;
+      }
+      if (embedded) {
+        onExperiencesChanged?.(items, authSession.user.id, host.host_id);
+        onSelectSession?.(created.session_id, experience.experience_id);
+      } else navigate(`/local-eum/host/sessions/${created.session_id}/edit`);
+    } catch (error) {
+      setNewSessionError(error.message || '새 운영 회차를 만들지 못했습니다.');
+    } finally {
+      setAddingSession(false);
+    }
+  }
+
+  async function cancelCurrentSession() {
+    if (session.status === 'CANCELLED' || hasUnsavedChanges || saving) return;
+    const confirmed = window.confirm('이 운영 회차를 취소할까요? 회차 기록과 기존 신청 내역은 보존되며, 새 참가 신청은 중단됩니다.');
+    if (!confirmed) return;
+
+    setSaving(true);
+    setMessage('');
+    try {
+      const cancelled = await cancelSession(session.session_id, authSession.user.id, session.updated_at);
+      setRecord((current) => current ? { ...current, session: cancelled } : current);
+      setForm(toForm(cancelled));
+      setChoicesState((current) => current ? {
+        ...current,
+        items: current.items.map((item) => ({
+          ...item,
+          sessions: item.sessions.map((choice) => choice.session_id === cancelled.session_id ? cancelled : choice),
+        })),
+      } : current);
+      setMessage('운영 회차를 취소했습니다. 기록과 기존 신청 내역은 보존됩니다.');
+      onDataChanged?.();
+    } catch (error) {
+      setMessage(error.message || '운영 회차를 취소하지 못했습니다. 다시 불러와 확인해 주세요.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelCurrentExperience() {
+    if (experience.status === 'CANCELLED' || hasUnsavedChanges || saving) return;
+    const confirmed = window.confirm('이 체험 운영을 취소할까요? 시작 전 회차는 함께 취소되고, 이미 받은 신청과 결제 기록은 보존됩니다. 환불이나 참가자 알림은 자동 처리되지 않습니다.');
+    if (!confirmed) return;
+
+    setSaving(true);
+    setExperienceCancelMessage('');
+    try {
+      const result = await cancelExperience(experience.experience_id, authSession.user.id);
+      const cancelledIds = new Set((result.cancelled_session_ids || []).map(Number));
+      const nextExperience = { ...experience, status: 'CANCELLED' };
+      const nextSession = cancelledIds.has(Number(session.session_id))
+        ? { ...session, status: 'CANCELLED' }
+        : session;
+      setRecord((current) => current ? { ...current, experience: nextExperience, session: nextSession } : current);
+      setForm((current) => current ? { ...current, status: nextSession.status } : current);
+      setChoicesState((current) => current ? {
+        ...current,
+        items: current.items.map((item) => item.experience_id === experience.experience_id
+          ? { ...item, status: 'CANCELLED', sessions: item.sessions.map((itemSession) => cancelledIds.has(Number(itemSession.session_id))
+            ? { ...itemSession, status: 'CANCELLED' }
+            : itemSession) }
+          : item),
+      } : current);
+      setExperienceCancelMessage('체험 운영을 취소했습니다. 시작 전 회차는 취소했고 신청 기록은 보존했습니다.');
+      onDataChanged?.();
+    } catch (error) {
+      setExperienceCancelMessage(error.message || '체험 운영을 취소하지 못했습니다. 최신 상태를 확인해 주세요.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function selectExperience(nextExperienceId) {
@@ -504,7 +672,13 @@ export default function SessionEdit() {
     status: formValues.status,
   };
   const previewRecord = {
-    experience: { ...experience, detail_description: currentExperienceDescription },
+    experience: {
+      ...experience,
+      title: localizedField(experience, 'title', locale),
+      description: localizedField(experience, 'description', locale),
+      detail_description: localizedField({ ...experience, translations: currentExperienceLocalization.translations }, 'detail_description', locale) || currentExperienceDescription,
+      translations: currentExperienceLocalization.translations,
+    },
     sessions: [previewSession],
     steps,
     places: [],
@@ -512,7 +686,7 @@ export default function SessionEdit() {
   };
 
   return (
-    <main className="le-session-page">
+    <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}>
       <div className="le-shell">
         <div className="le-crumbs" aria-label="현재 위치">
           <span>로컬이음</span><span aria-hidden="true">/</span>
@@ -531,13 +705,14 @@ export default function SessionEdit() {
         </section>
 
         <div className="le-auth-toolbar">
+          <LocalEumLanguageSelector locale={locale} onChange={setLocalEumLocale} />
           <span>{authSession.user.email} · HOST 로그인</span>
           <Link
             to="/local-eum/host/profile"
             onClick={(event) => {
               if (hasUnsavedChanges && !window.confirm('저장하지 않은 체험 편집 내용이 있습니다. 호스트 프로필 화면으로 이동할까요?')) event.preventDefault();
             }}
-          >호스트 프로필 관리</Link>
+          >호스트 운영센터</Link>
           <button type="button" onClick={handleSignOut}>로그아웃</button>
         </div>
 
@@ -546,8 +721,8 @@ export default function SessionEdit() {
             <span className="le-overline">01 · MY EXPERIENCES</span>
             <h2>{experience.title}</h2>
             <p>기본 프로그램 · {program.title}</p>
-            <span className={session.status === 'RECRUITING' ? 'le-picker-status' : 'le-picker-status le-picker-status-draft'}>
-              {session.status === 'RECRUITING' ? '모집 중' : '준비 중'} · 회차 #{session.session_id}
+            <span className={`le-picker-status ${cancelled ? 'le-picker-status-cancelled' : session.status !== 'RECRUITING' ? 'le-picker-status-draft' : ''}`}>
+              {sessionStatusLabel} · 회차 #{session.session_id}
             </span>
           </div>
           <div className="le-session-picker-fields">
@@ -580,12 +755,54 @@ export default function SessionEdit() {
                   const { date, time } = toKstFields(item.starts_at);
                   return (
                     <option key={item.session_id} value={String(item.session_id)}>
-                      {date} {time} · {won.format(item.fee_amount)}원 · 회차 #{item.session_id}
+                      {date} {time} · {item.status === 'CANCELLED' ? '운영 취소' : item.status === 'RECRUITING' ? '모집 중' : '준비 중'} · 회차 #{item.session_id}
                     </option>
                   );
                 })}
               </select>
             </Field>
+          </div>
+          <div className="le-session-create-area">
+            <div className="le-session-management-actions">
+              {!addSessionOpen ? <button className="le-button-secondary" type="button" onClick={startAddingSession} disabled={saving || addingSession || experience.status === 'CANCELLED'}>＋ 운영 회차 추가</button> : null}
+              {session.status !== 'CANCELLED' && !experienceCancelled ? <button className="le-button-danger" type="button" onClick={cancelCurrentSession} disabled={saving || hasUnsavedChanges}>{saving ? '처리 중…' : '이 회차 운영 취소'}</button> : session.status === 'CANCELLED' ? <span className="le-session-cancelled-note">이 회차는 취소되었습니다.</span> : null}
+              {experience.status !== 'CANCELLED' ? <button className="le-button-danger" type="button" onClick={cancelCurrentExperience} disabled={saving || hasUnsavedChanges}>{saving ? '처리 중…' : '체험 전체 운영 취소'}</button> : <span className="le-session-cancelled-note">이 체험은 운영 취소되었습니다.</span>}
+            </div>
+            {experienceCancelMessage ? <p className={/취소하지 못|권한|적용되지 않았/.test(experienceCancelMessage) ? 'le-message le-message-error' : 'le-message'} role="status">{experienceCancelMessage}</p> : null}
+              {!addSessionOpen && newSessionError ? <p className="le-session-create-error" role="alert">{newSessionError}</p> : null}
+            {addSessionOpen ? <form className="le-new-session-form" onSubmit={submitNewSession}>
+              <div className="le-new-session-heading"><div><h3>새 운영 회차 추가</h3><p>현재 회차의 운영값을 불러왔습니다. 날짜를 정하면 초안으로 추가됩니다.</p></div><span>{durationMinutes}분</span></div>
+              <div className="le-field-grid">
+                <Field label="새 운영 날짜" htmlFor="le-new-session-date">
+                  <input id="le-new-session-date" type="date" required value={newSessionForm?.date || ''} onChange={(event) => setNewSessionForm((current) => ({ ...current, date: event.target.value }))} />
+                </Field>
+                <Field label="새 시작 시간" htmlFor="le-new-session-time">
+                  <input id="le-new-session-time" type="time" required value={newSessionForm?.time || ''} onChange={(event) => setNewSessionForm((current) => ({ ...current, time: event.target.value }))} />
+                </Field>
+              </div>
+              <div className="le-field-grid">
+                <Field label="만남 장소" htmlFor="le-new-session-place">
+                  <input id="le-new-session-place" type="text" maxLength="200" required value={newSessionForm?.meeting_place || ''} onChange={(event) => setNewSessionForm((current) => ({ ...current, meeting_place: event.target.value }))} />
+                </Field>
+                <Field label="최소 인원" htmlFor="le-new-session-min">
+                  <input id="le-new-session-min" type="number" min="1" step="1" required value={newSessionForm?.min_people || ''} onChange={(event) => setNewSessionForm((current) => ({ ...current, min_people: event.target.value }))} />
+                </Field>
+              </div>
+              <div className="le-field-grid">
+                <Field label="최대 인원" htmlFor="le-new-session-capacity">
+                  <input id="le-new-session-capacity" type="number" min="1" step="1" required value={newSessionForm?.capacity || ''} onChange={(event) => setNewSessionForm((current) => ({ ...current, capacity: event.target.value }))} />
+                </Field>
+                <Field label="1인 시연 회비" htmlFor="le-new-session-fee">
+                  <input id="le-new-session-fee" type="number" min="0" step="1" required value={newSessionForm?.fee_amount || ''} onChange={(event) => setNewSessionForm((current) => ({ ...current, fee_amount: event.target.value }))} />
+                </Field>
+              </div>
+              {newSessionError ? <p className="le-session-create-error" role="alert">{newSessionError}</p> : null}
+              <p className="le-session-create-note">신청을 받지 않는 DRAFT 상태로 추가됩니다. 추가 후 날짜·장소·모집 조건을 확인하고 별도로 모집 상태를 변경해 주세요.</p>
+              <div className="le-session-create-actions">
+                <button className="le-button-secondary" type="button" disabled={addingSession} onClick={() => { setAddSessionOpen(false); setNewSessionForm(null); setNewSessionError(''); }}>추가 취소</button>
+                <button className="le-button-primary" type="submit" disabled={addingSession}>{addingSession ? '추가 중…' : '초안 회차 추가'}</button>
+              </div>
+            </form> : null}
           </div>
           {currentChoicesState?.error
             ? <p className="le-session-picker-error" role="alert">체험 목록을 불러오지 못했습니다: {currentChoicesState.error}</p>
@@ -595,6 +812,20 @@ export default function SessionEdit() {
             {experience.is_demo ? <span>시연용 · 실제 예약 불가</span> : null}
           </div>
         </section>
+
+        <AiExperienceAgent
+          key={`${experience.experience_id}:${session.session_id}:${locale}`}
+          experience={experience}
+          session={session}
+          locale={locale}
+          onBusyChange={setAgentBusy}
+          onCopyDraft={(draft) => {
+            setExperienceDescriptions((current) => ({ ...current, [experience.experience_id]: draft }));
+            setExperienceDescriptionMessage('AI 초안을 입력란에 복사했습니다. 검토 후 체험 소개 저장 버튼을 눌러 주세요.');
+            onEditorPanelChange?.('description');
+            requestAnimationFrame(() => document.getElementById('le-experience-detail-description')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+          }}
+        />
 
         <section className="le-copy-editor le-experience-description" aria-labelledby="le-experience-description-title">
           <div className="le-copy-editor-heading">
@@ -619,6 +850,47 @@ export default function SessionEdit() {
                 aria-describedby="le-experience-detail-description-count"
               />
             </Field>
+            {!experience.translation_columns_available ? <p className="le-message le-message-error" role="status">{t('translationSchemaPending')}</p> : null}
+            <details className="le-translation-editor"><summary>{t('translationEditor')}</summary>
+              <p>{t('translationEditorHelp')}</p>
+              {['en', 'ja'].map((language) => {
+                const translation = currentExperienceLocalization.translations?.[language] || {};
+                return <fieldset className="le-translation-fieldset" key={language} disabled={!experience.translation_columns_available || experienceDescriptionSaving}>
+                  <legend>{language === 'en' ? 'English' : '日本語'} · {t('experienceText')}</legend>
+                  <label>{t('experienceTitle')}<input value={translation.title || ''} maxLength="200" onChange={(event) => setExperienceLocalizations((current) => {
+                    const base = current[experience.experience_id] || currentExperienceLocalization;
+                    const nextTranslations = { ...base.translations, [language]: { ...(base.translations?.[language] || {}), title: event.target.value, review_status: 'DRAFT' } };
+                    return { ...current, [experience.experience_id]: { ...base, translations: nextTranslations } };
+                  })} /></label>
+                  <label>{t('experienceSummary')}<textarea rows="2" value={translation.description || ''} maxLength="2000" onChange={(event) => setExperienceLocalizations((current) => {
+                    const base = current[experience.experience_id] || currentExperienceLocalization;
+                    const nextTranslations = { ...base.translations, [language]: { ...(base.translations?.[language] || {}), description: event.target.value, review_status: 'DRAFT' } };
+                    return { ...current, [experience.experience_id]: { ...base, translations: nextTranslations } };
+                  })} /></label>
+                  <label>{t('experienceDetails')}<textarea rows="4" value={translation.detail_description || ''} maxLength="20000" onChange={(event) => setExperienceLocalizations((current) => {
+                    const base = current[experience.experience_id] || currentExperienceLocalization;
+                    const nextTranslations = { ...base.translations, [language]: { ...(base.translations?.[language] || {}), detail_description: event.target.value, review_status: 'DRAFT' } };
+                    return { ...current, [experience.experience_id]: { ...base, translations: nextTranslations } };
+                  })} /></label>
+                  <label className="le-translation-review"><input type="checkbox" checked={translation.review_status === 'REVIEWED'} onChange={(event) => setExperienceLocalizations((current) => {
+                    const base = current[experience.experience_id] || currentExperienceLocalization;
+                    const nextTranslations = { ...base.translations, [language]: { ...(base.translations?.[language] || {}), review_status: event.target.checked ? 'REVIEWED' : 'DRAFT' } };
+                    return { ...current, [experience.experience_id]: { ...base, translations: nextTranslations } };
+                  })} />{t('reviewTranslation')}</label>
+                </fieldset>;
+              })}
+              <fieldset className="le-translation-fieldset" disabled={!experience.translation_columns_available || experienceDescriptionSaving}>
+                <legend>{t('programLanguage')}</legend>
+                <p>{t('languageFilterHint')}</p>
+                <div className="le-language-options">{['ko', 'en', 'ja'].map((language) => <label key={language}>
+                  <input type="checkbox" checked={currentExperienceLocalization.availableLanguages.includes(language)} onChange={(event) => setExperienceLocalizations((current) => {
+                    const base = current[experience.experience_id] || currentExperienceLocalization;
+                    const next = event.target.checked ? [...new Set([...base.availableLanguages, language])] : base.availableLanguages.filter((item) => item !== language);
+                    return { ...current, [experience.experience_id]: { ...base, availableLanguages: next } };
+                  })} />{language === 'ko' ? t('localeKo') : language === 'en' ? t('localeEn') : t('localeJa')}
+                </label>)}</div>
+              </fieldset>
+            </details>
             <div className="le-experience-description-footer">
               <span id="le-experience-detail-description-count" className="le-field-hint">{currentExperienceDescription.length.toLocaleString('ko-KR')} / 20,000자</span>
               <div className="le-actions">
@@ -648,28 +920,30 @@ export default function SessionEdit() {
               <div><span className="le-overline">02 · SESSION #{session.session_id}</span><h2>운영 회차 정보 수정</h2></div>
               <span className="le-session-id">회차 #{session.session_id}</span>
             </div>
+            {session.status === 'CANCELLED' ? <p className="le-session-cancelled-note" role="status">취소된 회차입니다. 신청·운영 기록을 보존하고 새 신청을 받지 않습니다.</p> : null}
+            {experienceCancelled && session.status !== 'CANCELLED' ? <p className="le-session-cancelled-note" role="status">체험 운영이 취소되어 더 이상 변경하거나 새 신청을 받을 수 없습니다. 기존 신청 기록은 보존됩니다.</p> : null}
 
             <div className="le-form-section">
               <div className="le-section-heading"><span className="le-section-number">01</span><div><h3>언제, 어디서 만날까요?</h3><p>참가자가 가장 먼저 확인하는 운영 정보입니다.</p></div></div>
               <div className="le-field-grid">
                 <Field label="운영 날짜" htmlFor="le-date" error={errors.date}>
-                  <input id="le-date" type="date" value={formValues.date} onChange={(event) => change('date', event.target.value)} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'le-date-error' : undefined} />
+                  <input id="le-date" type="date" value={formValues.date} disabled={cancelled || saving} onChange={(event) => change('date', event.target.value)} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'le-date-error' : undefined} />
                 </Field>
                 <Field label="시작 시간" htmlFor="le-time" error={errors.date}>
-                  <input id="le-time" type="time" value={formValues.time} onChange={(event) => change('time', event.target.value)} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'le-date-error' : undefined} />
+                  <input id="le-time" type="time" value={formValues.time} disabled={cancelled || saving} onChange={(event) => change('time', event.target.value)} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'le-date-error' : undefined} />
                 </Field>
                 <Field label="종료 시간" htmlFor="le-end-time" error={errors.end_time}>
-                  <input id="le-end-time" type="time" value={formValues.end_time} onChange={(event) => change('end_time', event.target.value)} aria-invalid={Boolean(errors.end_time)} aria-describedby={errors.end_time ? 'le-end-time-error' : undefined} />
+                  <input id="le-end-time" type="time" value={formValues.end_time} disabled={cancelled || saving} onChange={(event) => change('end_time', event.target.value)} aria-invalid={Boolean(errors.end_time)} aria-describedby={errors.end_time ? 'le-end-time-error' : undefined} />
                 </Field>
                 <Field label="모집 마감 날짜" htmlFor="le-deadline-date" error={errors.deadline}>
-                  <input id="le-deadline-date" type="date" value={formValues.deadline_date} onChange={(event) => change('deadline_date', event.target.value)} aria-invalid={Boolean(errors.deadline)} aria-describedby={errors.deadline ? 'le-deadline-date-error' : undefined} />
+                  <input id="le-deadline-date" type="date" value={formValues.deadline_date} disabled={cancelled || saving} onChange={(event) => change('deadline_date', event.target.value)} aria-invalid={Boolean(errors.deadline)} aria-describedby={errors.deadline ? 'le-deadline-date-error' : undefined} />
                 </Field>
                 <Field label="모집 마감 시간" htmlFor="le-deadline-time" error={errors.deadline}>
-                  <input id="le-deadline-time" type="time" value={formValues.deadline_time} onChange={(event) => change('deadline_time', event.target.value)} aria-invalid={Boolean(errors.deadline)} aria-describedby={errors.deadline ? 'le-deadline-time-error' : undefined} />
+                  <input id="le-deadline-time" type="time" value={formValues.deadline_time} disabled={cancelled || saving} onChange={(event) => change('deadline_time', event.target.value)} aria-invalid={Boolean(errors.deadline)} aria-describedby={errors.deadline ? 'le-deadline-time-error' : undefined} />
                 </Field>
               </div>
               <Field label="만남 장소" htmlFor="le-meeting-place" hint="참가자에게 공개해도 되는 장소명만 적어 주세요." error={errors.meeting_place}>
-                <input id="le-meeting-place" type="text" maxLength="200" value={formValues.meeting_place} onChange={(event) => change('meeting_place', event.target.value)} placeholder="예: 광장시장 정문 앞" aria-invalid={Boolean(errors.meeting_place)} aria-describedby={errors.meeting_place ? 'le-meeting-place-error' : undefined} />
+                <input id="le-meeting-place" type="text" maxLength="200" value={formValues.meeting_place} disabled={cancelled || saving} onChange={(event) => change('meeting_place', event.target.value)} placeholder="예: 광장시장 정문 앞" aria-invalid={Boolean(errors.meeting_place)} aria-describedby={errors.meeting_place ? 'le-meeting-place-error' : undefined} />
               </Field>
             </div>
 
@@ -677,20 +951,21 @@ export default function SessionEdit() {
               <div className="le-section-heading"><span className="le-section-number">02</span><div><h3>모집 조건을 정해주세요</h3><p>실제 참가 신청을 받기 전 시연용 회차를 설정합니다.</p></div></div>
               <div className="le-field-grid">
                 <Field label="최소 인원" htmlFor="le-min-people" error={errors.min_people}>
-                  <div className="le-input-suffix"><input id="le-min-people" type="number" min="1" step="1" value={formValues.min_people} onChange={(event) => change('min_people', event.target.value)} aria-invalid={Boolean(errors.min_people)} aria-describedby={errors.min_people ? 'le-min-people-error' : undefined} /><span>명</span></div>
+                  <div className="le-input-suffix"><input id="le-min-people" type="number" min="1" step="1" value={formValues.min_people} disabled={cancelled || saving} onChange={(event) => change('min_people', event.target.value)} aria-invalid={Boolean(errors.min_people)} aria-describedby={errors.min_people ? 'le-min-people-error' : undefined} /><span>명</span></div>
                 </Field>
                 <Field label="최대 인원" htmlFor="le-capacity" error={errors.capacity}>
-                  <div className="le-input-suffix"><input id="le-capacity" type="number" min="1" step="1" value={formValues.capacity} onChange={(event) => change('capacity', event.target.value)} aria-invalid={Boolean(errors.capacity)} aria-describedby={errors.capacity ? 'le-capacity-error' : undefined} /><span>명</span></div>
+                  <div className="le-input-suffix"><input id="le-capacity" type="number" min="1" step="1" value={formValues.capacity} disabled={cancelled || saving} onChange={(event) => change('capacity', event.target.value)} aria-invalid={Boolean(errors.capacity)} aria-describedby={errors.capacity ? 'le-capacity-error' : undefined} /><span>명</span></div>
                 </Field>
               </div>
               <div className="le-field-grid">
                 <Field label="1인 시연 회비" htmlFor="le-fee-amount" hint="결제 기능과 연결되지 않은 시연용 금액입니다." error={errors.fee_amount}>
-                  <div className="le-input-suffix"><input id="le-fee-amount" type="number" min="0" step="1" value={formValues.fee_amount} onChange={(event) => change('fee_amount', event.target.value)} aria-invalid={Boolean(errors.fee_amount)} aria-describedby={errors.fee_amount ? 'le-fee-amount-error' : undefined} /><span>원</span></div>
+                  <div className="le-input-suffix"><input id="le-fee-amount" type="number" min="0" step="1" value={formValues.fee_amount} disabled={cancelled || saving} onChange={(event) => change('fee_amount', event.target.value)} aria-invalid={Boolean(errors.fee_amount)} aria-describedby={errors.fee_amount ? 'le-fee-amount-error' : undefined} /><span>원</span></div>
                 </Field>
                 <Field label="모집 상태" htmlFor="le-status" error={errors.status}>
-                  <select id="le-status" value={formValues.status} onChange={(event) => change('status', event.target.value)} aria-invalid={Boolean(errors.status)} aria-describedby={errors.status ? 'le-status-error' : undefined}>
+                  <select id="le-status" value={formValues.status} disabled={cancelled || saving} onChange={(event) => change('status', event.target.value)} aria-invalid={Boolean(errors.status)} aria-describedby={errors.status ? 'le-status-error' : undefined}>
                     <option value="DRAFT">준비 중</option>
                     <option value="RECRUITING">모집 중</option>
+                    {cancelled ? <option value="CANCELLED">운영 취소</option> : null}
                   </select>
                 </Field>
               </div>
@@ -702,8 +977,11 @@ export default function SessionEdit() {
                 {changed ? '저장하지 않은 변경사항이 있어요' : '저장된 내용과 같습니다'}
               </div>
               <div className="le-actions">
-                <button className="le-button-secondary" type="button" onClick={undo} disabled={!changed || saving}>변경 취소</button>
-                <button className="le-button-primary" type="submit" disabled={!changed || saving}>{saving ? '저장 중…' : '변경사항 저장'}</button>
+                <button className="le-button-secondary" type="button" onClick={undo} disabled={!changed || saving || cancelled}>변경 취소</button>
+                <button className="le-button-primary" type="submit" disabled={!changed || saving || cancelled}>{saving ? '저장 중…' : changed ? '변경사항 저장' : '저장할 변경사항 없음'}</button>
+              </div>
+              <div className="le-session-danger-actions">
+                {cancelled ? <span>취소된 회차는 수정할 수 없습니다.</span> : null}
               </div>
               {message ? <p className={Object.keys(errors).length > 0 || /실패|수정했습니다|확인/.test(message) ? 'le-message le-message-error' : 'le-message'} role="status">{message}</p> : null}
             </div>
@@ -714,6 +992,7 @@ export default function SessionEdit() {
             startTime={formValues.time}
             sessionDuration={durationMinutes}
             steps={steps}
+            translationAvailable={Boolean(experience.translation_columns_available)}
             onChange={(next) => { setSteps(next); setStepsMessage(''); }}
             onSave={submitSteps}
             changed={stepsChanged}
@@ -732,6 +1011,6 @@ export default function SessionEdit() {
           </section>
         </div>
       </div>
-    </main>
+    </PageTag>
   );
 }
