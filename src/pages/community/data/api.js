@@ -1,7 +1,7 @@
 // 글 상세를 서버(DB)에서 가져와요. 서버가 꺼져 있으면 예시 데이터(mockPosts)로 대신 보여줘요.
 import { posts, profiles, reviewDetails, questionDetails, places as placeTable, placeInfo as placeInfoTable, GRADIENTS } from "./mockPosts.js";
 
-const API = "http://localhost:3000";
+const API = "";
 
 // 장소 상세 페이지 주소 — 장소 페이지를 만드는 팀원 화면의 주소로 바꾸면 모든 연결이 한 번에 바뀌어요
 export const placeDetailPath = (id) => `/places/${id}`;

@@ -40,6 +40,23 @@ export default function Write() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  // Detail pages may link to a place that is in COMM_PLACE but absent from the
+  // small client-side example table. Load its actual name before writing.
+  useEffect(() => {
+    if (!initPlace || places[initPlace]) return;
+    const controller = new AbortController();
+    fetch(`/api/community/places-by-ids?ids=${initPlace}`, { signal: controller.signal })
+      .then((response) => response.json())
+      .then((map) => {
+        const found = map[initPlace];
+        if (found) setTags((current) => current.some((tag) => tag.id === initPlace) ? current : [
+          ...current, { id: initPlace, name: found.name, addr: found.addr, region: regionFromAddr(found.addr) },
+        ]);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [initPlace]);
+
   // 검색어를 멈추면 0.4초 뒤에 검색해요: 저장된 장소 → 무료 주소 검색
   useEffect(() => {
     const k = q.trim();

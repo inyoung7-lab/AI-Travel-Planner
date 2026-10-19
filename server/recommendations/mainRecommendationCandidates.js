@@ -1,7 +1,8 @@
-// TourAPI contentTypeId values for travel-focused places. Shopping (38) and
-// unknown types are deliberately absent from this allowlist.
-export const MAIN_RECOMMENDATION_CONTENT_TYPE_IDS = new Set(["12", "14", "15", "25", "28", "32", "39"]);
-const EXCLUDED_CATEGORY_CODES = new Set(["A04"]); // TourAPI legacy major category: shopping
+import { DESTINATION_CONTENT_TYPE_IDS } from "../repositories/tourApiCategories.js";
+
+// Only source-classified 관광지 (12) belong in the home destination pool.
+export const MAIN_RECOMMENDATION_CONTENT_TYPE_IDS = DESTINATION_CONTENT_TYPE_IDS;
+const EXCLUDED_CATEGORY_CODES = new Set(["A04", "A05", "FD", "SH"]);
 
 function sourceCategoryCodes(place) {
   const codes = place.sourceCategoryCodes || {};

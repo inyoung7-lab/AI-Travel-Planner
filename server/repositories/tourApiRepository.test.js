@@ -4,6 +4,7 @@ import { createTourApiRepository } from "./tourApiRepository.js";
 import { createSearchHandler } from "../search.js";
 import { filterTravelPlaces, parseTravelQuery } from "../../shared/travelSearch.js";
 import { rankCandidatesWithRecentSearches } from "../recommendations/recentSearchRecommendations.js";
+import { classifyTourApiPlace } from "./tourApiCategories.js";
 
 function apiResponse(items, totalCount = items.length, resultCode = "0000") {
   return new Response(JSON.stringify({ response: {
@@ -64,6 +65,28 @@ test("treats 숙박 and 숙소 as TourAPI accommodation content type 32", async 
     assert.equal(requestUrls.at(-1).searchParams.get("contentTypeId"), "32");
     assert.deepEqual(filterTravelPlaces(result.places, filters).map((place) => place.sourcePlaceId), ["stay-1"]);
   }
+});
+
+test("classifies food records as 음식점 and searches 맛집 with TourAPI type 39", async () => {
+  const requestedUrls = [];
+  const repository = createTourApiRepository({
+    serviceKey: "test-key", mobileApp: "AI-Travel-Planner-test",
+    fetchImpl: async (url) => {
+      requestedUrls.push(new URL(url));
+      return apiResponse([
+        { contentid: "2901530", contenttypeid: "39", title: "가경목장", lclsSystm1: "FD", lclsSystm2: "FD01" },
+        { contentid: "127480", contenttypeid: "12", title: "가거도", cat1: "A01" },
+      ]);
+    },
+  });
+  const conditions = parseTravelQuery("맛집");
+  const result = await repository.listPlaces({ filters: conditions });
+  assert.deepEqual(conditions.types, ["음식점"]);
+  assert.equal(requestedUrls[0].searchParams.get("contentTypeId"), "39");
+  assert.deepEqual(filterTravelPlaces(result.places, conditions).map((place) => place.name), ["가경목장"]);
+  assert.equal(result.places[0].category, "음식점");
+  assert.equal(result.places[0].type, "음식점");
+  assert.equal(classifyTourApiPlace(result.places[1]), "관광지");
 });
 
 test("matches 부산 search history against a 부산 TourAPI candidate using canonical region and theme fields", async () => {

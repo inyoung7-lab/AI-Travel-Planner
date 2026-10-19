@@ -13,9 +13,9 @@ function Header() {
 
         {/* 중앙 메뉴 */}
         <nav className="site-header-nav">
-          <Link to="/">여행지 찾기</Link>
+          <Link to="/places">여행지 찾기</Link>
           <Link to="/">사진 & 추천</Link>
-          <Link to="/">AI 여행 일정</Link>
+          <Link to="/ai-itinerary">AI 여행 일정</Link>
           <Link to="/">교통·숙소</Link>
           <Link to="/local-eum">로컬 체험</Link>
           <Link to="/community">커뮤니티</Link>

@@ -1,4 +1,5 @@
 import { CatalogNotConfiguredError } from "./travelPlaceRepository.js";
+import { classifyTourApiPlace } from "./tourApiCategories.js";
 
 const TOUR_API_BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
 const TOUR_API_PAGE_SIZE = 100;
@@ -9,7 +10,7 @@ const areaCodes = {
   서울: "1", 인천: "2", 대전: "3", 대구: "4", 광주: "5", 부산: "6", 울산: "7", 세종: "8",
   경기: "31", 강원: "32", 충북: "33", 충남: "34", 경북: "35", 경남: "36", 전북: "37", 전남: "38", 제주: "39",
 };
-const contentTypeIds = { 관광지: "12", 숙박: "32", 숙소: "32", 호텔: "32", 리조트: "32", 펜션: "32", 게스트하우스: "32", 모텔: "32", 민박: "32", 캠핑장: "32" };
+const contentTypeIds = { 관광지: "12", 문화시설: "14", "축제·공연": "15", 여행코스: "25", 레포츠: "28", 숙박: "32", 숙소: "32", 호텔: "32", 리조트: "32", 펜션: "32", 게스트하우스: "32", 모텔: "32", 민박: "32", 캠핑장: "32", 쇼핑: "38", 음식점: "39", 맛집: "39" };
 const placeTypeNames = ["게스트하우스", "캠핑장", "리조트", "펜션", "호텔", "모텔", "민박"];
 const themeNames = ["바다", "산", "카페", "정원", "자연", "휴식", "산책", "액티비티"];
 
@@ -50,8 +51,9 @@ function normalizeItem(item, conditions) {
     ? /(?:^|\s)산(?:$|\s|의|에|으로|속|행)/u.test(textEvidence)
     : textEvidence.includes(theme));
   const image = item.firstimage || item.firstimage2 || null;
-  const type = inferType(item, conditions.types);
   const contentTypeId = String(item.contenttypeid || "");
+  const category = classifyTourApiPlace({ contentTypeId });
+  const type = inferType(item, conditions.types) || (category === "기타" ? "" : category);
   const reason = conditions.themes.includes("바다") && item.title.includes("바다")
     ? "장소명에 ‘바다’ 포함"
     : "검색 조건 일치";
@@ -61,6 +63,7 @@ function normalizeItem(item, conditions) {
     sourceCode: "KTO_TOURAPI",
     sourcePlaceId,
     contentTypeId,
+    category,
     sourceCategoryCodes: {
       cat1: String(item.cat1 || ""),
       cat2: String(item.cat2 || ""),
@@ -108,7 +111,7 @@ export function createTourApiRepository({
   serviceKey = process.env.TOUR_API_SERVICE_KEY,
   mobileApp = process.env.TOUR_API_MOBILE_APP,
   fetchImpl = fetch,
-  baseUrl = TOUR_API_BASE_URL,
+  baseUrl = process.env.TOUR_API_BASE_URL?.trim() || TOUR_API_BASE_URL,
   maxPages = TOUR_API_MAX_PAGES,
   pageSize = TOUR_API_PAGE_SIZE,
   timeoutMs = TOUR_API_TIMEOUT_MS,
