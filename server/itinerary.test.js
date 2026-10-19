@@ -1,15 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { generateItinerary, hydrateItinerary, validateItineraryRequest } from "./itinerary.js";
+import { chooseRandomRegion, generateItinerary, hydrateItinerary, validateItineraryRequest } from "./itinerary.js";
 
 const request = { region: "제주", startDate: "2026-10-20", endDate: "2026-10-21", people: 2, budget: 500000, transport: "자차", styles: ["자연·힐링"] };
 const candidates = [{ id: "db:2", name: "협재해변", type: "관광지", address: "제주", url: "/places/2", lat: 33.39, lng: 126.23 }];
 
 test("여행 기간과 입력 범위를 검증한다", () => {
   assert.equal(validateItineraryRequest(request).days, 2);
+  assert.equal(validateItineraryRequest({ ...request, region: "전국" }).region, "전국");
   assert.equal(validateItineraryRequest({ ...request, endDate: "2026-10-26" }), null);
   assert.equal(validateItineraryRequest({ ...request, startDate: "2026-02-31" }), null);
   assert.equal(validateItineraryRequest({ ...request, region: "잘못된 지역" }), null);
+});
+
+test("전국 선택 시 관광지 데이터가 있는 지역 중 하나를 고른다", () => {
+  assert.equal(chooseRandomRegion(["서울", "제주"], () => 0.99), "제주");
+  assert.equal(chooseRandomRegion(["잘못된 지역", "서울"], () => 0), "서울");
+  assert.equal(chooseRandomRegion([]), "");
 });
 
 test("AI가 후보 목록 밖의 장소를 만들면 결과에서 제외한다", () => {

@@ -9,7 +9,8 @@ const STYLES = new Set(["자연·힐링", "맛집", "액티비티", "문화·역
 const TRANSPORT = new Set(["자차", "대중교통", "도보·택시"]);
 
 export function validateItineraryRequest(input) {
-  const region = normalizeTravelRegion(input?.region);
+  const requestedRegion = String(input?.region || "").trim();
+  const region = requestedRegion === "전국" ? "전국" : normalizeTravelRegion(requestedRegion);
   const startDate = String(input?.startDate || "");
   const endDate = String(input?.endDate || "");
   const start = new Date(`${startDate}T00:00:00Z`);
@@ -19,7 +20,7 @@ export function validateItineraryRequest(input) {
   const budget = Number(input?.budget);
   const transport = String(input?.transport || "");
   const styles = Array.isArray(input?.styles) ? input.styles.filter((style) => STYLES.has(style)).slice(0, 4) : [];
-  if (!AREA_CODES[region] || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
+  if ((!AREA_CODES[region] && region !== "전국") || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
     || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
     || start.toISOString().slice(0, 10) !== startDate || end.toISOString().slice(0, 10) !== endDate
     || !Number.isInteger(days) || days < 1 || days > 5 || !Number.isInteger(people) || people < 1 || people > 10
@@ -42,6 +43,28 @@ async function dbCandidates(region) {
       return { id: `db:${row.PLACE_ID}`, type: "관광지", name: row.NAME, address: row.ADDRESS, lat: row.LAT, lng: row.LNG,
         image: detail.images?.[0] || null, description: String(detail.overview || "").slice(0, 160), url: `/places/${row.PLACE_ID}` };
     });
+  } finally { await connection.close(); }
+}
+
+export function chooseRandomRegion(regions, random = Math.random) {
+  const choices = [...new Set(regions.map(normalizeTravelRegion).filter((region) => AREA_CODES[region]))];
+  if (!choices.length) return "";
+  const index = Math.max(0, Math.min(choices.length - 1, Math.floor(random() * choices.length)));
+  return choices[index];
+}
+
+export async function listItineraryRegions() {
+  const connection = await getConnection();
+  try {
+    const result = await connection.execute(
+      `SELECT p.region, COUNT(DISTINCT p.place_id) AS place_count
+       FROM COMM_PLACE p
+       WHERE p.region IS NOT NULL AND (REGEXP_LIKE(p.ext_key, '^tourapi:[0-9]+$') OR p.ext_key LIKE 'sample:%')
+       GROUP BY p.region
+       HAVING COUNT(DISTINCT p.place_id) >= 3`,
+      {}, { outFormat: oracledb.OUT_FORMAT_OBJECT },
+    );
+    return result.rows.map((row) => normalizeTravelRegion(row.REGION)).filter((region) => AREA_CODES[region]);
   } finally { await connection.close(); }
 }
 
@@ -84,7 +107,7 @@ export function hydrateItinerary(plan, candidates, request) {
     date.setUTCDate(date.getUTCDate() + index);
     return { day: index + 1, date: date.toISOString().slice(0, 10), theme: String(day.theme || "").slice(0, 80), items };
   });
-  return { title: String(plan.title || `${request.region} 여행`).slice(0, 100), summary: String(plan.summary || "").slice(0, 300), tips: (plan.tips || []).slice(0, 3).map((tip) => String(tip).slice(0, 180)), days, source: "codyssey+tourapi" };
+  return { title: String(plan.title || `${request.region} 여행`).slice(0, 100), summary: String(plan.summary || "").slice(0, 300), tips: (plan.tips || []).slice(0, 3).map((tip) => String(tip).slice(0, 180)), days, region: request.region, source: "codyssey+tourapi" };
 }
 
 export async function generateItinerary(request, candidates, fetchImpl = fetch) {
@@ -123,10 +146,15 @@ router.post("/generate", async (req, res) => {
   if (!input) return res.status(400).json({ message: "지역, 날짜, 인원, 예산, 이동 수단을 확인해 주세요. 여행 기간은 최대 5일입니다." });
   if (!process.env.CODYSSEY_OPENAI_KEY?.trim()) return res.status(503).json({ message: "Codyssey OpenAI API 키가 아직 설정되지 않았습니다. 서버의 .env에 CODYSSEY_OPENAI_KEY를 입력해 주세요." });
   try {
-    const { sights, food, lodging } = await loadItineraryCandidates(input.region);
+    const region = input.region === "전국"
+      ? chooseRandomRegion(await listItineraryRegions())
+      : input.region;
+    if (!region) return res.status(422).json({ message: "일정을 만들 수 있는 지역의 관광지가 아직 부족합니다." });
+    const request = { ...input, requestedRegion: input.region, region };
+    const { sights, food, lodging } = await loadItineraryCandidates(region);
     if (sights.length < 3) return res.status(422).json({ message: "이 지역에 일정 작성에 필요한 관광지가 부족합니다." });
-    const itinerary = await generateItinerary(input, [...sights, ...food, ...lodging]);
-    return res.json(itinerary);
+    const itinerary = await generateItinerary(request, [...sights, ...food, ...lodging]);
+    return res.json({ ...itinerary, requestedRegion: input.region });
   } catch (error) {
     console.error("[itinerary] 생성 오류:", error.message);
     return res.status(error.status || 502).json({ message: error.message === "AI 일정 생성에 실패했습니다." ? error.message : error.message || "일정을 만들지 못했어요." });

@@ -100,6 +100,16 @@ function catalogRegion(item) {
     || (item.address?.startsWith("South Gyeongsang") ? "경남" : "지역 미지정");
 }
 
+function PlaceCatalogCard({ item, region }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return <Link className="place-detail-catalog-card" to={`/places/${item.id}`}>
+    {item.image && !imageFailed
+      ? <img className="place-detail-catalog-image" src={item.image} alt={`${item.name} 대표 이미지`} loading="lazy" onError={() => setImageFailed(true)} />
+      : <div className="place-detail-catalog-image-placeholder"><span>✦</span><strong>{region} 여행지</strong><small>사진 준비 중</small></div>}
+    <div className="place-detail-catalog-copy"><span className="place-detail-catalog-region">{region}</span><h3>{item.name}</h3><p>{item.address || "주소 정보 없음"}</p><strong>상세 보기 <span aria-hidden="true">→</span></strong></div>
+  </Link>;
+}
+
 export function PlaceCatalog() {
   const { loading, place: data, error } = usePlace("/api/places");
   const [query, setQuery] = useState("");
@@ -130,7 +140,7 @@ export function PlaceCatalog() {
           if (!regionItems.length) return null;
           return <section className="place-catalog-section" key={region} aria-label={`${region} 여행지`}>
             <div className="place-catalog-heading"><h2>{region} 여행지</h2><span>{regionItems.length}곳</span></div>
-            <div className="place-detail-catalog">{regionItems.map((item) => <Link key={item.id} to={`/places/${item.id}`}><span>{region}</span><h3>{item.name}</h3><p>{item.address || "주소 정보 없음"}</p><strong>상세 보기 →</strong></Link>)}</div>
+            <div className="place-detail-catalog">{regionItems.map((item) => <PlaceCatalogCard key={item.id} item={item} region={region} />)}</div>
           </section>;
         })}
     </>}

@@ -165,9 +165,33 @@ export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "
 export async function listDbPlaces() {
   const connection = await getConnection();
   try {
-    const result = await connection.execute("SELECT place_id, name, address, region, ext_key FROM COMM_PLACE ORDER BY place_id", {}, { outFormat: oracledb.OUT_FORMAT_OBJECT });
-    return result.rows.map((row) => ({ id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", extKey: row.EXT_KEY || "" }));
+    let rows;
+    try {
+      const result = await connection.execute(
+        `SELECT p.place_id, p.name, p.address, p.region, p.ext_key, d.payload
+         FROM COMM_PLACE p LEFT JOIN COMM_PLACE_TOUR_DETAIL d ON d.place_id = p.place_id
+         ORDER BY p.place_id`,
+        {}, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } },
+      );
+      rows = result.rows;
+    } catch (error) {
+      if (error.errorNum !== 942) throw error;
+      const result = await connection.execute("SELECT place_id, name, address, region, ext_key FROM COMM_PLACE ORDER BY place_id", {}, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+      rows = result.rows;
+    }
+    return rows.map(mapDbPlaceListRow);
   } finally { await connection.close(); }
+}
+
+export function mapDbPlaceListRow(row) {
+  let detail = {};
+  try { detail = row.PAYLOAD ? JSON.parse(row.PAYLOAD) : {}; } catch { /* 목록은 상세 데이터가 손상되어도 계속 표시합니다. */ }
+  const image = Array.isArray(detail?.images) ? detail.images.find((url) => typeof url === "string" && url.trim()) : null;
+  const secureImage = image?.replace(/^http:\/\/tong\.visitkorea\.or\.kr\//i, "https://tong.visitkorea.or.kr/");
+  return {
+    id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", extKey: row.EXT_KEY || "",
+    image: secureImage || (row.EXT_KEY === "sample:2" ? "/images/place-preview/hyeopjae-beach.png" : null),
+  };
 }
 
 export async function getDbPlace(id) {
