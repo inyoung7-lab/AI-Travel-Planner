@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/local-eum", "destination": "/index.html" },
+    { "source": "/local-eum/:path*", "destination": "/index.html" }
+  ]
+}

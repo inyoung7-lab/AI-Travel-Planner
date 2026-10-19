@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/server.js",
     "build": "vite build",
     "lint": "oxlint",
+    "test:search": "node --test server/search.test.js",
+    "test:travel": "node --test server/search.test.js server/browserIdentity.test.js server/repositories/tourApiRepository.test.js server/repositories/searchHistoryRepository.test.js server/repositories/jsonSearchHistoryRepository.test.js server/recommendations/recentSearchRecommendations.test.js server/recommendations/mainRecommendationCandidates.test.js src/pages/data/trendingPlaceDetails.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.5",
     "express": "^5.2.1",

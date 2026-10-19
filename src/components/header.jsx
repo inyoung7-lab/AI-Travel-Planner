@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import "./Header.css";
+import "./header.css";
 
 function Header() {
   return (
@@ -17,8 +17,9 @@ function Header() {
           <Link to="/">사진 & 추천</Link>
           <Link to="/">AI 여행 일정</Link>
           <Link to="/">교통·숙소</Link>
-          <Link to="/">커뮤니티</Link>
-          <Link to="/">나의 여행</Link>
+          <Link to="/local-eum">로컬 체험</Link>
+          <Link to="/community">커뮤니티</Link>
+          <Link to="/mytrip">나의 여행</Link>
         </nav>
 
         {/* 오른쪽 */}
