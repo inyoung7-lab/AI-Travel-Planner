@@ -15,11 +15,11 @@ export default function ExperienceImage({ src, alt = '', eager = false }) {
         <path d="M122 180V94h67v86m-56-69h45m-45 19h45m-45 19h45" fill="none" stroke="#1E3042" strokeWidth="4" />
         <path d="M205 180V120h48v60m-37-45h26m-26 16h26M102 180h173" fill="none" stroke="#E8695A" strokeWidth="4" />
       </svg>
-      <span>{isGenerated ? 'AI 시연 이미지 연결 대기 중' : '대표 이미지 준비 중'}</span>
+      <span>{isGenerated ? 'AI 생성 이미지 연결 대기 중' : '대표 이미지 준비 중'}</span>
     </div>
   );
   return <div className="let-image-frame">
-    <img className="let-experience-image" src={safeSource} alt={alt || (isGenerated ? 'AI 생성 시연 이미지' : '')} loading={eager ? 'eager' : 'lazy'} onError={() => setFailedSource(safeSource)} />
-    {isGenerated ? <span className="let-image-origin">AI 생성 시연 이미지</span> : null}
+    <img className="let-experience-image" src={safeSource} alt={alt || (isGenerated ? 'AI 생성 이미지' : '')} loading={eager ? 'eager' : 'lazy'} onError={() => setFailedSource(safeSource)} />
+    {isGenerated ? <span className="let-image-origin">AI 생성 이미지</span> : null}
   </div>;
 }

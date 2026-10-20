@@ -79,7 +79,7 @@ export default function PlaceMap({ place }) {
       <div className="let-map-links">
         {links.map ? <a href={links.map} target="_blank" rel="noopener noreferrer">지도에서 보기 ↗</a> : null}
         {links.directions ? <a href={links.directions} target="_blank" rel="noopener noreferrer">길찾기 ↗</a> : null}
-        {links.search ? <a href={links.search} target="_blank" rel="noopener noreferrer">주소로 지도 검색 ↗</a> : null}
+        {links.search ? <a href={links.search} target="_blank" rel="noopener noreferrer">카카오맵에서 주소 검색 ↗</a> : null}
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ AI-Travel-Planner는 여행지 탐색·검색과 추천, 나의 여행, 여행 �
 | 화면 | 경로 | 주요 기능 |
 | --- | --- | --- |
 | 체험 목록 | `/local-eum` | 체험 카드, 지역·관심 분야·모집 상태 필터, 표시 언어 선택 |
-| 체험 상세 | `/local-eum/experiences/:experienceId` | 소개, 일정, 장소·지도, 호스트, 모집 회차, 참가 신청. 시연 상세는 `?demo=language-friends` 필요 |
+| 체험 상세 | `/local-eum/experiences/:experienceId` | 소개, 일정, 장소·지도, 호스트, 모집 회차, 참가 신청. 기존 `demo-lf-*` 주소는 해당 Supabase 체험 상세로 이동 |
 | 호스트 운영센터 | `/local-eum/host/profile` | 본인 프로그램·회차, 신청자 연락처, 호스트 프로필, AI 기획·진단 통합 관리 |
 | 공개 운영센터 데모 | `/local-eum/host/profile?demo=1` | 로그인 없이 가상 호스트·프로그램·신청 데이터를 읽기 전용으로 확인 |
 | 회차 편집 | `/local-eum/host/sessions/:sessionId/edit` | 운영 날짜·시간·장소·모집 조건 등 회차별 정보 편집 |
@@ -40,10 +40,10 @@ AI-Travel-Planner는 여행지 탐색·검색과 추천, 나의 여행, 여행 �
 
 - Supabase에 등록된 체험을 카드와 상세 화면으로 조회합니다.
 - 지역, 관심 분야, 모집 중 여부와 호스트가 확인한 체험 진행 언어를 필터링합니다. 화면 표시 언어와 실제 진행 언어는 별도 정보입니다.
-- 체험별 일정, 참가비, 정원, 장소·집결 정보와 카카오 지도를 보여줍니다. 확인되지 않은 좌표를 만들어 표시하지 않습니다.
+- 체험별 일정, 참가비, 정원, 장소·집결 정보와 카카오 지도를 보여줍니다. 주소는 화면에 표시하고 카카오맵 주소 검색 링크를 제공합니다. 확인되지 않은 좌표를 만들어 표시하지 않습니다.
 - 로그인 사용자는 계정과 연결해 신청할 수 있고, 비회원은 계정 없이 신청할 수 있습니다.
 - 접수 후 접수번호와 시연용 결제 안내를 보여줍니다. 현재 가상계좌 표시는 실제 은행 계좌가 아니며 입금 확인·실제 결제는 제공하지 않습니다. 카드 결제는 비활성 상태입니다.
-- 일반 공개 목록은 Supabase에서 읽은 `PUBLISHED` 체험만 표시합니다. 서울·부산·창원의 정적 언어·친구 fixture는 URL에 `?demo=language-friends`가 있을 때만 시연 목록과 상세에서 사용하며, 신청·예약·결제할 수 없습니다. 언어·친구 관심 분야만 고른 경우 fixture를 공개 데이터처럼 섞지 않습니다.
+- 일반 공개 목록은 Supabase에서 읽은 `PUBLISHED` 체험만 표시합니다. 서울·부산·창원의 언어·친구 체험 #113–#115는 일반 체험으로 공개되며, 관심 분야나 지역으로 검색하고 일반 상세·신청 흐름을 사용합니다. 옛 `demo-lf-*` 상세 링크도 해당 Supabase 체험 상세로 이동합니다. 정적 시연 fixture는 명시적 시연 목록에만 남으며 실제 공개 행과 중복 표시되지 않습니다.
 
 ### 호스트 기능
 
@@ -65,7 +65,7 @@ AI-Travel-Planner는 여행지 탐색·검색과 추천, 나의 여행, 여행 �
 
 번역 초안은 `review_status: DRAFT`로 시작합니다. 호스트가 각 언어 문구를 확인하고 검수 상태를 바꾸며, 번역 내용을 다시 수정하면 해당 언어는 다시 초안으로 표시됩니다. 일부 필드만 번역된 경우 누락된 문구는 한국어 원문으로 보완합니다. 화면 표시 언어를 영어 또는 일본어로 바꾸는 것만으로 실제 체험 진행 언어가 바뀌지는 않습니다.
 
-체험의 `available_languages`는 호스트가 실제로 해당 언어로 안내할 수 있다고 확인할 때만 설정합니다. 2026-10-20 읽기 전용 조회에서 #113·#114는 빈 배열이었고 #115에는 `ko`, `en`, `ja`가 들어 있었습니다. 2026-10-18 적용 기록의 세 체험 빈 배열과 #115의 현재 값이 달라, 해당 언어가 HOST 확인을 거친 값인지는 별도 확인이 필요합니다. 공개 목록은 DRAFT 체험을 제외하므로 현재 이 차이가 공개 진행 언어 필터 결과를 만들지는 않습니다. 번역 검수와 진행 가능 언어 설정은 각각 별도 절차입니다.
+체험의 `available_languages`는 호스트가 실제로 해당 언어로 안내할 수 있다고 확인할 때만 설정합니다. 2026-10-20 공개 적용 시 #113–#115를 모두 빈 배열로 맞췄습니다. HOST가 진행 가능 언어를 확인한 뒤 별도로 설정해야 합니다. 번역 검수와 진행 가능 언어 설정은 각각 별도 절차입니다.
 
 ## AI 체험 기획·진단
 
@@ -145,15 +145,15 @@ Codyssey 키는 `.env.local`에 넣지 않고 Supabase Dashboard → Edge Functi
 
 현재 개발 대상은 `local-eum-dev` 프로젝트입니다. 프로젝트 ID: `rhkaxmqdkztpbljkunxb`. 다른 프로젝트에 SQL을 실행하기 전에 Dashboard의 프로젝트 이름과 ID를 확인하세요.
 
-2026-10-20 읽기 전용 원격 조회에서 호스트 2명, 체험 15개, 일정 단계 68개, 운영 회차 19개를 확인했습니다. 체험 소유 관계는 호스트 500번이 13개, 호스트 501번이 2개입니다. 새 언어·친구 #113·#114·#115와 회차 #17·#18·#19는 모두 `DRAFT`입니다. 공개 목록에서는 제외되며 신청 가능 상태가 아닙니다.
+2026-10-20 원격 조회에서 호스트 2명, 체험 15개, 일정 단계 68개, 운영 회차 19개를 확인했습니다. 체험 소유 관계는 호스트 500번이 13개, 호스트 501번이 2개입니다. 언어·친구 #113·#114·#115와 회차 #17·#18·#19는 2026-10-20 공개 적용 후 `PUBLISHED` / `RECRUITING`입니다.
 
 | 체험 | 회차 | 상태 | 1인 표시 회비 | DB `available_languages` |
 | --- | ---: | --- | ---: | --- |
-| 서울 #113 | #17 | DRAFT / DRAFT | 10,000원 | 빈 배열 |
-| 부산 #114 | #18 | DRAFT / DRAFT | 0원 | 빈 배열 |
-| 창원 #115 | #19 | DRAFT / DRAFT | 10,000원 | `ko`, `en`, `ja` (HOST 확인 여부 미검증) |
+| 서울 #113 | #17 | PUBLISHED / RECRUITING | 10,000원 | HOST 확인 전 빈 배열 |
+| 부산 #114 | #18 | PUBLISHED / RECRUITING | 0원 | HOST 확인 전 빈 배열 |
+| 창원 #115 | #19 | PUBLISHED / RECRUITING | 10,000원 | HOST 확인 전 빈 배열 |
 
-시연 fixture의 회비도 DB 값과 맞췄습니다. SQL 적재 기록에는 세 체험의 진행 언어가 모두 빈 배열이라고 적혀 있지만, 현재 원격 #115에는 세 언어가 등록되어 있습니다. 이 문서화 불일치는 임의로 DB에서 지우거나 승인된 값으로 간주하지 않았습니다.
+위 회비는 회차에 저장된 표시 금액이며 실제 결제는 제공하지 않습니다. 진행 언어를 임의로 추정하지 않도록 세 체험의 배열을 비워 두었습니다. 실제 진행 언어는 HOST가 확인한 뒤 설정합니다.
 
 - 기존 신청 및 시연 결제 테이블/RPC 적용본: [`migrations/20261017_experience_applications.applied.sql`](migrations/20261017_experience_applications.applied.sql)
 - 호스트 ID 보조 함수 적용본: [`migrations/20261017_host_profile_own_id.applied.sql`](migrations/20261017_host_profile_own_id.applied.sql)
@@ -163,15 +163,18 @@ Codyssey 키는 `.env.local`에 넣지 않고 Supabase Dashboard → Edge Functi
 - 언어·친구 신규 일정 18개 번역 적용본: [`migrations/20261020_language_friends_itinerary_translations.applied.sql`](migrations/20261020_language_friends_itinerary_translations.applied.sql)
 - 회차 생성·취소 권한 및 체험 취소 RPC 적용본: [`migrations/20261017_host_operations_lifecycle.applied.sql`](migrations/20261017_host_operations_lifecycle.applied.sql)
 - 두 SQL의 원격 적용·검증 기록: [`migrations/20261020_language_friends_and_host_lifecycle.applied.md`](migrations/20261020_language_friends_and_host_lifecycle.applied.md)
+- 언어·친구 3개 체험의 공개 모집 적용 기록: [`migrations/20261020_language_friends_publish.applied.md`](migrations/20261020_language_friends_publish.applied.md)
+- 언어·친구 공개 상세 문구 정리 적용본: [`migrations/20261020_language_friends_public_copy.applied.sql`](migrations/20261020_language_friends_public_copy.applied.sql)
+- 언어·친구 AI 이미지 대체 텍스트 정리 적용본: [`migrations/20261020_language_friends_image_labels.applied.sql`](migrations/20261020_language_friends_image_labels.applied.sql)
 - HOST 프로필의 번역 열 조회 권한 보완: [`migrations/20261018_host_profile_translation_read.applied.md`](migrations/20261018_host_profile_translation_read.applied.md)
 
-영어·일본어 번역은 초안(`DRAFT`)입니다. 신규 일정 18개 번역은 2026-10-20 원격 DB에 적용했고, 체험별 6개씩 `DRAFT` 상태를 조회로 확인했습니다. 호스트가 직접 검수한 뒤에만 검수 완료로 바꿔야 합니다. 번역 데이터가 있다는 이유만으로 체험 진행 언어를 활성화하지 않습니다. 원격 #115의 `available_languages`는 기존 적용 기록과 달라 확인이 필요합니다. 자세한 번역 스키마 적용 상태는 [언어 번역 적용 기록](local-eum-language-rollout.md)을 확인하세요.
+영어·일본어 번역은 초안(`DRAFT`)입니다. 신규 일정 18개 번역은 2026-10-20 원격 DB에 적용했고, 체험별 6개씩 `DRAFT` 상태를 조회로 확인했습니다. 호스트가 직접 검수한 뒤에만 검수 완료로 바꿔야 합니다. 번역 데이터가 있다는 이유만으로 체험 진행 언어를 활성화하지 않습니다. 자세한 번역 스키마 적용 상태는 [언어 번역 적용 기록](local-eum-language-rollout.md)을 확인하세요.
 
 참가 신청은 `lc_submit_experience_application` RPC에서 모집 상태·마감 시각·정원·개인정보 동의 등을 검사하고 신청과 결제 시연 행을 함께 만듭니다. `PENDING` 신청은 24시간 동안 정원 계산에 포함되고 이후에는 만료됩니다. 비회원은 공개 테이블에서 신청 내용을 조회할 수 없으며, HOST는 소유 체험의 신청만 조회합니다. 결제 행은 `DEMO_ONLY`이며, 화면의 `DEMO-` 번호는 실제 은행 가상계좌가 아닙니다. 카드 결제, 입금 확인, 예약 확정, 환불은 구현되지 않았습니다.
 
 회차 추가·운영 취소 정책과 `lc_cancel_experience` RPC는 2026-10-20 `local-eum-dev`에 적용됐습니다. 원격 조회에서 HOST/ADMIN 범위의 DRAFT 회차 INSERT 정책, `CANCELLED` 상태 제약, 취소 RPC와 익명 실행 차단을 확인했습니다. 회차 취소는 기록을 삭제하지 않고 상태를 바꾸며, 체험 취소는 시작 전 회차를 함께 취소하고 기존 신청·결제 기록을 보존합니다. 실제 HOST/ADMIN 계정별 조작 검증과 신청자 연락·환불 절차는 별도 운영 테스트가 필요합니다. 현황은 [호스트 운영센터 안내](host-operations-guide.md)와 [회차 편집 안내](session-editor-guide.md)를 참고하세요.
 
-체험 대표 이미지는 Supabase Storage의 `local-eum-media` 버킷을 참조합니다. 경로 해석과 카드의 시연 이미지 표시는 `experienceImageSource.js` 및 `ExperienceImage.jsx`에 있으며, 생성형 이미지가 실제 장소 사진처럼 오인되지 않도록 시연 표시를 사용합니다. 카카오 지도는 선택적 `VITE_KAKAO_MAP_JAVASCRIPT_KEY`가 설정된 경우 사용하고, 좌표가 검증되지 않은 장소에 임의 마커를 만들지 않습니다.
+체험 대표 이미지는 Supabase Storage의 `local-eum-media` 버킷을 참조합니다. 경로 해석과 AI 생성 이미지 표시는 `experienceImageSource.js` 및 `ExperienceImage.jsx`에 있으며, 생성형 이미지가 실제 장소 사진으로 오인되지 않도록 표시합니다. 카카오 지도는 선택적 `VITE_KAKAO_MAP_JAVASCRIPT_KEY`가 설정된 경우 사용하고, 좌표가 검증되지 않은 장소에 임의 마커를 만들지 않습니다.
 
 ## 확인 명령
 
@@ -193,7 +196,7 @@ deno lint supabase/functions/local-eum-agent
 
 ## 데모 및 운영 시 주의
 
-- `/local-eum/host/profile?demo=1`은 가상 호스트·프로그램·신청자 데이터만 표시하는 공개 읽기 전용 운영센터 데모입니다. `/local-eum?interest=LANGUAGE_FRIENDS&demo=language-friends`는 세 도시의 정적 시연 fixture를 명시적으로 여는 체험 목록입니다. 일반 공개 목록은 Supabase PUBLISHED 행을 사용하고 DRAFT 체험을 표시하지 않습니다. localhost 주소는 실행 중인 해당 PC에서만 열립니다.
+- `/local-eum/host/profile?demo=1`은 가상 호스트·프로그램·신청자 데이터만 표시하는 공개 읽기 전용 운영센터 데모입니다. `/local-eum?interest=LANGUAGE_FRIENDS`는 Supabase에 공개된 세 도시 체험을 표시하며, 상세와 신청은 일반 공개 기능을 사용합니다. `/local-eum?interest=LANGUAGE_FRIENDS&demo=language-friends`도 공개 행이 있으면 실제 공개 행을 우선 표시하고 중복 fixture를 넣지 않습니다. localhost 주소는 실행 중인 해당 PC에서만 열립니다.
 - 시연 금액과 접수 상태는 실제 결제·예약 확정이 아닙니다. 실제 카드 결제, 은행 가상계좌 발급 및 입금 대조 기능은 제공하지 않습니다.
 - 영어·일본어 번역은 사람이 검수해야 하며 체험 진행 언어 설정과 분리되어 있습니다.
 - API 키와 신청자 개인정보를 로그, URL, 공개 데모, 커밋에 넣지 않습니다.
