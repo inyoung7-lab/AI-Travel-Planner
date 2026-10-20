@@ -38,7 +38,7 @@
 ## 테스트·증거 한계
 
 - 이번 작업 트리에서 `npm run build` 통과(이미지 경로 2개와 큰 chunk 경고), `npm run lint` 통과(다른 기존 Community/MyTrip/server 경고), Local Eum 56/56 통과, AI Edge 16/16 통과, Deno check/lint 통과, `git diff --check` 통과를 확인했습니다.
-- `npm run test:travel`은 49개 중 47개 통과, 2개 실패입니다. `server/search.test.js`의 검색 이력 랭킹 테스트와 `src/pages/data/trendingPlaceDetails.test.js`의 팀 소유 카드 navigation 테스트입니다. 둘 다 로컬이음 변경 파일이 아니며, 이 브랜치의 앱 코드 변경도 없습니다. 팀 담당자가 원인을 확인해야 합니다.
+- `npm run test:travel`은 49개 중 48개 통과, 1개 실패입니다. `src/pages/data/trendingPlaceDetails.test.js`의 공통 내비게이션 테스트가 실패했습니다. 로컬이음 파일 변경과 무관한 팀 화면 테스트입니다.
 - 현재 앱 화면 캡처 3개는 실제 localhost 화면입니다. AI 실제 실행 화면은 이번 자료에서 캡처하지 않았으며, AI 슬라이드는 코드 기반 흐름도입니다. 이번 작업 중 비용이 발생할 수 있는 실 모델 요청은 하지 않았습니다.
 
 ## 포함·제외 및 안전
