@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { listExperiences } from './experienceRepository.js';
 import { LANGUAGE_FRIENDS_DEMO } from './languageFriendsDemo.js';
-import { composeCatalogExperiences, isLanguageFriendsDemoMode } from './catalogExperienceSource.js';
+import { composeCatalogExperiences, includeLanguageFriendsDemoInCatalog, isLanguageFriendsDemoMode } from './catalogExperienceSource.js';
 import { hasLocalizedField, localizedField, translate } from './localEumI18n.js';
 import { setLocalEumLocale, useLocalEumLocale } from './localEumLocaleStore.js';
 import LocalEumLanguageSelector from './components/LocalEumLanguageSelector.jsx';
@@ -97,7 +97,7 @@ export default function ExperienceCatalog() {
   const t = (key, values) => translate(locale, key, values);
   const [state, setState] = useState({ items: [], loading: true, error: '' });
   const [revision, setRevision] = useState(0);
-  const demoMode = isLanguageFriendsDemoMode(params);
+  const demoMode = includeLanguageFriendsDemoInCatalog(params);
   const filters = filtersFromParams(params);
   const demoIds = new Set(LANGUAGE_FRIENDS_DEMO.map(item => String(item.experience_id)));
   const catalogItems = composeCatalogExperiences({
@@ -172,7 +172,7 @@ export default function ExperienceCatalog() {
         <div className="let-results-toolbar"><h2 id="let-results-heading">{t('recommendedExperiences')}</h2><div className="let-results-controls"><span className="let-results-count" role="status">{catalogLoading ? t('loadingExperiences') : catalogError ? t('needsAttention') : t('experiencesCount', { count: visible.length })}</span><label className="let-sort-label"><span className="let-sr-only">{t('sortBy')}</span><select value={filters.sort} onChange={event => updateSort(event.target.value)}><option value="recommended">{t('recommendedSort')}</option><option value="newest">{t('newestSort')}</option></select></label><button type="button" className="let-refresh-button" onClick={() => setRevision(value => value + 1)}>{t('refresh')} ↻</button></div></div>
         {!catalogLoading && !catalogError && !demoMode && (!languageFilterAvailable || !availableProgramLanguages.size) ? <p className="let-language-filter-notice" role="status">{t(!languageFilterAvailable ? 'languageFilterUnavailable' : 'languageFilterNone')}</p> : null}
         {catalogError ? <div className="let-empty" role="alert"><h3>{t('catalogLoadError')}</h3><p>{catalogError}</p><button type="button" className="let-button" onClick={() => setRevision(value => value + 1)}>{t('retry')}</button></div> : null}
-        {!catalogLoading && !catalogError && !visible.length ? <div className="let-empty"><h3>{t('noMatchingExperiences')}</h3><p>{t('changeFilters')}</p><button type="button" className="let-button" onClick={() => setParams({})}>{t('viewAllExperiences')}</button>{filters.interest === 'LANGUAGE_FRIENDS' && !demoMode ? <button type="button" className="let-button" onClick={() => setParams({ interest: 'LANGUAGE_FRIENDS', demo: 'language-friends', recruiting: 'off' })}>{t('viewLanguageFriendsDemo')}</button> : null}</div> : null}
+        {!catalogLoading && !catalogError && !visible.length ? <div className="let-empty"><h3>{t('noMatchingExperiences')}</h3><p>{t('changeFilters')}</p><button type="button" className="let-button" onClick={() => setParams({})}>{t('viewAllExperiences')}</button></div> : null}
         <div className="let-card-grid">{visible.map(experience => {
           const nextSession = orderedSessions(experience.sessions)[0] || experience.sessions?.[0];
           const title = localizedField(experience, 'title', locale);
