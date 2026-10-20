@@ -52,7 +52,7 @@ const programs = [
       recruit_deadline: '2026-11-05T18:00:00+09:00',
       min_people: 2,
       capacity: 6,
-      fee_amount: 0,
+      fee_amount: 10000,
       status: 'DRAFT',
       timezone: 'Asia/Seoul',
       meeting_place: '서울숲 방문자센터 바깥 · 정확한 집결 지점은 운영 전 확인',
@@ -227,7 +227,8 @@ export function getLanguageFriendsDemoExperience(slug) {
   return DEMO_BY_SLUG.get(String(slug)) || null;
 }
 
-export function filterLanguageFriendsDemo({ region = '', interest = 'LANGUAGE_FRIENDS', programLanguages = [], recruitingOnly = false } = {}) {
+export function filterLanguageFriendsDemo({ demoMode = false, region = '', interest = 'LANGUAGE_FRIENDS', programLanguages = [], recruitingOnly = false } = {}) {
+  if (!demoMode) return [];
   const selectedLanguages = Array.isArray(programLanguages) ? programLanguages : [];
   return LANGUAGE_FRIENDS_DEMO.filter(program => (!region || program.region_code === region)
     && (!interest || interest === 'LANGUAGE_FRIENDS')

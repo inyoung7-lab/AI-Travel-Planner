@@ -13,14 +13,15 @@ test('language and friends demo contains exactly one draft experience per select
   assert.deepEqual(LANGUAGE_FRIENDS_DEMO.map(item => item.region_code), ['SEOUL', 'BUSAN', 'CHANGWON']);
   assert.ok(LANGUAGE_FRIENDS_DEMO.every(item => item.host_id === 500));
   assert.ok(LANGUAGE_FRIENDS_DEMO.every(item => item.status === 'DRAFT' && item.is_demo));
-  assert.deepEqual(filterLanguageFriendsDemo({ interest: 'LANGUAGE_FRIENDS' }), LANGUAGE_FRIENDS_DEMO);
-  assert.equal(filterLanguageFriendsDemo({ interest: 'LANGUAGE_FRIENDS', region: 'BUSAN' }).length, 1);
+  assert.deepEqual(filterLanguageFriendsDemo({ interest: 'LANGUAGE_FRIENDS' }), []);
+  assert.deepEqual(filterLanguageFriendsDemo({ demoMode: true, interest: 'LANGUAGE_FRIENDS' }), LANGUAGE_FRIENDS_DEMO);
+  assert.equal(filterLanguageFriendsDemo({ demoMode: true, interest: 'LANGUAGE_FRIENDS', region: 'BUSAN' }).length, 1);
 });
 
 test('planned and simulated languages never become verified delivery languages', () => {
   assert.ok(LANGUAGE_FRIENDS_DEMO.every(item => item.available_languages.length === 0));
-  assert.deepEqual(filterLanguageFriendsDemo({ programLanguages: ['en'] }), []);
-  assert.deepEqual(filterLanguageFriendsDemo({ programLanguages: ['ja'] }), []);
+  assert.deepEqual(filterLanguageFriendsDemo({ demoMode: true, programLanguages: ['en'] }), []);
+  assert.deepEqual(filterLanguageFriendsDemo({ demoMode: true, programLanguages: ['ja'] }), []);
 });
 
 test('each draft schedule has six steps totaling 90 minutes and cannot be filtered as recruiting', () => {
@@ -30,7 +31,12 @@ test('each draft schedule has six steps totaling 90 minutes and cannot be filter
     assert.equal(item.sessions.length, 1);
     assert.equal(item.sessions[0].status, 'DRAFT');
   }
-  assert.deepEqual(filterLanguageFriendsDemo({ recruitingOnly: true }), []);
+  assert.deepEqual(filterLanguageFriendsDemo({ demoMode: true, recruitingOnly: true }), []);
+});
+
+test('demo fee and language metadata match the verified demo state', () => {
+  assert.deepEqual(LANGUAGE_FRIENDS_DEMO.map(item => item.sessions[0].fee_amount), [10000, 0, 10000]);
+  assert.ok(LANGUAGE_FRIENDS_DEMO.every(item => item.available_languages.length === 0));
 });
 
 test('venue records include official source and no invented coordinates', () => {
