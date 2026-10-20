@@ -9,12 +9,13 @@ import LocalEumLanguageSelector from './components/LocalEumLanguageSelector.jsx'
 import ExperienceDetailContent from './components/ExperienceDetailContent.jsx';
 import ExperienceApplicationFlow from './components/ExperienceApplicationFlow.jsx';
 import LanguageFriendsDemoDetail from './components/LanguageFriendsDemoDetail.jsx';
+import { isLanguageFriendsDemoMode } from './catalogExperienceSource.js';
 import './Traveler.css';
 
 export default function ExperienceDetail() {
   const { experienceId } = useParams();
-  const demoExperience = getLanguageFriendsDemoExperience(experienceId);
   const [params, setParams] = useSearchParams();
+  const demoExperience = isLanguageFriendsDemoMode(params) ? getLanguageFriendsDemoExperience(experienceId) : null;
   const locale = useLocalEumLocale();
   const t = (key) => translate(locale, key);
   const [state, setState] = useState(null);
