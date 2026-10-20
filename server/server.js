@@ -14,6 +14,8 @@ import { createJsonSearchHistoryRepository } from "./repositories/jsonSearchHist
 import { loadBrowserCookieSecret, createBrowserIdentityMiddleware } from "./browserIdentity.js";
 import { createHomeRecommendationsHandler } from "./recommendations/handlers.js";
 import { getConnection } from "./db.js";
+import placeDetailsRouter from "./placeDetails.js";
+import itineraryRouter from "./itinerary.js";
 
 // Resolve configuration from the repository root, independent of the shell's working directory.
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
@@ -49,6 +51,8 @@ app.use(express.json());
 app.use("/api/login", loginRouter);
 app.use("/api/community", communityRouter);
 app.use("/api/mytrip", mytripRouter);
+app.use("/api/places", placeDetailsRouter);
+app.use("/api/itineraries", itineraryRouter);
 const placeRepository = createTravelPlaceRepository();
 app.post("/api/search", browserIdentityMiddleware, createSearchHandler(placeRepository, { historyRepository: searchHistoryRepository }));
 app.get("/api/recommendations", browserIdentityMiddleware, createHomeRecommendationsHandler(placeRepository, { historyRepository: searchHistoryRepository }));

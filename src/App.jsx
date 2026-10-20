@@ -16,6 +16,9 @@ import SessionEdit from "./pages/local-eum/SessionEdit.jsx";
 import HostProfileEdit from "./pages/local-eum/HostProfileEdit.jsx";
 import ExperienceCatalog from "./pages/local-eum/ExperienceCatalog.jsx";
 import ExperienceDetail from "./pages/local-eum/ExperienceDetail.jsx";
+import PlacePreview from "./pages/PlacePreview.jsx";
+import PlaceDetail, { PlaceCatalog } from "./pages/PlaceDetail.jsx";
+import AiItinerary from "./pages/AiItinerary.jsx";
 
 function App() {
   return (
@@ -25,6 +28,11 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/trending/:id" element={<TrendingPlaceDetail />} />
+        <Route path="/preview/place" element={<PlacePreview />} />
+        <Route path="/places" element={<PlaceCatalog />} />
+        <Route path="/ai-itinerary" element={<AiItinerary />} />
+        <Route path="/places/tourapi/:id" element={<PlaceDetail source="tourapi" />} />
+        <Route path="/places/:id" element={<PlaceDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/community" element={<CommunityHome />} />
@@ -33,7 +41,6 @@ function App() {
         <Route path="/community/reviews/:id" element={<ReviewDetail />} />
         <Route path="/community/questions/:id" element={<QuestionDetail />} />
         <Route path="/community/places/:id/reviews" element={<PlaceReviews />} />
-        <Route path="/places/:id" element={<PlaceReviews />} />
         <Route path="/mytrip" element={<MyTrip />} />
         <Route path="/local-eum/host/sessions/:sessionId/edit" element={<SessionEdit />} />
         <Route path="/local-eum/host/profile" element={<HostProfileEdit />} />

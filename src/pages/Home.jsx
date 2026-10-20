@@ -37,7 +37,7 @@ function PlaceCard({ place, index, showRank = false, detailType = "team" }) {
           {showRank && <span className="travel-card-rank">{String(index + 1).padStart(2, "0")}</span>}
         </span>
         <span className="travel-card-copy">
-          <span className="travel-card-region">{place.region}</span>
+          <span className="travel-card-region">{place.region}{place.category && ` · ${place.category}`}</span>
           <span className="travel-card-title">{place.name}</span>
           <span className="travel-card-description">{place.recommendationReason || place.reason}</span>
           <span className="travel-card-tags">{place.tags.map((tag) => <span key={tag}>{tag}</span>)}</span>

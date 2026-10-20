@@ -14,10 +14,18 @@ test("allows only TourAPI travel content types and excludes shopping, medical an
   }));
   const excluded = [
     { sourcePlaceId: "shopping", contentTypeId: "38", sourceCategoryCodes: { cat1: "A04" } },
+    { sourcePlaceId: "gagyeong-ranch", contentTypeId: "39", sourceCategoryCodes: { lclsSystm1: "FD" } },
+    { sourcePlaceId: "restaurant", contentTypeId: "39", sourceCategoryCodes: { cat1: "A05" } },
+    { sourcePlaceId: "lodging", contentTypeId: "32", sourceCategoryCodes: { cat1: "B02" } },
+    { sourcePlaceId: "culture", contentTypeId: "14", sourceCategoryCodes: { lclsSystm1: "VE" } },
+    { sourcePlaceId: "festival", contentTypeId: "15", sourceCategoryCodes: { cat1: "A02" } },
+    { sourcePlaceId: "course", contentTypeId: "25", sourceCategoryCodes: { cat1: "C01" } },
+    { sourcePlaceId: "leisure", contentTypeId: "28", sourceCategoryCodes: { cat1: "A03" } },
     { sourcePlaceId: "pharmacy", contentTypeId: "38", sourceCategoryCodes: { cat1: "A04", cat2: "A0401" } },
     { sourcePlaceId: "medical-unknown", contentTypeId: "", sourceCategoryCodes: { cat1: "" } },
     { sourcePlaceId: "unknown-type", contentTypeId: "99", sourceCategoryCodes: { cat1: "A01" } },
     { sourcePlaceId: "conflicting-shopping-category", contentTypeId: "12", sourceCategoryCodes: { cat1: "A04" } },
+    { sourcePlaceId: "conflicting-food-category", contentTypeId: "12", sourceCategoryCodes: { lclsSystm1: "FD" } },
   ];
 
   assert.deepEqual(filterMainRecommendationCandidates([...allowed, ...excluded]).map(({ sourcePlaceId }) => sourcePlaceId),
@@ -43,6 +51,6 @@ test("filters source classifications before applying preference score, rank and 
   });
 
   assert.equal(result.personalized, true);
-  assert.deepEqual(result.items.map(({ name }) => name), ["부산 음식점"]);
-  assert.equal(result.items[0].personalizationScore, 2);
+  assert.deepEqual(result.items.map(({ name }) => name), ["부산 관광지"]);
+  assert.equal(result.items[0].personalizationScore, 1);
 });

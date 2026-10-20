@@ -146,7 +146,7 @@ export default function MyTrip() {
               ))}
             </div>
             <span className="mt-sp"></span>
-            <span className="mt-btn mt-co" style={{ cursor: "pointer" }} onClick={soon}><PlusIco /> 새 일정 만들기</span>
+            <span className="mt-btn mt-co" style={{ cursor: "pointer" }} onClick={() => navigate("/ai-itinerary")}><PlusIco /> 새 일정 만들기</span>
           </div>
 
           {showHero && (

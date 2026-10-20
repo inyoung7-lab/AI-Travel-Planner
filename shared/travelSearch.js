@@ -17,6 +17,12 @@ const placeTypeAliases = [
   { value: "민박", aliases: ["민박"] },
   { value: "캠핑장", aliases: ["캠핑장"] },
   { value: "관광지", aliases: ["관광지"] },
+  { value: "문화시설", aliases: ["문화시설"] },
+  { value: "축제·공연", aliases: ["축제", "공연"] },
+  { value: "여행코스", aliases: ["여행코스", "관광코스"] },
+  { value: "레포츠", aliases: ["레포츠", "레저"] },
+  { value: "쇼핑", aliases: ["쇼핑"] },
+  { value: "음식점", aliases: ["음식점", "맛집", "식당"] },
 ];
 export const placeTypes = placeTypeAliases.map(({ value }) => value);
 export const themes = ["바다", "산", "카페", "정원", "자연", "휴식", "산책", "액티비티"];
