@@ -21,7 +21,7 @@ const sessionColumns = 'session_id,experience_id,starts_at,ends_at,min_people,ca
 export async function listExperiences() {
   const db = client();
   const experiences = unwrap(await db.from('lc_experiences').select('*')
-    .eq('is_demo', true).like('demo_code', 'DEMO-%').eq('status', 'PUBLISHED').order('demo_code'));
+    .eq('status', 'PUBLISHED').order('demo_code'));
   if (!experiences.length) return [];
   const sessions = unwrap(await db.from('lc_sessions').select(sessionColumns)
     .in('experience_id', experiences.map(item => item.experience_id)).eq('status', 'RECRUITING').order('starts_at'));

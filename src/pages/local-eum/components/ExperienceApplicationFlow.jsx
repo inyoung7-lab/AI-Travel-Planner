@@ -5,7 +5,7 @@ import { applicationErrorMessage, validateApplicationInput } from '../applicatio
 import { submitExperienceApplication } from '../applicationRepository.js';
 import { getAuthSession } from '../sessionRepository.js';
 import { formatKst, formatWon } from '../experiencePresentation.js';
-import { localizedField, translate } from '../localEumI18n.js';
+import { formatAttendeeCount, localizedField, translate } from '../localEumI18n.js';
 import { getLocalEumLocale, useLocalEumLocale } from '../localEumLocaleStore.js';
 
 const PRIVACY_NOTICE_VERSION = 'local-eum-demo-v1';
@@ -27,7 +27,7 @@ function ApplicationSummary({ record, session, count, locale }) {
       <br />{t('hostByline', { host: host.display_name })}
     </p>
     <dl className="lea-price-list">
-      <div><dt>{t('attendeeCount')}</dt><dd>{t('peopleRange', { min: count, max: count })}</dd></div>
+      <div><dt>{t('attendeeCount')}</dt><dd>{formatAttendeeCount(locale, count)}</dd></div>
       <div><dt>{t('demoFeePerPerson')}</dt><dd>{formatWon(session.fee_amount, locale)}</dd></div>
       <div className="lea-total"><dt>{t('displayAmount')}</dt><dd>{formatWon(total, locale)}</dd></div>
     </dl>
@@ -45,7 +45,7 @@ function Receipt({ receipt, onBack, locale, experienceTitle }) {
       <div><dt>{t('receiptNumber')}</dt><dd>{receipt.receipt_code}</dd></div>
       <div><dt>{t('experience')}</dt><dd>{experienceTitle}</dd></div>
       <div><dt>{t('schedule')}</dt><dd>{formatKst(receipt.starts_at, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, locale)}–{formatKst(receipt.ends_at, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, locale)}</dd></div>
-      <div><dt>{t('attendeeCount')}</dt><dd>{t('peopleRange', { min: receipt.attendee_count, max: receipt.attendee_count })}</dd></div>
+      <div><dt>{t('attendeeCount')}</dt><dd>{formatAttendeeCount(locale, receipt.attendee_count)}</dd></div>
       <div><dt>{t('displayAmount')}</dt><dd>{formatWon(receipt.total_amount, locale)}</dd></div>
       <div><dt>{t('demoNumber')}</dt><dd>{receipt.demo_reference}</dd></div>
       <div><dt>{t('demoNumberExpiry')}</dt><dd>{formatKst(receipt.expires_at, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, locale)}</dd></div>
@@ -155,7 +155,7 @@ export default function ExperienceApplicationFlow({ record, session, onBack }) {
           </label>
           <label className="lea-field lea-field-wide">{t('attendeeCount')} *
             <select value={form.attendeeCount} onChange={event => update('attendeeCount', event.target.value)} aria-invalid={Boolean(errors.attendeeCount)}>
-              {Array.from({ length: maxAttendees }, (_, index) => index + 1).map(count => <option key={count} value={count}>{t('peopleRange', { min: count, max: count })}</option>)}
+              {Array.from({ length: maxAttendees }, (_, index) => index + 1).map(count => <option key={count} value={count}>{formatAttendeeCount(locale, count)}</option>)}
             </select>
             <FieldError>{errors.attendeeCount}</FieldError>
           </label>

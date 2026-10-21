@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { loadExperience } from './experienceRepository.js';
-import { getLanguageFriendsDemoExperience } from './languageFriendsDemo.js';
+import { getLanguageFriendsDatabaseExperienceId, getLanguageFriendsDemoExperience } from './languageFriendsDemo.js';
 import { orderedSessions } from './experiencePresentation.js';
 import { translate } from './localEumI18n.js';
 import { setLocalEumLocale, useLocalEumLocale } from './localEumLocaleStore.js';
@@ -9,16 +9,27 @@ import LocalEumLanguageSelector from './components/LocalEumLanguageSelector.jsx'
 import ExperienceDetailContent from './components/ExperienceDetailContent.jsx';
 import ExperienceApplicationFlow from './components/ExperienceApplicationFlow.jsx';
 import LanguageFriendsDemoDetail from './components/LanguageFriendsDemoDetail.jsx';
+import { isLanguageFriendsDemoMode } from './catalogExperienceSource.js';
 import './Traveler.css';
 
 export default function ExperienceDetail() {
   const { experienceId } = useParams();
-  const demoExperience = getLanguageFriendsDemoExperience(experienceId);
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const demoExperience = isLanguageFriendsDemoMode(params) ? getLanguageFriendsDemoExperience(experienceId) : null;
+  const liveExperienceId = getLanguageFriendsDatabaseExperienceId(experienceId);
   const locale = useLocalEumLocale();
   const t = (key) => translate(locale, key);
   const [state, setState] = useState(null);
   const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    if (!demoExperience || !liveExperienceId) return;
+    const next = new URLSearchParams(params);
+    next.delete('demo');
+    if (next.get('session')?.startsWith('demo-')) next.delete('session');
+    const query = next.toString();
+    navigate(`/local-eum/experiences/${liveExperienceId}${query ? `?${query}` : ''}`, { replace: true });
+  }, [demoExperience, liveExperienceId, navigate, params]);
   useEffect(() => {
     if (demoExperience) return undefined;
     let active = true;

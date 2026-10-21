@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { listExperiences } from './experienceRepository.js';
 import { LANGUAGE_FRIENDS_DEMO } from './languageFriendsDemo.js';
+import { composeCatalogExperiences, includeLanguageFriendsDemoInCatalog, isLanguageFriendsDemoMode } from './catalogExperienceSource.js';
 import { hasLocalizedField, localizedField, translate } from './localEumI18n.js';
 import { setLocalEumLocale, useLocalEumLocale } from './localEumLocaleStore.js';
 import LocalEumLanguageSelector from './components/LocalEumLanguageSelector.jsx';
@@ -35,7 +36,7 @@ const INTEREST_MESSAGE_KEYS = {
 };
 
 function filtersFromParams(params) {
-  const demoMode = params.get('demo') === 'language-friends' || params.get('interest') === 'LANGUAGE_FRIENDS';
+  const demoMode = isLanguageFriendsDemoMode(params);
   const explicitLanguages = params.getAll('programLanguage').flatMap(value => value.split(','));
   const programLanguages = [...new Set(explicitLanguages
     .filter(value => PROGRAM_LANGUAGES.some(language => language.value === value)))];
@@ -96,12 +97,14 @@ export default function ExperienceCatalog() {
   const t = (key, values) => translate(locale, key, values);
   const [state, setState] = useState({ items: [], loading: true, error: '' });
   const [revision, setRevision] = useState(0);
+  const demoMode = includeLanguageFriendsDemoInCatalog(params);
   const filters = filtersFromParams(params);
-  const demoCodes = new Set(LANGUAGE_FRIENDS_DEMO.map(item => item.demo_code));
-  const catalogItems = [
-    ...state.items,
-    ...LANGUAGE_FRIENDS_DEMO.filter(demo => !state.items.some(item => item.demo_code === demo.demo_code)),
-  ];
+  const demoIds = new Set(LANGUAGE_FRIENDS_DEMO.map(item => String(item.experience_id)));
+  const catalogItems = composeCatalogExperiences({
+    publishedExperiences: state.items,
+    demoExperiences: LANGUAGE_FRIENDS_DEMO,
+    demoMode,
+  });
   const catalogLoading = state.loading;
   const catalogError = state.error;
   const languageFilterAvailable = hasCatalogLanguageMetadata(catalogItems);
@@ -139,8 +142,7 @@ export default function ExperienceCatalog() {
     if (draft.region) next.set('region', draft.region);
     draft.programLanguages.forEach(language => next.append('programLanguage', language));
     if (draft.interest) next.set('interest', draft.interest);
-    const demoMode = draft.interest === 'LANGUAGE_FRIENDS';
-    if (demoMode) next.set('demo', 'language-friends');
+    if (isLanguageFriendsDemoMode(params) && draft.interest === 'LANGUAGE_FRIENDS') next.set('demo', 'language-friends');
     next.set('recruiting', draft.recruitingOnly ? 'on' : 'off');
     if (draft.sort === 'newest') next.set('sort', 'newest');
     setParams(next, { replace: true });
@@ -168,16 +170,17 @@ export default function ExperienceCatalog() {
 
       <section className="let-catalog-results" aria-labelledby="let-results-heading">
         <div className="let-results-toolbar"><h2 id="let-results-heading">{t('recommendedExperiences')}</h2><div className="let-results-controls"><span className="let-results-count" role="status">{catalogLoading ? t('loadingExperiences') : catalogError ? t('needsAttention') : t('experiencesCount', { count: visible.length })}</span><label className="let-sort-label"><span className="let-sr-only">{t('sortBy')}</span><select value={filters.sort} onChange={event => updateSort(event.target.value)}><option value="recommended">{t('recommendedSort')}</option><option value="newest">{t('newestSort')}</option></select></label><button type="button" className="let-refresh-button" onClick={() => setRevision(value => value + 1)}>{t('refresh')} ↻</button></div></div>
-        {!catalogLoading && !catalogError && (!languageFilterAvailable || !availableProgramLanguages.size) ? <p className="let-language-filter-notice" role="status">{t(!languageFilterAvailable ? 'languageFilterUnavailable' : 'languageFilterNone')}</p> : null}
+        {!catalogLoading && !catalogError && !demoMode && (!languageFilterAvailable || !availableProgramLanguages.size) ? <p className="let-language-filter-notice" role="status">{t(!languageFilterAvailable ? 'languageFilterUnavailable' : 'languageFilterNone')}</p> : null}
         {catalogError ? <div className="let-empty" role="alert"><h3>{t('catalogLoadError')}</h3><p>{catalogError}</p><button type="button" className="let-button" onClick={() => setRevision(value => value + 1)}>{t('retry')}</button></div> : null}
         {!catalogLoading && !catalogError && !visible.length ? <div className="let-empty"><h3>{t('noMatchingExperiences')}</h3><p>{t('changeFilters')}</p><button type="button" className="let-button" onClick={() => setParams({})}>{t('viewAllExperiences')}</button></div> : null}
         <div className="let-card-grid">{visible.map(experience => {
           const nextSession = orderedSessions(experience.sessions)[0] || experience.sessions?.[0];
           const title = localizedField(experience, 'title', locale);
           const description = localizedField(experience, 'description', locale);
-          const isLanguageFriendsDemo = demoCodes.has(experience.demo_code);
+          const isLanguageFriendsDemo = demoIds.has(String(experience.experience_id));
           const needsTranslation = !isLanguageFriendsDemo && locale !== 'ko' && (!hasLocalizedField(experience, 'title', locale) || !hasLocalizedField(experience, 'description', locale));
-          return <Link className="let-experience-card" key={experience.experience_id} to={`/local-eum/experiences/${experience.experience_id}`}>
+          const detailUrl = isLanguageFriendsDemo ? `/local-eum/experiences/${experience.experience_id}?demo=language-friends` : `/local-eum/experiences/${experience.experience_id}`;
+          return <Link className="let-experience-card" key={experience.experience_id} to={detailUrl}>
             <div className="let-card-image"><ExperienceImage src={experience.hero_image_url} alt={experience.hero_image_alt || ''} /><span className="let-image-badge">{regionLabel(experience.region_code, locale)}</span></div>
             <div className="let-card-body"><h3>{title}</h3><p>{description || t('experiencePreparing')}</p>{needsTranslation ? <small className="let-translation-notice">{t('translationPending')}</small> : null}<div className="let-card-meta"><span>{nextSession ? formatKst(nextSession.starts_at, undefined, locale) : t('noUpcomingSession')}</span>{nextSession ? <span>{t('minutes', { count: sessionDuration(nextSession) })} · {t('maxPeople', { count: nextSession.capacity })}</span> : null}</div><div className="let-card-footer"><strong>{nextSession ? formatWon(nextSession.fee_amount, locale) : t('sessionBeingPrepared')}</strong><span aria-hidden="true">↗</span></div></div>
           </Link>;

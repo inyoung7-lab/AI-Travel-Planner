@@ -43,13 +43,14 @@ const MESSAGES = {
     noMatchingExperiences: '조건에 맞는 체험이 없습니다',
     changeFilters: '필터 조건을 바꾸어 확인해 주세요.',
     viewAllExperiences: '전체 체험 보기',
+    viewLanguageFriendsDemo: '언어·친구 시연 체험 보기',
     experiencePreparing: '호스트가 소개를 준비하고 있습니다.',
     noUpcomingSession: '다음 일정 미등록',
     sessionBeingPrepared: '일정 확인 중',
     minutes: '{count}분',
     maxPeople: '최대 {count}명',
     demo: '시연용',
-    perPersonDemoFee: ' / 1인 시연 금액',
+    perPersonDemoFee: ' / 1인 참가비',
     catalogDisclaimer: '모든 일정·참가비·정원은 개발 시연 설정입니다. 실제 시설과의 제휴·운영 협약 또는 예약 서비스를 의미하지 않습니다.',
     regionSeoul: '서울',
     regionBusan: '부산',
@@ -78,7 +79,7 @@ const MESSAGES = {
     regionNotRegistered: '지역 미등록',
     shortIntroMissing: '짧은 소개가 아직 등록되지 않았습니다.',
     hostByline: '{host}와 함께',
-    demoFeePerPerson: '1인 시연 참가비',
+    demoFeePerPerson: '1인 참가비',
     duration: '소요 시간',
     attendees: '인원',
     peopleRange: '{min}~{max}명',
@@ -133,6 +134,8 @@ const MESSAGES = {
     phoneOptional: '연락처 (선택)',
     contactLanguage: '연락 언어',
     attendeeCount: '참가 인원',
+    attendeeCountOne: '{count}명',
+    attendeeCountMany: '{count}명',
     inquiryNoteOptional: '문의 메모 (선택)',
     hostMessagePlaceholder: '호스트에게 전달할 내용을 입력해 주세요.',
     paymentMethod: '결제 방법',
@@ -239,13 +242,14 @@ const MESSAGES = {
     noMatchingExperiences: 'No experiences match these filters',
     changeFilters: 'Try changing your filters.',
     viewAllExperiences: 'View all experiences',
+    viewLanguageFriendsDemo: 'View language-friends demo experiences',
     experiencePreparing: 'The host is preparing an introduction.',
     noUpcomingSession: 'No upcoming session',
     sessionBeingPrepared: 'Schedule being prepared',
     minutes: '{count} min',
     maxPeople: 'Up to {count} people',
     demo: 'Demo',
-    perPersonDemoFee: ' / demo fee per person',
+    perPersonDemoFee: ' / fee per person',
     catalogDisclaimer: 'All schedules, fees, and capacities are demo settings. They do not indicate a partnership, operating agreement, or booking service with the actual venue.',
     regionSeoul: 'Seoul',
     regionBusan: 'Busan',
@@ -274,7 +278,7 @@ const MESSAGES = {
     regionNotRegistered: 'Region not listed',
     shortIntroMissing: 'A short introduction has not been added yet.',
     hostByline: 'with {host}',
-    demoFeePerPerson: 'Demo fee per person',
+    demoFeePerPerson: 'Fee per person',
     duration: 'Duration',
     attendees: 'Group size',
     peopleRange: '{min}–{max} people',
@@ -329,6 +333,8 @@ const MESSAGES = {
     phoneOptional: 'Phone (optional)',
     contactLanguage: 'Contact language',
     attendeeCount: 'Number of attendees',
+    attendeeCountOne: '{count} person',
+    attendeeCountMany: '{count} people',
     inquiryNoteOptional: 'Message to the host (optional)',
     hostMessagePlaceholder: 'Add a note for the host.',
     paymentMethod: 'Payment method',
@@ -435,13 +441,14 @@ const MESSAGES = {
     noMatchingExperiences: '条件に合う体験はありません',
     changeFilters: '検索条件を変更してください。',
     viewAllExperiences: 'すべての体験を見る',
+    viewLanguageFriendsDemo: '言語・友だち体験のデモを見る',
     experiencePreparing: 'ホストが紹介文を準備しています。',
     noUpcomingSession: '次回日程は未登録です',
     sessionBeingPrepared: '日程を確認中',
     minutes: '{count}分',
     maxPeople: '最大{count}名',
     demo: 'デモ',
-    perPersonDemoFee: ' / 1人あたりのデモ料金',
+    perPersonDemoFee: ' / 1人あたりの参加費',
     catalogDisclaimer: '日程・参加費・定員はすべて開発用のデモ設定です。実際の施設との提携・運営契約や予約サービスを示すものではありません。',
     regionSeoul: 'ソウル',
     regionBusan: '釜山',
@@ -470,7 +477,7 @@ const MESSAGES = {
     regionNotRegistered: '地域未登録',
     shortIntroMissing: '短い紹介文はまだ登録されていません。',
     hostByline: '{host}と一緒に',
-    demoFeePerPerson: '1人あたりのデモ参加費',
+    demoFeePerPerson: '1人あたりの参加費',
     duration: '所要時間',
     attendees: '参加人数',
     peopleRange: '{min}〜{max}名',
@@ -525,6 +532,8 @@ const MESSAGES = {
     phoneOptional: '電話番号（任意）',
     contactLanguage: '連絡言語',
     attendeeCount: '参加人数',
+    attendeeCountOne: '{count}名',
+    attendeeCountMany: '{count}名',
     inquiryNoteOptional: 'ホストへのメモ（任意）',
     hostMessagePlaceholder: 'ホストへのメッセージを入力してください。',
     paymentMethod: '支払い方法',
@@ -607,6 +616,14 @@ export function translate(locale, key, params = {}) {
   return String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) => (
     Object.hasOwn(params, name) ? String(params[name]) : match
   ));
+}
+
+export function formatAttendeeCount(locale, count) {
+  const amount = Number(count);
+  const key = normalizeLocalEumLocale(locale) === 'en' && amount === 1
+    ? 'attendeeCountOne'
+    : 'attendeeCountMany';
+  return translate(locale, key, { count: amount });
 }
 
 export function localizedField(record, field, locale) {

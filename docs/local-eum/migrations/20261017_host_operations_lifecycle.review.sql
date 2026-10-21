@@ -1,5 +1,5 @@
--- REVIEW ONLY. Do not run before the user confirms the visible Supabase project ID:
--- local-eum-dev / rhkaxmqdkztpbljkunxb.
+-- Applied to local-eum-dev / rhkaxmqdkztpbljkunxb on 2026-10-20 after user approval.
+-- Retained as the reviewed source; the preflight guards block duplicate application.
 -- SQL Editor does not expose a trustworthy project-ref setting to this script.
 -- This migration creates no experiences, sessions, applications, users, or hosts.
 -- It preserves application/payment history and performs no refunds or notifications.
@@ -17,6 +17,7 @@
 -- select count(*) as application_count from public.lc_applications;
 
 begin;
+set local lock_timeout = '5s';
 
 do $guard$
 declare
@@ -28,6 +29,11 @@ begin
     or to_regclass('public.lc_applications') is null
     or to_regclass('public.lc_application_payments') is null then
     raise exception 'Expected local-eum tables are missing; no changes were applied';
+  end if;
+
+  if not (select relrowsecurity from pg_class where oid = 'public.lc_experiences'::regclass)
+    or not (select relrowsecurity from pg_class where oid = 'public.lc_sessions'::regclass) then
+    raise exception 'Expected experience and session RLS is not enabled; no changes were applied';
   end if;
 
   if to_regprocedure('lc_private.lc_owns_experience(bigint)') is null
@@ -63,6 +69,12 @@ begin
   ) then
     raise exception 'Expected owner-scoped session UPDATE policy is missing';
   end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'lc_sessions' and cmd = 'INSERT'
+  ) then
+    raise exception 'A session INSERT policy already exists; inspect it before applying';
+  end if;
 
   if to_regprocedure('public.lc_submit_experience_application(bigint,text,text,text,text,integer,text,text,boolean)') is null then
     raise exception 'Expected existing application RPC is missing';
@@ -96,8 +108,11 @@ drop policy lc_sessions_update_owner_or_admin on public.lc_sessions;
 create policy lc_sessions_update_owner_or_admin
   on public.lc_sessions for update to authenticated
   using (
-    lc_private.lc_owns_experience(experience_id)
-    or (select lc_private.lc_has_role('ADMIN'))
+    status <> 'CANCELLED'
+    and (
+      lc_private.lc_owns_experience(experience_id)
+      or (select lc_private.lc_has_role('ADMIN'))
+    )
   )
   with check (
     (
@@ -171,7 +186,7 @@ grant execute on function public.lc_cancel_experience(bigint) to authenticated;
 comment on function public.lc_cancel_experience(bigint) is
   '소유 HOST 또는 ADMIN이 체험과 시작 전 회차를 원자적으로 취소한다. 신청/결제 기록은 보존한다.';
 
--- Postflight: execute only after separately approved application; inspect schema and history counts.
+-- Postflight reference: inspect schema and history counts after application.
 -- select conrelid::regclass, conname, pg_get_constraintdef(oid) from pg_constraint
 -- where conrelid in ('public.lc_experiences'::regclass, 'public.lc_sessions'::regclass)
 --   and conname in ('lc_experiences_status_check', 'lc_sessions_status_check');

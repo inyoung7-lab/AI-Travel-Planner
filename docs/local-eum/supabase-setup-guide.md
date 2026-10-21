@@ -2,6 +2,45 @@
 
 이 안내는 승인된 개발 프로젝트 `local-eum-dev`만 대상으로 합니다. 확인된 프로젝트 ID는 `rhkaxmqdkztpbljkunxb`입니다. 대시보드에서 프로젝트명과 URL의 ID가 모두 일치할 때만 진행하세요.
 
+## 팀원이 병합된 화면 실행하기
+
+PR이 `main`에 병합되어도 다른 사람의 개인 브랜치가 자동으로 바뀌지는 않습니다. 작업을 보존하면서 각자 최신 `main`을 합칩니다.
+
+```powershell
+git status --short --branch
+# 변경이 있으면 현재 브랜치에 커밋하거나, 구분되는 이름으로 임시 보관합니다.
+git fetch origin
+git switch <내-작업-브랜치>
+git merge origin/main
+npm install
+```
+
+충돌이 있을 때는 파일별로 내 작업과 `origin/main` 양쪽을 확인해 해결하고 `npm run build`로 확인합니다. 작업 트리를 초기화하거나 강제 push 하지 않습니다. 팀원의 브랜치와 Express 서버는 로컬이음 설정을 위해 수정할 필요가 없습니다.
+
+저장소 루트의 `.env.example`을 참고해 `.env.local`을 만들고 다음 두 값을 넣습니다.
+
+```dotenv
+VITE_SUPABASE_URL=https://rhkaxmqdkztpbljkunxb.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=여기에_대시보드의_publishable_key
+```
+
+URL과 publishable key는 Supabase Dashboard의 프로젝트 **Connect** 또는 **Project Settings → API Keys**에서 확인합니다. 브라우저 키는 publishable key만 사용합니다. `service_role`이나 `sb_secret_` 키는 브라우저에 넣지 않습니다. `.env.local`은 개인 개발환경 파일이므로 Git에 올리지 않습니다. `.env.local`을 새로 만들 때 기존 파일이 있으면 덮어쓰지 마세요.
+
+### 화면 경로 확인
+
+`npm run dev` 실행 후 다음 주소를 확인합니다.
+
+- 체험 목록: `http://127.0.0.1:5173/local-eum`
+- 로그인 없는 공개 HOST 데모: `http://127.0.0.1:5173/local-eum/host/profile?demo=1`
+
+상단 공통 Header의 **로컬 체험**을 눌러 `/local-eum`으로 이동하는지도 확인합니다. 현재 경로는 `src/App.jsx`의 공통 BrowserRouter에 등록되어 있습니다. 이 로컬 주소는 다른 사람 PC에서 열 수 없습니다. 팀의 Vercel 프런트엔드에서는 프로젝트 환경변수에 동일한 Supabase URL과 publishable key를 등록하고 새 배포를 해야 합니다. 이 단계는 프런트엔드 실행 설정이며 원격 SQL을 적용하지 않습니다.
+
+AI Agent를 팀 배포 도메인에서 호출하려면 그 도메인이 Edge Function의 허용 Origin 목록에 포함되어야 합니다. 현재 AI 연결 오류가 나면 최종 웹 주소와 `docs/local-eum/ai-agent-runbook.md`의 CORS 항목을 대조합니다. 공개 체험 목록과 호스트 데모가 열리는 것만으로 AI 요청까지 검증된 것은 아닙니다.
+
+일반 체험 목록은 Supabase에서 `PUBLISHED` 행만 읽습니다. 세 언어·친구 정적 fixture는 `?demo=language-friends`가 명시된 체험 목록에서만 보이며, 각 fixture 상세 주소에도 같은 표식을 유지합니다. 숫자 ID의 실제 DRAFT 레코드는 일반 공개 상세에서 열리지 않습니다.
+
+공유 개발 DB에 테이블·정책·시드가 이미 적용돼 있으면 앱 실행을 위해 `initial_schema.draft.sql`이나 시드 파일을 다시 실행할 필요가 없습니다. `.applied.sql`은 적용 기록이고 `.review.sql`/`.draft.sql`은 미적용 문서일 수 있으니, 적용 상태를 확인하지 않고 SQL Editor에서 실행하지 마세요.
+
 ## 1. 스키마 생성
 
 현재 Codex 환경에는 Supabase DB 실행용 연결 도구가 없습니다. 따라서 사용자가 Dashboard의 SQL Editor에서 실행해야 합니다.

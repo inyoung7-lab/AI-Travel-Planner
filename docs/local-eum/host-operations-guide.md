@@ -29,7 +29,7 @@
 ## 기존 DB 의존성
 
 - 프로필 조회와 신청 테이블/RPC는 기존 적용본을 사용한다.
-- 회차 추가/운영 취소는 `20261017_host_operations_lifecycle.review.sql`의 별도 검토·승인·적용이 필요하다. 이번 화면 통합 작업에서는 SQL을 실행하지 않는다.
+- 회차 추가/운영 취소 권한과 `lc_cancel_experience` RPC는 2026-10-20 `local-eum-dev`에 적용됐다. [적용 기록](migrations/20261020_language_friends_and_host_lifecycle.applied.md)에서 정책·제약·기존 데이터 보존 검증을 확인한다. HOST/ADMIN 계정별 실제 조작 테스트는 별도로 수행한다.
 - 개발 DB에는 영어·일본어 `translations` 컬럼과 초안 콘텐츠가 적용되어 있다. 호스트별 소개, 소유 체험, 일정 번역을 검수해 사용할 수 있다. 다른 Supabase 환경에 적용됐다고 가정하지 말고, 배포 환경의 컬럼 적용 여부를 먼저 확인한다. 적용 건수와 `DRAFT` 검수 상태는 `local-eum-language-rollout.md`를 참고한다.
 - AI Edge Function과 API 키는 기존 Supabase 프로젝트 설정을 사용한다. 신청자 연락처를 AI 컴포넌트에 전달하지 않는다.
 

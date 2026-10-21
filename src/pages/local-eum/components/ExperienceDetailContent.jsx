@@ -19,7 +19,7 @@ function PlaceSection({ title, place, legacyText, fallbackAddress, locale }) {
       <h3>{place.place_name}</h3><p className="let-address">{place.road_address || t('placeDetailsPending')}{place.address_detail ? ` · ${place.address_detail}` : ''}</p>
       {legacyText && legacyText !== place.place_name ? <p>{t('meetingInstructions', { value: legacyText })}</p> : null}
       <PlaceMap key={place.place_id} place={place} />
-      {place.directions ? <p className="let-description">{place.directions}</p> : null}
+      {place.directions && (!legacyText || legacyText === place.place_name) ? <p className="let-description">{place.directions}</p> : null}
     </> : <>
       <p className="let-muted">{legacyText || t('verifiedPlacePending')}{legacyText && !fallbackAddress ? ` · ${t('mapAddressPending')}` : ''}</p>
       {fallbackAddress ? <PlaceMap place={{ place_name: title, road_address: fallbackAddress }} /> : null}
