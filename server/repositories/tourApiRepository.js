@@ -1,10 +1,12 @@
 import { CatalogNotConfiguredError } from "./travelPlaceRepository.js";
 import { classifyTourApiPlace } from "./tourApiCategories.js";
+import { createAsyncTtlCache } from "../asyncTtlCache.js";
 
 const TOUR_API_BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
 const TOUR_API_PAGE_SIZE = 100;
 const TOUR_API_MAX_PAGES = 3;
 const TOUR_API_TIMEOUT_MS = 8_000;
+const TOUR_API_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const areaCodes = {
   서울: "1", 인천: "2", 대전: "3", 대구: "4", 광주: "5", 부산: "6", 울산: "7", 세종: "8",
@@ -115,17 +117,25 @@ export function createTourApiRepository({
   maxPages = TOUR_API_MAX_PAGES,
   pageSize = TOUR_API_PAGE_SIZE,
   timeoutMs = TOUR_API_TIMEOUT_MS,
+  responseCache = null,
 } = {}) {
+  const cachedListPlaces = createAsyncTtlCache({ ttlMs: TOUR_API_CACHE_TTL_MS });
   return {
     dataSource: "tourapi",
     async listPlaces({ filters = {} } = {}) {
       const missing = [!serviceKey?.trim() && "TOUR_API_SERVICE_KEY", !mobileApp?.trim() && "TOUR_API_MOBILE_APP"].filter(Boolean);
-      if (missing.length) {
-        throw new CatalogNotConfiguredError("TOUR_API_CONFIGURATION_MISSING", `TourAPI 검색 설정이 필요합니다: ${missing.join(", ")}. 프로젝트 루트 .env를 확인해 주세요.`);
-      }
       const conditions = {
         regions: filters.regions || [], types: filters.types || [], themes: filters.themes || [], keywords: filters.keywords || [],
       };
+      return cachedListPlaces(JSON.stringify(conditions), async () => {
+      const persistentKey = `search:${baseUrl}:${pageSize}:${maxPages}:${JSON.stringify(conditions)}`;
+      if (responseCache) {
+        const stored = await responseCache.get(persistentKey, 30 * 24 * 60 * 60 * 1000).catch(() => null);
+        if (stored?.places && typeof stored.matchCountComplete === "boolean") return stored;
+      }
+      if (missing.length) {
+        throw new CatalogNotConfiguredError("TOUR_API_CONFIGURATION_MISSING", `TourAPI 검색 설정이 필요합니다: ${missing.join(", ")}. 프로젝트 루트 .env를 확인해 주세요.`);
+      }
       const areaCode = conditions.regions.length === 1 ? areaCodes[conditions.regions[0]] : undefined;
       const contentTypeId = inferContentType(conditions);
       // TourAPI keyword search accepts one `keyword`; query each recognized theme/text term separately,
@@ -179,7 +189,10 @@ export function createTourApiRepository({
         if (pagesScanned * pageSize < totalCount) matchCountComplete = false;
       }
 
-      return { places: [...merged.values()], matchCountComplete };
+      const result = { places: [...merged.values()], matchCountComplete };
+      if (responseCache) await responseCache.set(persistentKey, result).catch(() => {});
+      return result;
+      });
     },
   };
 }

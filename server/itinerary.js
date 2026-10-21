@@ -2,9 +2,11 @@ import express from "express";
 import oracledb from "oracledb";
 import { getConnection } from "./db.js";
 import { normalizeTravelRegion } from "../shared/travelRegions.js";
+import { photoFromRow } from "./repositories/placePhotoRepository.js";
+import { ITINERARY_AREA_CODES, listStoredItineraryCandidates } from "./repositories/itineraryCandidateRepository.js";
 
 const router = express.Router();
-const AREA_CODES = { 서울: "1", 인천: "2", 대전: "3", 대구: "4", 광주: "5", 부산: "6", 울산: "7", 세종: "8", 경기: "31", 강원: "32", 충북: "33", 충남: "34", 경북: "35", 경남: "36", 전북: "37", 전남: "38", 제주: "39" };
+const AREA_CODES = ITINERARY_AREA_CODES;
 const STYLES = new Set(["자연·힐링", "맛집", "액티비티", "문화·역사", "사진 명소", "여유로운", "알찬 일정"]);
 const TRANSPORT = new Set(["자차", "대중교통", "도보·택시"]);
 
@@ -32,16 +34,22 @@ async function dbCandidates(region) {
   const connection = await getConnection();
   try {
     const result = await connection.execute(
-      `SELECT p.place_id, p.name, p.address, p.region, p.lat, p.lng, d.payload
+      `SELECT p.place_id, p.name, p.address, p.region, p.lat, p.lng, d.payload,
+              ph.photo_path, ph.image_source, ph.source_url, ph.photo_subject,
+              ph.is_regional, ph.tour_content_id AS photo_tour_content_id
        FROM COMM_PLACE p LEFT JOIN COMM_PLACE_TOUR_DETAIL d ON d.place_id = p.place_id
+       LEFT JOIN COMM_PLACE_PHOTO ph ON ph.place_id = p.place_id
        WHERE p.region = :region AND (REGEXP_LIKE(p.ext_key, '^tourapi:[0-9]+$') OR p.ext_key LIKE 'sample:%')
        ORDER BY p.place_id`,
       { region }, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } },
     );
     return result.rows.slice(0, 20).map((row) => {
       const detail = row.PAYLOAD ? JSON.parse(row.PAYLOAD) : {};
+      const photo = photoFromRow(row);
       return { id: `db:${row.PLACE_ID}`, type: "관광지", name: row.NAME, address: row.ADDRESS, lat: row.LAT, lng: row.LNG,
-        image: detail.images?.[0] || null, description: String(detail.overview || "").slice(0, 160), url: `/places/${row.PLACE_ID}` };
+        image: photo?.image || detail.images?.[0] || null,
+        imageRegional: !!photo?.regional, imageSubject: photo?.subject || null, imageSource: photo?.imageSource || null,
+        description: String(detail.overview || "").slice(0, 160), url: `/places/${row.PLACE_ID}` };
     });
   } finally { await connection.close(); }
 }
@@ -68,29 +76,12 @@ export async function listItineraryRegions() {
   } finally { await connection.close(); }
 }
 
-async function tourCandidates(areaCode, contentTypeId, type) {
-  if (!process.env.TOUR_API_SERVICE_KEY?.trim()) return [];
-  const url = new URL(`${(process.env.TOUR_API_BASE_URL || "https://apis.data.go.kr/B551011/KorService2").replace(/\/$/, "")}/areaBasedList2`);
-  for (const [key, value] of Object.entries({ serviceKey: process.env.TOUR_API_SERVICE_KEY, MobileOS: "ETC", MobileApp: process.env.TOUR_API_MOBILE_APP || "AITravelPlanner", _type: "json", numOfRows: "60", pageNo: "1", arrange: "Q", areaCode, contentTypeId })) url.searchParams.set(key, value);
-  const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
-  if (!response.ok) throw new Error(`TourAPI HTTP ${response.status}`);
-  const payload = await response.json();
-  if (payload?.response?.header?.resultCode !== "0000") throw new Error("TourAPI 응답 오류");
-  const rows = payload?.response?.body?.items?.item || [];
-  return (Array.isArray(rows) ? rows : [rows]).filter((row) => row.contentid && row.title && row.addr1 && String(row.areacode) === areaCode)
-    .slice(0, 10).map((row) => ({ id: `tourapi:${row.contentid}`, type, name: row.title, address: row.addr1,
-      lat: Number(row.mapy) || null, lng: Number(row.mapx) || null,
-      image: ["Type1", "Type3"].includes(row.cpyrhtDivCd) ? row.firstimage || row.firstimage2 || null : null,
-      description: "", url: `/places/tourapi/${row.contentid}` }));
-}
-
 export async function loadItineraryCandidates(region) {
-  const [sights, food, lodging] = await Promise.all([
+  const [sights, stored] = await Promise.all([
     dbCandidates(region),
-    tourCandidates(AREA_CODES[region], "39", "음식점"),
-    tourCandidates(AREA_CODES[region], "32", "숙소"),
+    listStoredItineraryCandidates(region),
   ]);
-  return { sights, food, lodging };
+  return { sights, food: stored.food, lodging: stored.lodging };
 }
 
 export function hydrateItinerary(plan, candidates, request) {
@@ -107,7 +98,7 @@ export function hydrateItinerary(plan, candidates, request) {
     date.setUTCDate(date.getUTCDate() + index);
     return { day: index + 1, date: date.toISOString().slice(0, 10), theme: String(day.theme || "").slice(0, 80), items };
   });
-  return { title: String(plan.title || `${request.region} 여행`).slice(0, 100), summary: String(plan.summary || "").slice(0, 300), tips: (plan.tips || []).slice(0, 3).map((tip) => String(tip).slice(0, 180)), days, region: request.region, source: "codyssey+tourapi" };
+  return { title: String(plan.title || `${request.region} 여행`).slice(0, 100), summary: String(plan.summary || "").slice(0, 300), tips: (plan.tips || []).slice(0, 3).map((tip) => String(tip).slice(0, 180)), days, region: request.region, source: "codyssey+database" };
 }
 
 export async function generateItinerary(request, candidates, fetchImpl = fetch) {

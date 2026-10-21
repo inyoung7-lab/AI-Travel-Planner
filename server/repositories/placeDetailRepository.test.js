@@ -22,6 +22,8 @@ test("검증한 협재 DB 항목만 TourAPI 협재해수욕장과 연결한다",
 });
 
 test("여행지 목록 항목에 저장된 관광공사 대표 사진을 연결한다", () => {
+  const curated = mapDbPlaceListRow({ PLACE_ID: 1, NAME: "제주 애월", PHOTO_PATH: "/images/place-preview/aewol-coast.jpg", IMAGE_SOURCE: "DB source", IS_REGIONAL: 1, PAYLOAD: JSON.stringify({ images: ["https://images.example/other.jpg"] }) });
+  assert.equal(curated.image, "/images/place-preview/aewol-coast.jpg");
   const place = mapDbPlaceListRow({ PLACE_ID: 20, NAME: "해변", ADDRESS: "제주", REGION: "제주", EXT_KEY: "tourapi:123", PAYLOAD: JSON.stringify({ images: ["https://images.example/beach.jpg"] }) });
   assert.equal(place.image, "https://images.example/beach.jpg");
   const oldPhoto = mapDbPlaceListRow({ PLACE_ID: 23, NAME: "마을", PAYLOAD: JSON.stringify({ images: ["http://tong.visitkorea.or.kr/cms/photo.jpg"] }) });
@@ -43,4 +45,16 @@ test("표기 차이와 지역 정보를 함께 확인해 같은 관광지를 찾
 test("주변 장소 요청은 분류와 국내 좌표를 검증한다", async () => {
   await assert.rejects(() => getNearbyPlaces({ lat: 33.39, lng: 126.23, category: "unknown" }), RangeError);
   await assert.rejects(() => getNearbyPlaces({ lat: 0, lng: 0, category: "food" }), RangeError);
+});
+
+test("주변 장소는 저장된 응답을 다시 사용한다", async () => {
+  const responseCache = { async get() { return [
+    { contentId: "one", name: "Saved place", distanceMeters: 250 },
+    { contentId: "two", name: "Current place", distanceMeters: 300 },
+  ]; } };
+  const result = await getNearbyPlaces({
+    lat: 35.12345, lng: 128.12345, category: "food", excludeContentId: "two", responseCache,
+  });
+  assert.deepEqual(result.items.map((item) => item.contentId), ["one"]);
+  assert.equal(result.radiusMeters, 10000);
 });

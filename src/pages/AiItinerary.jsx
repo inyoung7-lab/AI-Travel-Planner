@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import AddItineraryPlaceModal from "./AddItineraryPlaceModal.jsx";
 import "./AiItinerary.css";
 
 const REGIONS = ["서울", "경기", "인천", "강원", "충북", "충남", "대전", "세종", "전북", "전남", "광주", "경북", "경남", "대구", "울산", "부산", "제주", "전국"];
@@ -103,6 +104,16 @@ function RouteSketch({ items }) {
   </div>;
 }
 
+function ItineraryPhoto({ item }) {
+  const image = item.image;
+  if (image && item.imageRegional) return <div className="ai-plan-photo-representative">
+    <img src={image} alt={`${item.imageSubject || item.name} 지역 풍경`} />
+    <span title={item.imageSource || ""}>지역 대표 이미지</span>
+  </div>;
+  if (image) return <img src={image} alt="" />;
+  return <div className="ai-plan-photo-empty">{item.type === "음식점" ? "◌" : item.type === "숙소" ? "⌂" : "✦"}</div>;
+}
+
 export default function AiItinerary() {
   const [form, setForm] = useState({ startDate: dateInput(tomorrow), endDate: dateInput(afterTomorrow), region: "제주", budget: 500000, people: 2, transport: "자차", styles: ["자연·힐링"] });
   const [plan, setPlan] = useState(() => {
@@ -124,6 +135,7 @@ export default function AiItinerary() {
   });
   const [selectedDay, setSelectedDay] = useState(0);
   const [savedModalOpen, setSavedModalOpen] = useState(false);
+  const [addPlaceModalOpen, setAddPlaceModalOpen] = useState(false);
   const [status, setStatus] = useState({ configured: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -137,6 +149,43 @@ export default function AiItinerary() {
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [savedModalOpen]);
+
+  // Refresh stored coordinates and photo metadata when a saved itinerary is opened.
+  const dbPlaceIds = [...new Set((plan?.days || []).flatMap((entry) => entry.items || [])
+    .filter((item) => /^db:\d+$/.test(String(item.id)))
+    .map((item) => item.id.slice(3)))].join(",");
+  useEffect(() => {
+    if (!dbPlaceIds) return undefined;
+    const controller = new AbortController();
+    fetch(`/api/community/places-by-ids?ids=${dbPlaceIds}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : {})
+      .then((places) => setPlan((current) => {
+        if (!current) return current;
+        let changed = false;
+        const days = current.days.map((entry) => ({ ...entry, items: (entry.items || []).map((item) => {
+          const place = places[String(item.id).slice(3)];
+          const alreadyHasCoords = item.lat !== null && item.lat !== undefined && item.lat !== ""
+            && item.lng !== null && item.lng !== undefined && item.lng !== "";
+          if (!place) return item;
+          const next = {
+            ...item,
+            image: place.image || null,
+            imageRegional: !!place.imageRegional,
+            imageSubject: place.imageSubject || null,
+            imageSource: place.imageSource || null,
+            ...(!alreadyHasCoords && place.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : {}),
+          };
+          if (next.image === item.image && next.imageRegional === !!item.imageRegional
+            && next.imageSubject === (item.imageSubject || null) && next.imageSource === (item.imageSource || null)
+            && next.lat === item.lat && next.lng === item.lng) return item;
+          changed = true;
+          return next;
+        }) }));
+        return changed ? { ...current, days } : current;
+      }))
+      .catch((error) => { if (error.name !== "AbortError") console.error("장소 좌표를 불러오지 못했어요.", error); });
+    return () => controller.abort();
+  }, [dbPlaceIds, plan?.savedId]);
 
   const display = plan || EXAMPLE;
   const day = display.days[selectedDay] || display.days[0];
@@ -174,6 +223,38 @@ export default function AiItinerary() {
       return { ...entry, items };
     }) }));
     setNotice("순서를 바꿨어요. 저장 버튼을 누르면 이 브라우저에 보관됩니다.");
+  }
+
+  function removeItem(index) {
+    if (!plan) return;
+    setPlan((current) => current && ({ ...current, days: current.days.map((entry, dayIndex) => dayIndex === selectedDay
+      ? { ...entry, items: entry.items.filter((_, itemIndex) => itemIndex !== index) }
+      : entry) }));
+    setNotice("장소를 일정에서 삭제했어요. 변경 내용을 유지하려면 일정 저장하기를 눌러 주세요.");
+  }
+
+  function updateItemTime(index, time) {
+    if (!plan || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return;
+    setPlan((current) => ({ ...current, days: current.days.map((entry, dayIndex) => dayIndex === selectedDay
+      ? { ...entry, items: entry.items.map((item, itemIndex) => itemIndex === index ? { ...item, time } : item) }
+      : entry) }));
+    setNotice("시간을 변경했어요. 일정 저장하기를 눌러 변경 내용을 저장해 주세요.");
+  }
+
+  function addPlace(place) {
+    if (!plan || !place?.id) return;
+    const id = `db:${place.id}`;
+    if (plan.days[selectedDay]?.items?.some((item) => item.id === id)) return;
+    const newItem = {
+      id, name: place.name, type: "관광지", time: "", address: place.addr || "",
+      lat: place.lat ?? null, lng: place.lng ?? null, image: place.image || null,
+      imageRegional: !!place.imageRegional, imageSubject: place.imageSubject || null, imageSource: place.imageSource || null,
+      reason: "직접 추가한 여행지", url: `/places/${place.id}`,
+    };
+    setPlan((current) => ({ ...current, days: current.days.map((entry, index) => index === selectedDay
+      ? { ...entry, items: [...(entry.items || []), newItem] } : entry) }));
+    setAddPlaceModalOpen(false);
+    setNotice(`${place.name}을(를) ${selectedDay + 1}일차에 추가했어요. 일정 저장하기를 눌러 변경 내용을 저장해 주세요.`);
   }
 
   function save() {
@@ -220,7 +301,8 @@ export default function AiItinerary() {
       <section className="ai-plan-card ai-plan-result"><div className="ai-plan-result-top"><div className="ai-plan-result-utility"><p className="ai-plan-kicker">{plan ? "AI GENERATED ITINERARY" : "PREVIEW ITINERARY"}</p><div className="ai-plan-result-actions">{plan ? <button className="ai-plan-save" type="button" onClick={save}>일정 저장하기</button> : <span className="ai-plan-preview-badge">화면 예시</span>}<button className="ai-plan-saved-open" type="button" onClick={() => setSavedModalOpen(true)}>저장한 일정 보기</button></div></div><div className="ai-plan-result-heading"><h2>{plan ? display.title : "이런 일정을 만들 수 있어요"}</h2>{plan?.requestedRegion === "전국" && <span className="ai-plan-random-region">전국 중 {plan.region} 지역을 무작위로 선택했어요</span>}<p>{display.summary}</p></div></div>
         <div className="ai-plan-day-tabs" role="tablist" aria-label="날짜별 일정">{display.days.map((entry, index) => <button role="tab" aria-selected={selectedDay === index} type="button" className={selectedDay === index ? "active" : ""} onClick={() => setSelectedDay(index)} key={entry.day}>{dayLabel(entry.date, index)}</button>)}</div>
         <div className="ai-plan-day-title"><span>DAY {selectedDay + 1}</span><h3>{day?.theme}</h3></div>
-        <ol className="ai-plan-timeline">{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><div className="ai-plan-time"><strong>{item.time || "시간 미정"}</strong><span>{item.type}</span></div><div className="ai-plan-timeline-dot" /><article className="ai-plan-stop">{item.image ? <img src={item.image} alt="" /> : <div className="ai-plan-photo-empty">{item.type === "음식점" ? "◌" : item.type === "숙소" ? "⌂" : "✦"}</div>}<div className="ai-plan-stop-copy"><span>{item.type}</span><h4>{plan && item.url ? <Link to={item.url}>{item.name}</Link> : item.name}</h4><p>{item.reason}</p><small>⌖ {item.address}</small></div>{plan && <div className="ai-plan-reorder"><button type="button" aria-label={`${item.name} 순서 올리기`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button><button type="button" aria-label={`${item.name} 순서 내리기`} disabled={index === dayItems.length - 1} onClick={() => moveItem(index, 1)}>↓</button></div>}</article></li>)}</ol>
+        <ol className="ai-plan-timeline">{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><div className="ai-plan-time">{plan ? <input type="time" value={item.time || ""} onChange={(event) => updateItemTime(index, event.target.value)} aria-label={`${item.name} 방문 시간 변경`} title={`${item.name} 방문 시간 변경`} /> : <strong>{item.time || "시간 미정"}</strong>}<span>{item.type}</span></div><div className="ai-plan-timeline-dot" /><article className="ai-plan-stop"><ItineraryPhoto item={item} /><div className="ai-plan-stop-copy"><span>{item.type}</span><h4>{plan && item.url ? <Link to={item.url}>{item.name}</Link> : item.name}</h4><p>{item.reason}</p><small>⌖ {item.address}</small></div>{plan && <div className="ai-plan-reorder"><button type="button" aria-label={`${item.name} 순서 올리기`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button><button type="button" aria-label={`${item.name} 순서 내리기`} disabled={index === dayItems.length - 1} onClick={() => moveItem(index, 1)}>↓</button><button className="ai-plan-delete" type="button" aria-label={`${item.name} 일정에서 삭제하기`} onClick={() => removeItem(index)}>삭제</button></div>}</article></li>)}</ol>
+        {plan && <button className="ai-plan-add-place" type="button" onClick={() => setAddPlaceModalOpen(true)}><span aria-hidden="true">＋</span> 가고싶은 여행지 추가하기</button>}
         {notice && <p className="ai-plan-notice" role="status">{notice}</p>}
         <p className="ai-plan-disclaimer">{plan ? "AI가 생성한 제안입니다. 방문 전 영업·운영 시간, 요금과 이동 경로를 확인해 주세요. 장소 정보: 한국관광공사 TourAPI." : "위 일정은 화면 구성 예시입니다. 실제 AI 추천 결과가 아닙니다."}</p>
       </section>
@@ -228,6 +310,7 @@ export default function AiItinerary() {
       <aside className="ai-plan-side"><section className="ai-plan-card ai-plan-route"><div className="ai-plan-side-title"><h2>여행 동선</h2><span>{plan ? `${dayItems.length}곳` : "미리보기"}</span></div><RouteSketch items={dayItems} /><ol>{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><span>{index + 1}</span><p>{item.name}</p><small>{item.time}</small></li>)}</ol><p className="ai-plan-route-note">점 사이의 선은 위치 관계를 나타냅니다. 실제 도로 경로가 아닙니다.</p></section>
         <section className="ai-plan-card ai-plan-helper"><div className="ai-plan-side-title"><h2>✦ AI 여행 도우미</h2></div><p>{plan ? display.summary : "여행 조건을 선택하고 일정을 만들면 추천 이유와 여행 팁을 알려드려요."}</p>{plan?.tips?.length > 0 && <ul>{plan.tips.map((tip, index) => <li key={index}>{tip}</li>)}</ul>}<div className="ai-plan-helper-source">관광공사 장소 검색 → OpenAI 일정 구성</div></section></aside>
     </div>
+    {addPlaceModalOpen && <AddItineraryPlaceModal dayLabel={dayLabel(day?.date, selectedDay)} existingIds={dayItems.map((item) => item.id)} onAdd={addPlace} onClose={() => setAddPlaceModalOpen(false)} />}
     {savedModalOpen && <div className="ai-plan-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSavedModalOpen(false); }}>
       <section className="ai-plan-saved-modal" role="dialog" aria-modal="true" aria-labelledby="ai-plan-saved-title">
         <header className="ai-plan-saved-modal-header"><div><p className="ai-plan-kicker">MY TRIPS</p><h2 id="ai-plan-saved-title">저장한 일정</h2><span>{savedPlans.length}개의 일정</span></div><button type="button" className="ai-plan-modal-close" onClick={() => setSavedModalOpen(false)} aria-label="닫기">×</button></header>

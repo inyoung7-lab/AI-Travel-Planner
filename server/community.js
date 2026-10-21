@@ -1,6 +1,8 @@
 import express from "express";
 import oracledb from "oracledb";
 import { getConnection } from "./db.js";
+import { photoFromRow } from "./repositories/placePhotoRepository.js";
+import { mapDbPlaceListRow } from "./repositories/placeDetailRepository.js";
 
 // 커뮤니티(수민) API — /api/community
 const router = express.Router();
@@ -705,12 +707,19 @@ router.get("/place-search", async (req, res) => {
   try {
     connection = await getConnection();
     const r = await connection.execute(
-      `SELECT place_id, name, address, region FROM COMM_PLACE
-       WHERE INSTR(name, :q) > 0 OR INSTR(address, :q) > 0
+      `SELECT p.place_id, p.name, p.address, p.region, p.lat, p.lng, p.ext_key, d.payload,
+              ph.photo_path, ph.image_source, ph.source_url, ph.photo_subject, ph.is_regional
+       FROM COMM_PLACE p LEFT JOIN COMM_PLACE_PHOTO ph ON ph.place_id = p.place_id
+       LEFT JOIN COMM_PLACE_TOUR_DETAIL d ON d.place_id = p.place_id
+       WHERE INSTR(p.name, :q) > 0 OR INSTR(p.address, :q) > 0
        FETCH FIRST 8 ROWS ONLY`,
-      { q }, { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      { q }, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } }
     );
-    res.json(r.rows.map((x) => ({ id: x.PLACE_ID, name: x.NAME, addr: x.ADDRESS ?? "", region: x.REGION ?? "" })));
+    res.json(r.rows.map((x) => {
+      const photo = photoFromRow(x);
+      return { id: x.PLACE_ID, name: x.NAME, addr: x.ADDRESS ?? "", region: x.REGION ?? "", lat: x.LAT ?? null, lng: x.LNG ?? null,
+        image: mapDbPlaceListRow(x).image, imageRegional: !!photo?.regional, imageSubject: photo?.subject || null, imageSource: photo?.imageSource || null };
+    }));
   } catch (err) {
     console.error("[community] 장소 검색 오류:", err.message);
     res.json([]);
@@ -729,11 +738,19 @@ router.get("/places-by-ids", async (req, res) => {
     const binds = {};
     ids.forEach((v, i) => (binds["p" + i] = v));
     const r = await connection.execute(
-      `SELECT place_id, name, address, region FROM COMM_PLACE WHERE place_id IN (${ids.map((_, i) => ":p" + i).join(",")})`,
-      binds, { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      `SELECT p.place_id, p.name, p.address, p.region, p.lat, p.lng, p.ext_key, d.payload,
+              ph.photo_path, ph.image_source, ph.source_url, ph.photo_subject, ph.is_regional
+       FROM COMM_PLACE p LEFT JOIN COMM_PLACE_PHOTO ph ON ph.place_id = p.place_id
+       LEFT JOIN COMM_PLACE_TOUR_DETAIL d ON d.place_id = p.place_id
+       WHERE p.place_id IN (${ids.map((_, i) => ":p" + i).join(",")})`,
+      binds, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } }
     );
     const out = {};
-    for (const x of r.rows) out[x.PLACE_ID] = { name: x.NAME, addr: x.ADDRESS ?? "", region: x.REGION ?? "" };
+    for (const x of r.rows) {
+      const photo = photoFromRow(x);
+      out[x.PLACE_ID] = { name: x.NAME, addr: x.ADDRESS ?? "", region: x.REGION ?? "", lat: x.LAT ?? null, lng: x.LNG ?? null,
+        image: mapDbPlaceListRow(x).image, imageRegional: !!photo?.regional, imageSubject: photo?.subject || null, imageSource: photo?.imageSource || null };
+    }
     res.json(out);
   } catch (err) {
     console.error("[community] 장소 조회 오류:", err.message);

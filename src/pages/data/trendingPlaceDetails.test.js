@@ -16,13 +16,13 @@ test("popular card IDs resolve to their own trending detail route and data", () 
   assert.notDeepEqual(getTrendingPlaceById("7").trend, getTrendingPlaceById("3").trend);
 });
 
-test("common navigation keeps team-owned cards pending while routing trending cards", () => {
+test("common navigation routes trending and DB place cards", () => {
   const paths = [];
   const navigate = (path) => paths.push(path);
 
   assert.equal(openPlaceDetail(7, navigate, "trending"), true);
-  assert.equal(openPlaceDetail(7, navigate, "team"), false);
-  assert.deepEqual(paths, ["/trending/7"]);
+  assert.equal(openPlaceDetail(7, navigate, "team"), true);
+  assert.deepEqual(paths, ["/trending/7", "/places/7"]);
 });
 
 test("unknown place IDs resolve to not found", () => {
