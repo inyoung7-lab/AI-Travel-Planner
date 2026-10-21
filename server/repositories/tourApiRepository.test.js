@@ -13,6 +13,50 @@ function apiResponse(items, totalCount = items.length, resultCode = "0000") {
   } }), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
+test("reuses the same TourAPI candidate list for repeated and concurrent requests", async () => {
+  let calls = 0;
+  const repository = createTourApiRepository({
+    serviceKey: "test-key", mobileApp: "AI-Travel-Planner-test",
+    fetchImpl: async () => {
+      calls += 1;
+      return apiResponse([{ contentid: "1", contenttypeid: "12", title: "Sample place" }]);
+    },
+  });
+  const filters = { regions: [], types: [], themes: [], keywords: [] };
+  const [first, second] = await Promise.all([
+    repository.listPlaces({ filters }), repository.listPlaces({ filters }),
+  ]);
+  const third = await repository.listPlaces({ filters });
+  assert.equal(calls, 1);
+  assert.deepEqual(first, second);
+  assert.deepEqual(first, third);
+});
+
+test("reuses a stored search result after the repository is recreated", async () => {
+  const stored = new Map();
+  const responseCache = {
+    async get(key) { return stored.get(key) || null; },
+    async set(key, value) { stored.set(key, value); },
+  };
+  let calls = 0;
+  const options = {
+    serviceKey: "test-key", mobileApp: "AI-Travel-Planner-test", responseCache,
+    fetchImpl: async () => {
+      calls += 1;
+      return apiResponse([{ contentid: "1", contenttypeid: "12", title: "Sample place" }]);
+    },
+  };
+  const first = await createTourApiRepository(options).listPlaces();
+  const second = await createTourApiRepository(options).listPlaces();
+  const offline = await createTourApiRepository({
+    ...options, serviceKey: "", mobileApp: "",
+    fetchImpl: () => { throw new Error("cached search should not use TourAPI"); },
+  }).listPlaces();
+  assert.equal(calls, 1);
+  assert.deepEqual(second, first);
+  assert.deepEqual(offline, first);
+});
+
 test("sends separate source filters and keeps exact source evidence", async () => {
   const requestedUrls = [];
   const repository = createTourApiRepository({

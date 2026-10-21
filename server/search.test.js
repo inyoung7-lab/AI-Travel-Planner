@@ -228,7 +228,7 @@ test("ranks browser search history before applying the return limit and saves on
     async listRecentConditions({ browserId }) {
       events.push("read");
       assert.equal(browserId, "server-cookie-browser");
-      return [{ conditions: { regions: ["부산"], types: [], themes: ["산"] }, searchedAt: new Date() }];
+      return [{ conditions: { regions: ["부산"], types: [], themes: ["산"] }, searchedAt: new Date(Date.now() - 1000) }];
     },
     async recordSearch(record) {
       events.push("write");

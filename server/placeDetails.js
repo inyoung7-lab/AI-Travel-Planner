@@ -1,5 +1,6 @@
 import express from "express";
 import { getDbPlace, getNearbyPlaces, getTourDetail, listDbPlaces } from "./repositories/placeDetailRepository.js";
+import { oracleResponseCache } from "./repositories/oracleResponseCache.js";
 
 const router = express.Router();
 
@@ -8,6 +9,7 @@ router.get("/nearby", async (req, res) => {
     const result = await getNearbyPlaces({
       lat: Number(req.query.lat), lng: Number(req.query.lng), category: String(req.query.category || ""),
       excludeContentId: String(req.query.excludeContentId || ""),
+      responseCache: oracleResponseCache,
     });
     res.json(result);
   } catch (error) {
@@ -25,7 +27,7 @@ router.get("/", async (_req, res) => {
 router.get("/tourapi/:id", async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ message: "잘못된 여행지 번호예요." });
   try {
-    const place = await getTourDetail(req.params.id);
+    const place = await getTourDetail(req.params.id, { responseCache: oracleResponseCache });
     return place ? res.json(place) : res.status(404).json({ message: "여행지를 찾지 못했어요." });
   } catch (error) {
     console.error("[places] TourAPI 상세 조회 오류:", error.message);

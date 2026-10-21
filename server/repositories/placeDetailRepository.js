@@ -2,6 +2,7 @@ import oracledb from "oracledb";
 import { getConnection } from "../db.js";
 import { classifyTourApiPlace } from "./tourApiCategories.js";
 import { normalizeTravelRegion } from "../../shared/travelRegions.js";
+import { photoFromRow } from "./placePhotoRepository.js";
 
 const BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
 const REQUEST_TIMEOUT = 8000;
@@ -61,47 +62,18 @@ export function selectTourMatch(place, candidates) {
   }) || null;
 }
 
-async function geocodePlace(place) {
-  const fullName = place.name.replace(/해양케이블카/g, "해상케이블카");
-  const parts = fullName.split(/\s+/);
-  const shortName = parts.slice(1).join(" ");
-  const terms = [...new Set([fullName.replace(/\s/g, ""), shortName, parts[1], place.address].filter(Boolean))];
-  const acceptedNames = [normalizeName(place.name), normalizeName(shortName), normalizeName(parts[1]), normalizeName(fullName)];
-  const expectedRegion = normalizeTravelRegion(place.region);
-  const expectedCity = String(place.address || "").match(/[가-힣]+시/)?.[0];
-  for (const term of terms) {
-    try {
-      const url = new URL("https://photon.komoot.io/api/");
-      url.searchParams.set("q", term);
-      url.searchParams.set("limit", "6");
-      url.searchParams.set("bbox", "124.5,33,132,38.7");
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const match = (payload.features || []).find((feature) => {
-        const properties = feature.properties || {};
-        const actualName = normalizeName(properties.name);
-        const nameMatches = acceptedNames.some((name) => name.length >= 2 &&
-          (actualName === name || (name.length >= 2 && actualName.startsWith(name) && actualName.length <= name.length + 2)));
-        const actualRegion = normalizeTravelRegion(properties.state) || normalizeTravelRegion(properties.city);
-        const combinedRegion = String(properties.state || "");
-        const regionMatches = actualRegion === expectedRegion ||
-          (combinedRegion.startsWith("전남광주") && ["전남", "광주"].includes(expectedRegion));
-        const cityMatches = !expectedCity || `${properties.city || ""} ${properties.county || ""}`.includes(expectedCity);
-        const [lng, lat] = feature.geometry?.coordinates || [];
-        return nameMatches && regionMatches && cityMatches && Number.isFinite(lat) && Number.isFinite(lng);
-      });
-      if (match) return { lat: match.geometry.coordinates[1], lng: match.geometry.coordinates[0] };
-    } catch { /* 다른 검색어를 시도합니다. */ }
-  }
-  return null;
-}
-
-export async function getTourDetail(contentId) {
+export async function getTourDetail(contentId, { responseCache = null } = {}) {
   if (!/^\d+$/.test(String(contentId))) return null;
   const key = `tour:${contentId}`;
   const cached = cache.get(key);
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
+  if (responseCache) {
+    const stored = await responseCache.get(key, 30 * 24 * 60 * 60 * 1000).catch(() => null);
+    if (stored?.contentId === String(contentId)) {
+      cache.set(key, { at: Date.now(), value: stored });
+      return stored;
+    }
+  }
   const common = (await request("detailCommon2", { contentId })).at(0);
   if (!common?.title) return null;
   const contentTypeId = String(common.contenttypeid || "12");
@@ -131,32 +103,41 @@ export async function getTourDetail(contentId) {
     extraInfo: info.filter((entry) => entry.infoname && entry.infotext).map((entry) => ({ label: cleanText(entry.infoname), value: cleanText(entry.infotext) })).slice(0, 12),
   };
   cache.set(key, { at: Date.now(), value });
+  if (responseCache) await responseCache.set(key, value).catch(() => {});
   return value;
 }
 
-export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "" }) {
+export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "", responseCache = null }) {
   const config = NEARBY_CATEGORIES[category];
   if (!config) throw new RangeError("지원하지 않는 주변 장소 분류예요.");
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39 || lng < 124 || lng > 132) {
     throw new RangeError("올바른 국내 위치 좌표가 필요해요.");
   }
-  if (!process.env.TOUR_API_SERVICE_KEY?.trim()) throw new Error("TourAPI 인증키가 설정되지 않았어요.");
   const key = `nearby:${category}:${lat.toFixed(5)}:${lng.toFixed(5)}`;
   const cached = cache.get(key);
   let items;
   if (cached && Date.now() - cached.at < CACHE_MS) {
     items = cached.value;
   } else {
-    const rows = await request("locationBasedList2", {
+    const stored = responseCache
+      ? await responseCache.get(key, (category === "festival" ? 1 : 30) * 24 * 60 * 60 * 1000).catch(() => null)
+      : null;
+    if (Array.isArray(stored)) {
+      items = stored;
+    } else {
+      if (!process.env.TOUR_API_SERVICE_KEY?.trim()) throw new Error("TourAPI 인증키가 설정되지 않았어요.");
+      const rows = await request("locationBasedList2", {
       mapX: String(lng), mapY: String(lat), radius: String(config.radius), arrange: "E",
       contentTypeId: config.contentTypeId, numOfRows: "30",
-    });
-    items = rows.filter((item) => item.contentid && item.title).map((item) => ({
-      contentId: String(item.contentid), name: cleanText(item.title), category: classifyTourApiPlace(item),
-      address: cleanText([item.addr1, item.addr2].filter(Boolean).join(" ")),
-      distanceMeters: Number(item.dist) || null,
-      image: ["Type1", "Type3"].includes(item.cpyrhtDivCd) ? item.firstimage || item.firstimage2 || null : null,
-    }));
+      });
+      items = rows.filter((item) => item.contentid && item.title).map((item) => ({
+        contentId: String(item.contentid), name: cleanText(item.title), category: classifyTourApiPlace(item),
+        address: cleanText([item.addr1, item.addr2].filter(Boolean).join(" ")),
+        distanceMeters: Number(item.dist) || null,
+        image: ["Type1", "Type3"].includes(item.cpyrhtDivCd) ? item.firstimage || item.firstimage2 || null : null,
+      }));
+      if (responseCache) await responseCache.set(key, items).catch(() => {});
+    }
     cache.set(key, { at: Date.now(), value: items });
   }
   return { items: items.filter((item) => item.contentId !== String(excludeContentId)).slice(0, 8), radiusMeters: config.radius };
@@ -168,8 +149,11 @@ export async function listDbPlaces() {
     let rows;
     try {
       const result = await connection.execute(
-        `SELECT p.place_id, p.name, p.address, p.region, p.ext_key, d.payload
+        `SELECT p.place_id, p.name, p.address, p.region, p.ext_key, d.payload,
+                ph.photo_path, ph.image_source, ph.source_url, ph.photo_subject,
+                ph.is_regional, ph.tour_content_id AS photo_tour_content_id
          FROM COMM_PLACE p LEFT JOIN COMM_PLACE_TOUR_DETAIL d ON d.place_id = p.place_id
+         LEFT JOIN COMM_PLACE_PHOTO ph ON ph.place_id = p.place_id
          ORDER BY p.place_id`,
         {}, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } },
       );
@@ -188,9 +172,10 @@ export function mapDbPlaceListRow(row) {
   try { detail = row.PAYLOAD ? JSON.parse(row.PAYLOAD) : {}; } catch { /* 목록은 상세 데이터가 손상되어도 계속 표시합니다. */ }
   const image = Array.isArray(detail?.images) ? detail.images.find((url) => typeof url === "string" && url.trim()) : null;
   const secureImage = image?.replace(/^http:\/\/tong\.visitkorea\.or\.kr\//i, "https://tong.visitkorea.or.kr/");
+  const representative = photoFromRow(row);
   return {
     id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", extKey: row.EXT_KEY || "",
-    image: secureImage || (row.EXT_KEY === "sample:2" ? "/images/place-preview/hyeopjae-beach.png" : null),
+    image: representative?.image || secureImage || null,
   };
 }
 
@@ -199,15 +184,31 @@ export async function getDbPlace(id) {
   let row;
   let storedTour = null;
   try {
-    const result = await connection.execute("SELECT place_id, name, address, region, lat, lng, ext_key FROM COMM_PLACE WHERE place_id = :id", { id }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    const result = await connection.execute(
+      `SELECT p.place_id, p.name, p.address, p.region, p.lat, p.lng, p.ext_key,
+              ph.photo_path, ph.image_source, ph.source_url, ph.photo_subject,
+              ph.is_regional, ph.tour_content_id AS photo_tour_content_id
+       FROM COMM_PLACE p LEFT JOIN COMM_PLACE_PHOTO ph ON ph.place_id = p.place_id
+       WHERE p.place_id = :id`,
+      { id }, { outFormat: oracledb.OUT_FORMAT_OBJECT },
+    );
     row = result.rows[0];
-    if (row && /^tourapi:\d+$/.test(row.EXT_KEY || "")) {
+    if (row) {
       try {
         const snapshot = await connection.execute(
-          "SELECT payload FROM COMM_PLACE_TOUR_DETAIL WHERE place_id = :id",
+          "SELECT content_id, payload FROM COMM_PLACE_TOUR_DETAIL WHERE place_id = :id",
           { id }, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } },
         );
-        if (snapshot.rows[0]?.PAYLOAD) storedTour = JSON.parse(snapshot.rows[0].PAYLOAD);
+        const saved = snapshot.rows[0];
+        if (saved?.PAYLOAD) {
+          const detail = JSON.parse(saved.PAYLOAD);
+          const directTourId = /^tourapi:(\d+)$/.exec(row.EXT_KEY || "")?.[1];
+          const matchesStoredPlace = detail.name === row.NAME
+            && String(detail.tourContentId || detail.contentId) === String(saved.CONTENT_ID);
+          if (directTourId === String(saved.CONTENT_ID) || matchesStoredPlace) {
+            storedTour = { ...detail, contentId: String(saved.CONTENT_ID) };
+          }
+        }
       } catch (error) {
         if (error.errorNum !== 942 && !(error instanceof SyntaxError)) throw error;
       }
@@ -215,48 +216,18 @@ export async function getDbPlace(id) {
   } finally { await connection.close(); }
     if (!row) return null;
     const place = { id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", lat: row.LAT, lng: row.LNG, extKey: row.EXT_KEY || "" };
-    let tourId = /^tourapi:(\d+)$/.exec(place.extKey)?.[1];
-    if (!tourId && place.extKey === "sample:2") tourId = "127490";
-    if (!tourId && process.env.TOUR_API_SERVICE_KEY?.trim()) {
-      const matchKey = `match:${place.id}:${place.name}`;
-      const cachedMatch = cache.get(matchKey);
-      if (cachedMatch && Date.now() - cachedMatch.at < (cachedMatch.value ? CACHE_MS : 5 * 60 * 1000)) {
-        tourId = cachedMatch.value;
-      } else try {
-        const keywords = [...new Set([
-          normalizeName(place.name),
-          place.name.split(/\s+/).slice(1).join(" "),
-          place.name.split(/\s+/)[1],
-        ].filter((keyword) => typeof keyword === "string" && keyword.length >= 2))];
-        for (const keyword of keywords) {
-          const candidates = await request("searchKeyword2", { keyword, numOfRows: "100" });
-          tourId = selectTourMatch(place, candidates)?.contentid;
-          if (tourId) break;
-        }
-        cache.set(matchKey, { at: Date.now(), value: tourId || null });
-      } catch { /* DB 정보만으로 상세를 표시합니다. */ }
-    }
-    let tour = storedTour;
-    if (tourId && !tour) {
-      try { tour = await getTourDetail(tourId); } catch { /* DB 정보만으로 상세를 표시합니다. */ }
-    }
-    let geocoded = null;
-    if (!place.lat && !tour?.lat) {
-      const geocodeKey = `geocode:${place.id}:${place.name}:${place.address}`;
-      const cachedGeocode = cache.get(geocodeKey);
-      if (cachedGeocode && Date.now() - cachedGeocode.at < (cachedGeocode.value ? CACHE_MS : 5 * 60 * 1000)) {
-        geocoded = cachedGeocode.value;
-      } else {
-        geocoded = await geocodePlace(place);
-        cache.set(geocodeKey, { at: Date.now(), value: geocoded });
-      }
-    }
+    const representative = photoFromRow(row);
+    const tour = storedTour;
     return {
       source: "db", id: place.id, name: place.name, category: tour?.category || null, address: place.address || tour?.address || "",
-      region: place.region, lat: place.lat ?? tour?.lat ?? geocoded?.lat ?? null, lng: place.lng ?? tour?.lng ?? geocoded?.lng ?? null,
-      coordinateSource: geocoded ? "OpenStreetMap 기반 주소 검색" : null, coordinateApproximate: !!geocoded,
+      region: place.region, lat: place.lat ?? tour?.lat ?? null, lng: place.lng ?? tour?.lng ?? null,
+      coordinateSource: null, coordinateApproximate: false,
       overview: tour?.overview || "", phone: tour?.phone || "", hours: tour?.hours || "", closed: tour?.closed || "",
-      parking: tour?.parking || "", fee: tour?.fee || "", images: tour?.images || [],
-      imageSource: tour?.imageSource || null, extraInfo: tour?.extraInfo || [], tourContentId: tour?.contentId || null,
+      parking: tour?.parking || "", fee: tour?.fee || "", images: representative ? [representative.image] : tour?.images || [],
+      imageSource: representative?.imageSource || tour?.imageSource || null,
+      imageSourceUrl: representative?.imageSourceUrl || null,
+      imageSubject: representative?.subject || null,
+      imageRegional: !!representative?.regional,
+      extraInfo: tour?.extraInfo || [], tourContentId: tour?.contentId || null,
     };
 }

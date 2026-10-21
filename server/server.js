@@ -9,16 +9,20 @@ import communityRouter from "./community.js";
 import mytripRouter from "./mytrip.js";
 import { createSearchHandler } from "./search.js";
 import { createTravelPlaceRepository } from "./repositories/travelPlaceRepository.js";
+import { createDbRecommendationRepository } from "./repositories/dbRecommendationRepository.js";
+import { oracleResponseCache } from "./repositories/oracleResponseCache.js";
 import { createSearchHistoryRepository, isOracleConnectionConfigured } from "./repositories/searchHistoryRepository.js";
 import { createJsonSearchHistoryRepository } from "./repositories/jsonSearchHistoryRepository.js";
 import { loadBrowserCookieSecret, createBrowserIdentityMiddleware } from "./browserIdentity.js";
 import { createHomeRecommendationsHandler } from "./recommendations/handlers.js";
 import { getConnection } from "./db.js";
+import { ensurePlacePhotos } from "./ensure-place-photos.js";
 import placeDetailsRouter from "./placeDetails.js";
 import itineraryRouter from "./itinerary.js";
 
 // Resolve configuration from the repository root, independent of the shell's working directory.
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
+await ensurePlacePhotos();
 
 const serverDirectory = fileURLToPath(new URL(".", import.meta.url));
 const dataDirectory = resolve(serverDirectory, "data");
@@ -53,9 +57,10 @@ app.use("/api/community", communityRouter);
 app.use("/api/mytrip", mytripRouter);
 app.use("/api/places", placeDetailsRouter);
 app.use("/api/itineraries", itineraryRouter);
-const placeRepository = createTravelPlaceRepository();
+const placeRepository = createTravelPlaceRepository({ tourApiOptions: { responseCache: oracleResponseCache } });
 app.post("/api/search", browserIdentityMiddleware, createSearchHandler(placeRepository, { historyRepository: searchHistoryRepository }));
-app.get("/api/recommendations", browserIdentityMiddleware, createHomeRecommendationsHandler(placeRepository, { historyRepository: searchHistoryRepository }));
+const homeRepository = placeRepository.dataSource === "example" ? placeRepository : createDbRecommendationRepository();
+app.get("/api/recommendations", browserIdentityMiddleware, createHomeRecommendationsHandler(homeRepository, { historyRepository: searchHistoryRepository }));
 
 app.listen(3000, () => {
   console.log("서버 실행중: http://localhost:3000");
