@@ -92,9 +92,19 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
   text(s, 64, 600, 1100, 30, '지역의 일상이 여행자의 기억이 되는 경험을 만듭니다.', { size: 18, color: '#D8E5ED' });
   notes(s, '로컬이음은 지역 주민과 여행자가 함께하는 경험을 연결하기 위해 기획했습니다. 화면 캡처는 2026-10-20 로컬 개발 앱에서 직접 취득했습니다. 주요 근거: docs/local-eum/README.md, src/App.jsx.');
 }
-// 2 — Problem and value
+// 2 — Product intention
 {
-  const s = base('지역 주민의 이야기가 여행의 경험이 됩니다', 'WHY LOCAL EUM', 2);
+  const s = base('관광지에서 사람으로, 정보에서 경험으로', 'LOCAL EUM’S INTENTION', 2, true);
+  text(s, 64, 174, 1152, 124, '기존 여행 서비스가 주로 어디를 방문하고 무엇을 볼 것인지에 집중한다면, 로컬이음은 그곳에서 누구를 만나고 무엇을 함께 경험할 수 있는가라는 질문에서 출발했습니다.', { size: 22, color: C.white, lineSpacing: 1.18 });
+  shape(s, 64, 318, 56, 4, '#73D1CC', 'none', 2);
+  text(s, 64, 348, 1152, 124, '국내외 여행자가 지역 주민과 시장을 걷고, 음식을 나누고, 언어와 문화를 교류하며 평범한 일상 속에서 특별한 경험을 발견하도록 연결하는 서비스입니다.', { size: 22, color: C.white, lineSpacing: 1.18 });
+  text(s, 64, 490, 1152, 82, '지역 주민은 단순한 관광 안내자가 아니라 자신이 가진 이야기와 관심사로 여행 경험을 만드는 호스트가 됩니다.', { size: 22, color: '#C7D6E2', lineSpacing: 1.18 });
+  text(s, 64, 608, 1152, 38, '“여행에서 만남으로, 만남에서 새로운 경험으로.”', { size: 25, color: '#73D1CC', bold: true, align: 'center' });
+  notes(s, '기획 의도는 장소 정보를 나열하는 여행에서 지역 주민과 함께 일상을 경험하는 여행으로 확장하는 것입니다. 호스트는 자신의 이야기와 관심사를 체험으로 구성하는 주체입니다.');
+}
+// 3 — Problem and value
+{
+  const s = base('지역 주민의 이야기가 여행의 경험이 됩니다', 'WHY LOCAL EUM', 3);
   boxText(s, 64, 176, 530, 230, '여행자에게', '방문 장소와 명소 정보는 많지만,\n지역 주민과 일상을 함께하는 경험은\n쉽게 찾기 어렵습니다.', { fill: C.white, accent: C.blue, bodySize: 20 });
   boxText(s, 622, 176, 594, 230, '지역 호스트에게', '지역 주민의 이야기와 관심사를\n여행 경험으로 소개하고 운영할 수 있는\n프로그램과 도구가 필요합니다.', { fill: C.white, accent: C.teal, bodySize: 20 });
   shape(s, 64, 435, 1152, 154, C.paleCoral, 'none', 18);
@@ -104,7 +114,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 3 — Journeys
 {
-  const s = base('한 서비스 안에서 여행자와 호스트의 흐름을 연결', 'SERVICE FLOW', 3);
+  const s = base('한 서비스 안에서 여행자와 호스트의 흐름을 연결', 'SERVICE FLOW', 4);
   text(s, 64, 175, 150, 28, '여행자', { size: 18, color: C.blue, bold: true });
   const traveler = ['체험 검색', '상세·호스트 확인', '회차 선택', '신청·접수'];
   traveler.forEach((label, i) => {
@@ -129,7 +139,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 4 — Actual UI evidence
 {
-  const s = base('화면으로 확인한 현재 구현', 'LIVE UI EVIDENCE', 4);
+  const s = base('화면으로 확인한 현재 구현', 'LIVE UI EVIDENCE', 5);
   await addImage(s, 'catalog.png', 64, 174, 350, 260, '실제 로컬이음 공개 목록 캡처');
   await addImage(s, 'experience-detail.png', 465, 174, 350, 260, '실제 로컬이음 체험 상세 캡처');
   await addImage(s, 'host-demo.png', 866, 174, 350, 260, '실제 로컬이음 공개 호스트 데모 캡처');
@@ -145,7 +155,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 5 — Data model and snapshot
 {
-  const s = base('Supabase 실제 조회: 작은 운영 데이터와 명확한 관계', 'DATA MODEL  ·  READ-ONLY SNAPSHOT', 5);
+  const s = base('Supabase 실제 조회: 작은 운영 데이터와 명확한 관계', 'DATA MODEL  ·  READ-ONLY SNAPSHOT', 6);
   const metrics = [
     ['호스트', '2'], ['체험', '15'], ['운영 회차', '19'], ['일정 단계', '68'], ['신청', '1'], ['시연 결제 안내', '1'],
   ];
@@ -170,7 +180,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 6 — Architecture
 {
-  const s = base('여행자 화면과 호스트 운영을 Supabase로 연결', 'LOCAL EUM ARCHITECTURE', 6);
+  const s = base('여행자 화면과 호스트 운영을 Supabase로 연결', 'LOCAL EUM ARCHITECTURE', 7);
   shape(s, 64, 174, 750, 360, C.white, C.line, 18);
   text(s, 88, 193, 700, 28, '여행자·HOST 브라우저', { size: 20, color: C.navy, bold: true, align: 'center' });
   boxText(s, 92, 244, 240, 104, 'React + Vite', '공통 Header / App 라우터\n/local-eum 화면', { fill: C.paleBlue, titleH: 26, bodyY: 54, bodySize: 16, line: 'none' });
@@ -185,7 +195,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 7 — AI agent
 {
-  const s = base('AI는 답변기가 아니라, 검증된 도구를 순서대로 호출하는 보조자', 'AI EXPERIENCE AGENT', 7);
+  const s = base('AI는 답변기가 아니라, 검증된 도구를 순서대로 호출하는 보조자', 'AI EXPERIENCE AGENT', 8);
   const steps = [
     ['1', 'HOST 요청', '현재 체험 분석\n또는 아이디어'],
     ['2', 'Edge 검증', 'JWT · HOST 역할\n소유권 · 입력'],
@@ -208,7 +218,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 8 — Multilingual + maps
 {
-  const s = base('화면 언어, 번역 검수, 실제 진행 언어는 서로 다릅니다', 'LANGUAGE & PLACE', 8);
+  const s = base('화면 언어, 번역 검수, 실제 진행 언어는 서로 다릅니다', 'LANGUAGE & PLACE', 9);
   const rows = [
     ['화면 전환', 'ko / en / ja', '인터페이스 언어'],
     ['콘텐츠 번역', '영·일 초안', '검수 상태 DRAFT'],
@@ -230,7 +240,7 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
 }
 // 9 — Progress
 {
-  const s = base('기능은 연결되고 있지만, 테스트 범위와 운영 증거를 나눠 봅니다', 'PROGRESS & EVIDENCE', 9);
+  const s = base('코드·화면·DB 조회로 구현 결과를 확인했습니다', 'IMPLEMENTATION & EVIDENCE', 10);
   const items = [
     ['화면·데이터', '공개 목록·상세·신청·호스트 공간', '코드 + 실제 로컬 화면'],
     ['DB 운영', '2 HOST · 15 체험 · 19 회차', '2026-10-20 read-only 조회'],
@@ -244,47 +254,37 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
     text(s, 278, y + 18, 524, 30, it[1], { size: 18, color: C.ink });
     pill(s, 862, y + 17, 326, it[2], i === 1 ? C.paleTeal : C.paleBlue, i === 1 ? '#126B6B' : C.navy);
   });
-  shape(s, 64, 548, 1152, 78, C.paleCoral, 'none', 14);
-  text(s, 84, 566, 1110, 46, '구현과 테스트 결과를 실제 운영 검증과 구분합니다. 실 사용자 평가와 피드백 반영은 진행 전입니다.', { size: 19, color: '#9A3C32', bold: true, align: 'center' });
-  notes(s, 'main HEAD는 79374c262707e71440767f483d928e248e7a0d19이며 커밋 제목에 PR #13이 표시됩니다. PR13 검증 기록은 Local Eum node tests 56개, AI Edge Deno tests 16개, build/lint pass with existing warnings. Team regression 48/49 pass; existing failure `trendingPlaceDetails.test.js`는 로컬이음 변경이 없는 팀 파일로 기록됨. 이 검증은 현 브랜치에서 재실행 예정입니다. 실사용자 5명 테스트/피드백 반영은 미완료.');
+  shape(s, 64, 548, 1152, 78, C.paleTeal, 'none', 14);
+  text(s, 84, 566, 1110, 46, '서비스 흐름과 구현 근거를 연결해 로컬이음의 현재 결과를 정리했습니다.', { size: 19, color: '#126B6B', bold: true, align: 'center' });
+  notes(s, '구현 근거는 실제 앱 화면, 2026-10-20 개발 DB 읽기 전용 조회, Local Eum 56개 테스트, AI Edge Deno 16개 테스트, build/lint 실행 기록입니다. npm run test:travel은 49개 중 48개 통과, 공통 내비게이션 테스트 1개 실패로 기록되어 있으며 로컬이음 변경과 무관한 팀 테스트입니다. 이 장은 프로젝트 구현 현황과 검증 증거를 요약합니다.');
 }
-// 10 — Risks
+// 11 — Completion report
 {
-  const s = base('운영으로 넘어가기 전에 해결할 6가지 리스크', 'OPEN RISKS', 10);
-  const risks = [
-    ['가격·가치', 'Busan 표기 0원. 무료/실비/가격가설 의도를 결정하고 호스트 확인'],
-    ['진행 언어', '3개 체험 모두 HOST 언어 확인 필요'],
-    ['호스트 권한', '회차 생성·취소 일부 검증 기록; 교차 HOST·ADMIN 전체 검증은 제한적'],
-    ['결제', '시연 안내만. 실제 결제·환불·정산 없음'],
-    ['AI 신뢰성', '지역 corpus 규모·근거 최신성·가격 근거를 사람 검토 필요'],
-    ['출시 증거', '외부 사용자 5명 이상 테스트와 사용 피드백 미완료'],
+  const s = base('기획한 핵심 흐름을 웹서비스로 구현했습니다', 'LOCAL EUM · COMPLETION REPORT', 11);
+  const results = [
+    ['체험 탐색', '지역·관심 분야별 목록과 상세·회차 확인 화면'],
+    ['참가 신청', 'Supabase 기반 신청 접수와 접수 정보 표시'],
+    ['호스트 운영', '프로필·프로그램·회차·신청자 관리 화면'],
+    ['데이터·권한', 'Supabase PostgreSQL, Auth, RLS, Storage 연결'],
+    ['다국어·장소', '한국어·영어·일본어 화면과 Kakao 주소 검색'],
+    ['AI 기획 지원', '지역·체험 분석 제안과 HOST 검토·편집 흐름'],
   ];
-  risks.forEach((r, i) => {
+  results.forEach((r, i) => {
     const x = 64 + (i % 2) * 576;
     const y = 174 + Math.floor(i / 2) * 132;
-    boxText(s, x, y, 548, 110, r[0], r[1], { fill: i === 0 || i === 2 ? C.paleCoral : C.white, accent: i === 0 || i === 2 ? C.coral : C.blue, titleH: 28, bodyY: 53, bodySize: 16 });
+    boxText(s, x, y, 548, 110, r[0], r[1], { fill: i === 0 || i === 5 ? C.paleTeal : C.white, accent: i === 0 || i === 5 ? C.teal : C.blue, titleH: 28, bodyY: 53, bodySize: 16 });
   });
-  text(s, 64, 594, 1152, 36, '개발 방향  ·  체험 가치와 호스트 운영 조건을 작은 사용자 테스트로 확인', { size: 19, color: C.navy, bold: true, align: 'center' });
-  notes(s, '호스트 실 조작의 경계는 docs/local-eum/migrations/20261020_language_friends_and_host_lifecycle.applied.md 및 docs/local-eum/host-operations-guide.md를 참조하십시오. 기존 기록은 HOST #500 테스트 전용 회차 생성·취소를 확인했고, HOST #501 접근 차단은 RLS 결과를 확인하되 직접 JWT 브라우저 조작은 완전히 검증하지 못했다고 기록합니다. ADMIN 실조작은 미검증입니다. Busan 0원은 fee_amount 표시 값이며 결제 모듈이 없습니다.');
+  text(s, 64, 594, 1152, 36, '기획 의도를 체험 탐색부터 호스트 운영과 AI 지원까지 이어지는 하나의 서비스로 구현', { size: 19, color: C.navy, bold: true, align: 'center' });
+  notes(s, '이 보고서의 완료 범위는 로컬이음 프런트엔드, Supabase 데이터 연동, HOST 운영 흐름, 다국어 화면, 주소 검색, AI 기획 지원의 구현과 코드·화면·DB 조회 근거 정리입니다. 신청·결제 안내는 결제 모듈을 뜻하지 않으며, 실제 결제·환불·정산 서비스로 설명하지 않습니다.');
 }
-// 11 — Product intention
+// 12 — Learning
 {
-  const s = base('관광지에서 사람으로, 정보에서 경험으로', 'LOCAL EUM’S INTENTION', 11, true);
-  text(s, 64, 174, 1152, 124, '기존 여행 서비스가 주로 어디를 방문하고 무엇을 볼 것인지에 집중한다면, 로컬이음은 그곳에서 누구를 만나고 무엇을 함께 경험할 수 있는가라는 질문에서 출발했습니다.', { size: 22, color: C.white, lineSpacing: 1.18 });
-  shape(s, 64, 318, 56, 4, '#73D1CC', 'none', 2);
-  text(s, 64, 348, 1152, 124, '국내외 여행자가 지역 주민과 시장을 걷고, 음식을 나누고, 언어와 문화를 교류하며 평범한 일상 속에서 특별한 경험을 발견하도록 연결하는 서비스입니다.', { size: 22, color: C.white, lineSpacing: 1.18 });
-  text(s, 64, 490, 1152, 82, '지역 주민은 단순한 관광 안내자가 아니라 자신이 가진 이야기와 관심사로 여행 경험을 만드는 호스트가 됩니다.', { size: 22, color: '#C7D6E2', lineSpacing: 1.18 });
-  text(s, 64, 608, 1152, 38, '“여행에서 만남으로, 만남에서 새로운 경험으로.”', { size: 25, color: '#73D1CC', bold: true, align: 'center' });
-  notes(s, '기획 의도는 장소 정보를 나열하는 여행에서 지역 주민과 함께 일상을 경험하는 여행으로 확장하는 것입니다. 호스트는 자신의 이야기와 관심사를 체험으로 구성하는 주체입니다.');
-}
-// 12 — Next plan
-{
-  const s = base('로컬이음의 다음 개발 방향', 'NEXT 2–4 WEEKS', 12);
+  const s = base('개발 과정에서 얻은 경험', 'FROM IDEA TO SERVICE', 12);
   const phases = [
-    ['1', '운영 사실 확인', '호스트 진행 언어·회비·장소\n회차 취소·신청 흐름 확인', C.paleCoral],
-    ['2', '5명 사용자 테스트', '여행자 과제·소요 시간·혼동\n피드백 1건 이상 반영', C.paleBlue],
-    ['3', 'Agent 평가 기준', '4 도구의 근거·오답·비용\n실행 여부와 품질 분리 측정', C.paleTeal],
-    ['4', '공개 운영 준비', '장소·안내 정보 확인\n시연 데이터 운영 전환 검토', C.paleGold],
+    ['1', '기획·문제 정의', '관광지 정보에서\n사람과 경험으로 시선 이동', C.paleCoral],
+    ['2', '서비스 흐름 설계', '탐색·신청·호스트 운영을\n하나의 경험으로 연결', C.paleBlue],
+    ['3', '데이터·권한 구현', '화면과 Supabase 데이터,\n역할별 접근을 연결', C.paleTeal],
+    ['4', 'AI 기획 지원', '지역 자료와 체험 정보를\n호스트의 검토 가능한 제안으로', C.paleGold],
   ];
   phases.forEach((p, i) => {
     const x = 64 + i * 288;
@@ -294,10 +294,10 @@ function notes(slide, body) { slide.speakerNotes.text = body; }
     text(s, x + 20, 320, 214, 74, p[2], { size: 17, color: C.ink });
   });
   shape(s, 64, 466, 1152, 120, C.navy, 'none', 17);
-  text(s, 92, 488, 1090, 34, '기획 의도를 이어갈 개발 방향', { size: 20, color: '#73D1CC', bold: true });
-  text(s, 92, 531, 1090, 58, '호스트가 운영하고 여행자가 만족하는 체험을 위해\n운영 조건과 사용자 반응을 단계적으로 확인합니다.', { size: 22, color: C.white, bold: true });
-  text(s, 64, 610, 1120, 28, '지역의 일상과 호스트의 이야기가 여행자의 기억으로 이어지는 서비스로 발전시킵니다.', { size: 16, color: C.muted, align: 'center' });
-  notes(s, '다음 개발 단계는 호스트 운영 조건, 여행자 이용 경험, Agent 제안 품질을 순서대로 확인하는 것입니다. 각 항목은 실제 운영과 사용자 테스트를 통해 개선합니다.');
+  text(s, 92, 488, 1090, 34, '개발하며 배운 점', { size: 20, color: '#73D1CC', bold: true });
+  text(s, 92, 531, 1090, 58, '기능을 많이 추가하는 것보다, 처음 정의한 문제를 풀도록\n화면·데이터·권한이 올바르게 연결되는 것이 중요했습니다.', { size: 22, color: C.white, bold: true });
+  text(s, 64, 610, 1120, 28, '화면·데이터·운영·AI를 연결해 기획 의도를 작동하는 서비스로 구체화했습니다.', { size: 16, color: C.muted, align: 'center' });
+  notes(s, '로컬이음을 만들며 화면 구현을 넘어 데이터베이스, 권한, 신청 흐름, 다국어, AI 연동을 함께 설계해야 함을 배웠습니다. 처음 정의한 문제를 해결하도록 기능을 연결하는 과정의 중요성을 배웠습니다.');
 }
 
 for (const [i, slide] of deck.slides.items.entries()) {
