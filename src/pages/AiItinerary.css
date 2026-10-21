@@ -78,6 +78,8 @@
 .ai-plan-reorder { display: flex; flex-direction: column; align-self: center; gap: 3px; padding-right: 8px; }
 .ai-plan-reorder button { width: 26px; height: 26px; border: 1px solid #e3e9ee; border-radius: 5px; background: #fff; color: #6d8191; }
 .ai-plan-reorder button:disabled { opacity: .35; cursor: default; }
+.ai-plan-reorder .ai-plan-delete { width: 36px; border-color: #f2d1ce; color: #c7655d; font-size: 10px; font-weight: 700; }
+.ai-plan-reorder .ai-plan-delete:hover { background: #fff1ef; }
 .ai-plan-add-place { display: flex; width: 100%; min-height: 52px; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; border: 1px dashed #ed9b90; border-radius: 10px; background: #fff8f6; color: #d66b60; font-size: 13px; font-weight: 750; }
 .ai-plan-add-place:hover { border-color: #e56d63; background: #fff0ed; }
 .ai-plan-add-place span { font-size: 21px; line-height: 1; }

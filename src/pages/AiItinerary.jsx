@@ -225,6 +225,14 @@ export default function AiItinerary() {
     setNotice("순서를 바꿨어요. 저장 버튼을 누르면 이 브라우저에 보관됩니다.");
   }
 
+  function removeItem(index) {
+    if (!plan) return;
+    setPlan((current) => current && ({ ...current, days: current.days.map((entry, dayIndex) => dayIndex === selectedDay
+      ? { ...entry, items: entry.items.filter((_, itemIndex) => itemIndex !== index) }
+      : entry) }));
+    setNotice("장소를 일정에서 삭제했어요. 변경 내용을 유지하려면 일정 저장하기를 눌러 주세요.");
+  }
+
   function updateItemTime(index, time) {
     if (!plan || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return;
     setPlan((current) => ({ ...current, days: current.days.map((entry, dayIndex) => dayIndex === selectedDay
@@ -293,7 +301,7 @@ export default function AiItinerary() {
       <section className="ai-plan-card ai-plan-result"><div className="ai-plan-result-top"><div className="ai-plan-result-utility"><p className="ai-plan-kicker">{plan ? "AI GENERATED ITINERARY" : "PREVIEW ITINERARY"}</p><div className="ai-plan-result-actions">{plan ? <button className="ai-plan-save" type="button" onClick={save}>일정 저장하기</button> : <span className="ai-plan-preview-badge">화면 예시</span>}<button className="ai-plan-saved-open" type="button" onClick={() => setSavedModalOpen(true)}>저장한 일정 보기</button></div></div><div className="ai-plan-result-heading"><h2>{plan ? display.title : "이런 일정을 만들 수 있어요"}</h2>{plan?.requestedRegion === "전국" && <span className="ai-plan-random-region">전국 중 {plan.region} 지역을 무작위로 선택했어요</span>}<p>{display.summary}</p></div></div>
         <div className="ai-plan-day-tabs" role="tablist" aria-label="날짜별 일정">{display.days.map((entry, index) => <button role="tab" aria-selected={selectedDay === index} type="button" className={selectedDay === index ? "active" : ""} onClick={() => setSelectedDay(index)} key={entry.day}>{dayLabel(entry.date, index)}</button>)}</div>
         <div className="ai-plan-day-title"><span>DAY {selectedDay + 1}</span><h3>{day?.theme}</h3></div>
-        <ol className="ai-plan-timeline">{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><div className="ai-plan-time">{plan ? <input type="time" value={item.time || ""} onChange={(event) => updateItemTime(index, event.target.value)} aria-label={`${item.name} 방문 시간 변경`} title={`${item.name} 방문 시간 변경`} /> : <strong>{item.time || "시간 미정"}</strong>}<span>{item.type}</span></div><div className="ai-plan-timeline-dot" /><article className="ai-plan-stop"><ItineraryPhoto item={item} /><div className="ai-plan-stop-copy"><span>{item.type}</span><h4>{plan && item.url ? <Link to={item.url}>{item.name}</Link> : item.name}</h4><p>{item.reason}</p><small>⌖ {item.address}</small></div>{plan && <div className="ai-plan-reorder"><button type="button" aria-label={`${item.name} 순서 올리기`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button><button type="button" aria-label={`${item.name} 순서 내리기`} disabled={index === dayItems.length - 1} onClick={() => moveItem(index, 1)}>↓</button></div>}</article></li>)}</ol>
+        <ol className="ai-plan-timeline">{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><div className="ai-plan-time">{plan ? <input type="time" value={item.time || ""} onChange={(event) => updateItemTime(index, event.target.value)} aria-label={`${item.name} 방문 시간 변경`} title={`${item.name} 방문 시간 변경`} /> : <strong>{item.time || "시간 미정"}</strong>}<span>{item.type}</span></div><div className="ai-plan-timeline-dot" /><article className="ai-plan-stop"><ItineraryPhoto item={item} /><div className="ai-plan-stop-copy"><span>{item.type}</span><h4>{plan && item.url ? <Link to={item.url}>{item.name}</Link> : item.name}</h4><p>{item.reason}</p><small>⌖ {item.address}</small></div>{plan && <div className="ai-plan-reorder"><button type="button" aria-label={`${item.name} 순서 올리기`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button><button type="button" aria-label={`${item.name} 순서 내리기`} disabled={index === dayItems.length - 1} onClick={() => moveItem(index, 1)}>↓</button><button className="ai-plan-delete" type="button" aria-label={`${item.name} 일정에서 삭제하기`} onClick={() => removeItem(index)}>삭제</button></div>}</article></li>)}</ol>
         {plan && <button className="ai-plan-add-place" type="button" onClick={() => setAddPlaceModalOpen(true)}><span aria-hidden="true">＋</span> 가고싶은 여행지 추가하기</button>}
         {notice && <p className="ai-plan-notice" role="status">{notice}</p>}
         <p className="ai-plan-disclaimer">{plan ? "AI가 생성한 제안입니다. 방문 전 영업·운영 시간, 요금과 이동 경로를 확인해 주세요. 장소 정보: 한국관광공사 TourAPI." : "위 일정은 화면 구성 예시입니다. 실제 AI 추천 결과가 아닙니다."}</p>
