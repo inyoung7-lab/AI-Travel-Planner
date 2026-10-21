@@ -16,5 +16,3 @@ React·Vite 화면에 Supabase PostgreSQL 기반 체험 탐색, 상세·회차 �
 ## 기능 범위
 
 참가 신청 접수와 회비 표시는 구현되어 있지만 실제 결제·환불·정산 기능은 포함하지 않습니다. AI 결과는 자동 확정·저장되지 않으며 HOST가 검토한 뒤 활용합니다.
-
-자료: [완료 보고서](README.md) · [12장 발표 흐름](PRESENTATION_NOTES.md) · [구현 및 검증 기록](IMPLEMENTATION_STATUS.md) · [근거 링크](EVIDENCE_LINKS.md)

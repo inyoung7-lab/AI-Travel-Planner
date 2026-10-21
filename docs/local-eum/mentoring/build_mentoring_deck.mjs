@@ -11,7 +11,7 @@ process.env.RUNTIME_NODE_MODULES = RUNTIME_MODULES;
 const { importRuntimeModule } = await import(pathToFileURL(path.join(SKILL_DIR, 'container_tools/runtime_helpers.mjs')).href);
 const { Presentation, PresentationFile } = await importRuntimeModule('@oai/artifact-tool');
 const privateDir = path.join(HERE, '.build-private');
-const finalPath = path.join(HERE, 'LOCAL_EUM_MENTORING.pptx');
+const finalPath = path.join(HERE, 'LOCAL_EUM_MENTORING_완료본.pptx');
 const validatedPath = path.join(privateDir, `validated-LOCAL_EUM_MENTORING-${Date.now()}.pptx`);
 const images = path.join(HERE, 'assets');
 await fs.mkdir(privateDir, { recursive: true });
