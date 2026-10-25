@@ -1,6 +1,6 @@
+import { useWish } from "../lib/useWish.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { examplePlaces } from "./data/travelExamples.js";
 import { openPlaceDetail } from "./data/placeNavigation.js";
 import "./TravelHome.css";
 
@@ -22,7 +22,7 @@ function SearchBox({ initial = "" }) {
 }
 
 function PlaceCard({ place, index, showRank = false, detailType = "team" }) {
-  const [saved, setSaved] = useState(false);
+  const {saved, busy, toggle} = useWish(place.id);
   const [detailMessage, setDetailMessage] = useState("");
   const navigate = useNavigate();
   const showDetail = () => {
@@ -31,7 +31,7 @@ function PlaceCard({ place, index, showRank = false, detailType = "team" }) {
 
   return (
     <article className="travel-place-card">
-      <button className="travel-card-main" type="button" onClick={showDetail} aria-label={`${place.name} 상세페이지 열기`}>
+      <button className="travel-card-main" type="button" onClick={showDetail} aria-label={`${place.name} ${detailType === "trending" ? "상세 추이 그래프" : "상세페이지"} 열기`}>
         <span className="travel-card-media">
           {place.image ? <img src={place.image} alt={`${place.name} 풍경`} /> : <span className="travel-photo-placeholder">사진 준비 중</span>}
           {showRank && <span className="travel-card-rank">{String(index + 1).padStart(2, "0")}</span>}
@@ -40,40 +40,43 @@ function PlaceCard({ place, index, showRank = false, detailType = "team" }) {
           <span className="travel-card-region">{place.region}{place.category && ` · ${place.category}`}</span>
           <span className="travel-card-title">{place.name}</span>
           <span className="travel-card-description">{place.recommendationReason || place.reason}</span>
+          {place.photoCredit && <span style={{ display: 'block', fontSize: '10px', color: '#7a8797' }}>사진: {place.photoCredit.author} · {place.photoCredit.license} · 크롭 (출처는 상세에서 확인)</span>}
           <span className="travel-card-tags">{place.tags.map((tag) => <span key={tag}>{tag}</span>)}</span>
         </span>
       </button>
       {detailMessage && <span className="travel-detail-status" role="status" aria-live="polite">{detailMessage}</span>}
-      <button className={`travel-heart${saved ? " is-saved" : ""}`} type="button" aria-label={saved ? "관심 여행지 해제" : "관심 여행지 저장"} aria-pressed={saved} onClick={() => setSaved(!saved)}>{saved ? "♥" : "♡"}</button>
+      <button className={`travel-heart${saved ? " is-saved" : ""}`} type="button" aria-label={saved ? "관심 여행지 해제" : "관심 여행지 저장"} aria-pressed={saved} disabled={busy} onClick={() => toggle().catch(error => setDetailMessage(error.message))}>{saved ? "♥" : "♡"}</button>
     </article>
   );
 }
 
-function TrendChart() {
-  const data = [
-    { x: 30, y: 61 }, { x: 90, y: 52 }, { x: 150, y: 56 },
-    { x: 210, y: 36 }, { x: 270, y: 43 }, { x: 330, y: 25 }, { x: 390, y: 12 },
-  ];
-  const points = data.map(({ x, y }) => `${x},${y}`).join(" ");
-  return (
-    <div className="travel-trend" aria-label="예시 데이터 관심도 추이 그래프">
-      <div className="travel-trend-heading"><h3>관심도 추이</h3><span className="travel-trend-note">예시 데이터</span></div>
-      <svg viewBox="0 0 420 76" role="img" aria-label="실제 통계가 아닌 예시 그래프">
-        <defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#3978b8" stopOpacity=".18"/><stop offset="1" stopColor="#3978b8" stopOpacity="0"/></linearGradient></defs>
-        <path d={`M${points} L420,76 L0,76 Z`} fill="url(#trendFill)" />
-        <polyline points={points} fill="none" stroke="#3978b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {data.map(({ x, y }) => <circle key={x} cx={x} cy={y} r="3.5" fill="#fff" stroke="#3978b8" strokeWidth="2" />)}
-      </svg>
-      <div className="travel-trend-labels"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div>
-    </div>
-  );
+function TrendChart({ days }) {
+  const max = Math.max(1, ...days.flatMap((d) => [d.searches, d.views]));
+  const points = (key) => days.map((d, i) => `${20 + i * 60},${100 - d[key] / max * 80}`).join(' ');
+  return <div className="travel-trend" aria-label="최근 7일 사이트 검색·상세 조회 추이">
+    <div className="travel-trend-heading"><h3>검색·조회 추이</h3><span className="travel-trend-note">최근 7일 · 한국 시간</span></div>
+    <svg viewBox="0 0 400 130" role="img" aria-label={days.map((d) => `${d.date}: 검색 ${d.searches}건, 조회 ${d.views}건`).join(', ')}>
+      <text x="0" y="14" fontSize="10" fill="#7a8797">{max}건</text>
+      <line x1="20" y1="100" x2="380" y2="100" stroke="#dce4ee" />
+      <polyline points={points('searches')} fill="none" stroke="#557db7" strokeWidth="2.5" />
+      <polyline points={points('views')} fill="none" stroke="#d28b76" strokeWidth="2.5" />
+      {days.map((d, i) => <g key={d.date}><circle cx={20 + i * 60} cy={100 - d.searches / max * 80} r="3" fill="#557db7" /><circle cx={20 + i * 60} cy={100 - d.views / max * 80} r="3" fill="#d28b76" /><text x={20 + i * 60} y="122" textAnchor="middle" fontSize="10" fill="#7a8797">{d.date.slice(5).replace('-', '/')}</text></g>)}
+    </svg>
+    <p style={{ fontSize: '12px', color: '#557db7' }}>● 검색 {days.reduce((n, d) => n + d.searches, 0)}건 <span style={{ color: '#d28b76' }}>● 상세 조회 {days.reduce((n, d) => n + d.views, 0)}건</span></p>
+    <p style={{ fontSize: '12px', color: '#7a8797', marginTop: '12px' }}>전체 로그인 회원의 검색 요청과 여행지 상세 조회 기록입니다. 같은 회원의 동일 장소 조회는 30분에 한 번 집계합니다. 기록 없는 날은 0입니다.</p>
+  </div>;
 }
 
 export default function Home() {
   const [recommendationState, setRecommendationState] = useState({ status: "loading" });
+  const [hotState, setHotState] = useState({ status: 'loading', items: [], days: [] });
 
   useEffect(() => {
     const controller = new AbortController();
+    fetch('/api/activity', { signal: controller.signal })
+      .then(async (response) => { if (!response.ok) throw new Error(); return response.json(); })
+      .then((data) => setHotState({ status: 'success', ...data }))
+      .catch((error) => { if (error.name !== 'AbortError') setHotState({ status: 'error', items: [], days: [] }); });
     fetch("/api/recommendations", { credentials: "include", signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json().catch(() => null);
@@ -108,11 +111,14 @@ export default function Home() {
         </div>
       </section>
       <section className="travel-section travel-trending">
-        <div className="travel-section-head"><div><h2>요즘 뜨는 여행지</h2><p>화면 확인을 위한 예시 데이터입니다.</p></div><span className="travel-data-badge">예시 데이터</span></div>
+        <div className="travel-section-head"><div><h2>요즘 뜨는 여행지</h2><p>전체 로그인 회원의 최근 7일 검색 결과·상세 조회를 합산한 순위입니다.</p></div><span className="travel-data-badge">전체 회원 기준</span></div>
         <div className="travel-trending-layout">
-          <div className="travel-card-grid">{examplePlaces.slice(0, 3).map((place, index) => <PlaceCard key={place.id} place={place} index={index} showRank detailType="trending" />)}</div>
-          <TrendChart />
+          <div className="travel-card-grid">{hotState.items.map((place, index) => <PlaceCard key={place.key} place={{ ...place, tags: [`검색 결과 ${place.searches}회`, `상세 조회 ${place.views}회`], reason: '이 사이트의 최근 7일 이용 기록을 집계한 순위입니다.' }} index={index} showRank detailType="trending" />)}</div>
+          {hotState.status === 'success' && <TrendChart days={hotState.days} />}
         </div>
+        {hotState.status === 'loading' && <p role="status">여행지를 불러오는 중입니다.</p>}
+        {hotState.status === 'error' && <p role="status">인기 여행지를 불러오지 못했습니다.</p>}
+        {hotState.status === 'success' && hotState.items.length === 0 && <p>아직 여행지별 이용 기록이 없습니다. 검색하거나 여행지 상세를 열면 집계됩니다.</p>}
       </section>
       <section className="travel-section travel-personal">
         <div className="travel-section-head"><div><h2>내 취향에 맞는 여행지</h2><p>{recommendationNote}</p></div>{recommendation?.personalized && <span className="travel-data-badge">브라우저 기준</span>}</div>

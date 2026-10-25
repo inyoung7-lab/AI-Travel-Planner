@@ -1,22 +1,17 @@
+import { authFetch, getUser } from "../../lib/auth.js";
+export { getUser };
 // 나의 여행 데이터를 서버(DB)에서 가져와요.
 import { ensurePlaces } from "../community/data/api.js";
-const API = "http://localhost:3000";
+const API = "";
 
 // 로그인한 회원 (팀 로그인 화면이 브라우저에 저장해 둔 정보)
-export function getUser() {
-  try {
-    const u = JSON.parse(localStorage.getItem("user"));
-    return u && u.userId ? u : null;
-  } catch {
-    return null;
-  }
-}
+
 
 // 실패하면 Error 를 던져요
 export async function loadOverview(userId) {
   let r;
   try {
-    r = await fetch(`${API}/api/mytrip/overview?userId=${encodeURIComponent(userId)}`);
+    r = await authFetch(`${API}/api/mytrip/overview?userId=${encodeURIComponent(userId)}`);
   } catch {
     throw new Error("서버에 연결할 수 없어요.");
   }
@@ -28,13 +23,13 @@ export async function loadOverview(userId) {
 }
 
 // 여행지를 내 일정에 추가 (실패하면 Error)
-export async function addPlaceToTrip(tripId, userId, placeId) {
+export async function addPlaceToTrip(tripId, userId, placeId, dayNo = 1) {
   let r;
   try {
-    r = await fetch(`${API}/api/mytrip/trips/${tripId}/places`, {
+    r = await authFetch(`${API}/api/mytrip/trips/${encodeURIComponent(tripId)}/places`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, placeId }),
+      body: JSON.stringify({ userId, placeId, dayNo }),
     });
   } catch {
     throw new Error("서버에 연결할 수 없어요.");

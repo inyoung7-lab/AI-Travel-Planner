@@ -1,5 +1,5 @@
 import express from "express";
-import { getDbPlace, getNearbyPlaces, getTourDetail, listDbPlaces } from "./repositories/placeDetailRepository.js";
+import { getDbPlace, getNearbyPlaces, getTourDetail, listDbCatalogPage } from "./repositories/placeDetailRepository.js";
 
 const router = express.Router();
 
@@ -17,8 +17,9 @@ router.get("/nearby", async (req, res) => {
   }
 });
 
-router.get("/", async (_req, res) => {
-  try { res.json({ items: await listDbPlaces() }); }
+router.get("/", async (req, res) => {
+  const page = Math.max(1, Math.min(100000, parseInt(req.query.page, 10) || 1));
+  try { res.set('Cache-Control', 'public, max-age=30').json(await listDbCatalogPage({ page, q: String(req.query.q || '').slice(0, 200), region: String(req.query.region || '').slice(0, 20) })); }
   catch (error) { console.error("[places] 목록 조회 오류:", error.message); res.status(500).json({ message: "여행지 목록을 불러오지 못했어요." }); }
 });
 

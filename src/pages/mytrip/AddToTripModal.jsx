@@ -1,77 +1,33 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { getUser, loadOverview, addPlaceToTrip, fmtShort } from "./api.js";
+import { useUser } from '../../lib/auth.js';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { loadOverview, addPlaceToTrip, fmtShort } from './api.js';
 
-// "일정에 추가" — 내 예정된 여행 중 하나를 골라 여행지를 넣어요
-export default function AddToTripModal({ placeId, placeName, onClose, onAdded }) {
-  const user = getUser();
-  const [trips, setTrips] = useState(null);
-  const [msg, setMsg] = useState("");
-
-  useEffect(() => {
-    if (!user) return;
-    loadOverview(user.userId)
-      .then((d) => setTrips(d.trips.filter((t) => t.status === "upcoming")))
-      .catch((e) => {
-        setMsg(e.message);
-        setTrips([]);
-      });
-  }, []);
-
-  async function add(tripId) {
-    try {
-      await addPlaceToTrip(tripId, user.userId, Number(placeId));
-      onAdded?.();
-      alert("일정에 추가했어요.");
-      onClose();
-    } catch (e) {
-      alert(e.message);
-    }
-  }
-
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(23,37,54,.45)", zIndex: 100, display: "grid", placeItems: "center", padding: "16px" }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "20px", padding: "28px", boxShadow: "0 24px 60px rgba(23,37,54,.3)", color: "#1E3042", fontFamily: "Pretendard,'Noto Sans KR',sans-serif" }}
-      >
-        <div style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-.03em" }}>어느 여행에 추가할까요?</div>
-        <div style={{ fontSize: "14px", color: "#7A8088", marginTop: "6px" }}>{placeName}</div>
-
-        {!user && (
-          <p style={{ marginTop: "20px" }}>
-            로그인이 필요해요. <Link to="/login" style={{ color: "#E8695A", fontWeight: 700 }}>로그인하러 가기</Link>
-          </p>
-        )}
-        {user && trips === null && <p style={{ marginTop: "20px", color: "#7A8088" }}>불러오는 중…</p>}
-        {user && trips && trips.length === 0 && (
-          <p style={{ marginTop: "20px", color: "#7A8088" }}>{msg || "예정된 여행이 아직 없어요."}</p>
-        )}
-        {user && trips && trips.length > 0 && (
-          <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
-            {trips.map((t) => (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "12px", border: "1px solid #EEE8DC", borderRadius: "14px", padding: "12px 16px" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700 }}>{t.title}</div>
-                  <div style={{ fontSize: "13px", color: "#7A8088" }}>{fmtShort(t.start)} ~ {fmtShort(t.end)} · 여행지 {t.placeCount}곳</div>
-                </div>
-                <span
-                  onClick={() => add(t.id)}
-                  style={{ cursor: "pointer", background: "#E8695A", color: "#fff", fontWeight: 700, fontSize: "13px", borderRadius: "10px", padding: "8px 14px" }}
-                >
-                  추가
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ marginTop: "20px", textAlign: "right" }}>
-          <span onClick={onClose} style={{ cursor: "pointer", color: "#7A8088", fontSize: "14px" }}>닫기</span>
-        </div>
-      </div>
-    </div>
-  );
+export default function AddToTripModal({placeId,placeName,onClose,onAdded}) {
+ const user=useUser(),userId=user?.userId;
+ const [params]=useSearchParams();
+ const [trips,setTrips]=useState(null),[selected,setSelected]=useState(params.get('trip') || ''),[day,setDay]=useState(Number(params.get('day')) || 1),[busy,setBusy]=useState(false),[error,setError]=useState(''),[added,setAdded]=useState(false);
+ useEffect(()=>{
+  if(!userId)return;
+  let active=true;
+  loadOverview(userId).then(data=>{if(active){const rows=data.trips.filter(t=>t.status==='upcoming');setTrips(rows);setSelected(current=>rows.some(t=>String(t.id)===current)?current:String(rows[0]?.id || ''));}}).catch(e=>{if(active){setError(e.message);setTrips([]);}});
+  return()=>{active=false;};
+ },[userId]);
+ useEffect(()=>{
+  const handler=event=>{if(event.key==='Escape'&&!busy)onClose();};
+  window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
+ },[busy,onClose]);
+ const trip=trips?.find(t=>String(t.id)===selected);
+ const totalDays=trip?.savedId ? Math.round((Date.parse(trip.end)-Date.parse(trip.start))/86400000)+1 : 1;
+ const dayNo=Math.min(Math.max(day,1),totalDays);
+ async function add(){setBusy(true);setError('');try{await addPlaceToTrip(selected,userId,Number(placeId),dayNo);setAdded(true);onAdded?.();}catch(e){setError(e.message);}finally{setBusy(false);}}
+ return <div className="trip-add-backdrop" onClick={event=>{if(event.target===event.currentTarget&&!busy)onClose();}}><section className="trip-add-dialog" role="dialog" aria-modal="true" aria-labelledby="trip-add-title">
+  <header><h2 id="trip-add-title">일정에 담기</h2><button type="button" onClick={onClose} disabled={busy} aria-label="닫기">×</button></header><p>{placeName}</p>
+  {error&&<p role="alert">{error}</p>}
+  {!user ? <p>로그인 후 일정을 만들 수 있어요. <Link to="/login" onClick={onClose}>로그인하기</Link></p> : added ? <div role="status"><p>{trip?.title} · {dayNo}일차에 담았어요.</p>{trip?.savedId&&<Link to={`/mytrip/edit/${encodeURIComponent(trip.savedId)}?day=${dayNo}`} onClick={onClose}>내 일정 편집하기 →</Link>}<button type="button" onClick={onClose}>계속 둘러보기</button></div> : trips===null ? <p role="status">내 일정을 불러오는 중이에요…</p> : !trips.length ? <><p>먼저 빈 일정을 만들어 주세요.</p><Link to="/mytrip/new" onClick={onClose}>＋ 직접 일정 만들기</Link></> : <>
+   <label>담을 일정<select value={selected} onChange={e=>{setSelected(e.target.value);setDay(1);}}>{trips.map(t=><option key={t.id} value={String(t.id)}>{t.title} ({fmtShort(t.start)}~{fmtShort(t.end)})</option>)}</select></label>
+   <label>담을 날짜<select value={dayNo} onChange={e=>setDay(Number(e.target.value))}>{Array.from({length:totalDays},(_,i)=><option key={i} value={i+1}>{i+1}일차 · {new Date(Date.parse(trip.start)+i*86400000).toISOString().slice(0,10)}</option>)}</select></label>
+   <button type="button" disabled={busy||!trip} onClick={add}>{busy?'저장 중…':'이 날짜에 담기'}</button><Link to="/mytrip/new" onClick={onClose}>＋ 새 일정 만들기</Link>
+  </>}
+ </section></div>;
 }

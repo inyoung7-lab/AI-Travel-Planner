@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import TripHistoryDetail from "./TripHistoryDetail.jsx";
+import { useUser } from "../../lib/auth.js";
+import { requireSupabase } from "../../lib/supabaseClient.js";
+import { createItineraryRepository } from "../../lib/itineraryRepository.js";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./MyTrip.css";
 import { places, placeInfo, GRADIENTS } from "../community/data/mockPosts.js";
 import { toggleWish, placeDetailPath } from "../community/data/api.js";
-import { getUser, loadOverview, fmtDate, fmtShort } from "./api.js";
+import { loadOverview, fmtDate, fmtShort } from "./api.js";
 import AddToTripModal from "./AddToTripModal.jsx";
 
 // ── 작은 아이콘들 ──
@@ -23,47 +27,49 @@ const PinIco = () => (
 const PlusIco = ({ size = 16 }) => (
   <svg width={size} height={size} {...ico} strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
 );
-const CheckIco = () => (
-  <svg width="12" height="12" {...ico} strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-);
 
-// 여행지 이름·지역·태그는 예시 표에서 찾고, 없으면 번호로 보여줘요 (팀 PLACE 테이블이 정해지면 교체)
-const nameOf = (id) => places[id]?.name ?? `여행지 ${id}`;
+
 const bgOf = (id) => places[id]?.bg ?? GRADIENTS[Number(id) % GRADIENTS.length];
-const regionOf = (id) => {
-  const a = places[id]?.addr;
-  if (!a) return "";
-  const t = a.split(" ")[0];
-  return t.startsWith("제주") ? "제주" : t;
-};
 
-const soon = () => alert("일정 만들기·보기는 AI 여행 일정 화면과 연결할 예정이에요.");
 const ddayLabel = (t) => (t.dday > 0 ? `D-${t.dday}` : t.dday === 0 ? "D-DAY" : "여행 중");
 
 export default function MyTrip() {
-  const user = getUser();
+  const user = useUser();
+  const userId = user?.userId;
+  const request = useRef(0);
   const navigate = useNavigate();
   const [data, setData] = useState(undefined); // undefined = 불러오는 중, null = 불러오지 못함
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [tripPage, setTripPage] = useState(1);
+  const [wishPage, setWishPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTrip, setHistoryTrip] = useState(null);
   const [adding, setAdding] = useState(null); // 일정에 추가할 여행지 번호
   const pastRef = useRef(null);
+  useEffect(()=>{
+    if(data && window.location.hash === '#wishes') document.getElementById('wishes')?.scrollIntoView({block:'start'});
+  },[data]);
 
-  const reload = () =>
-    loadOverview(user.userId)
-      .then((d) => {
-        setData(d);
-        setError("");
-      })
-      .catch((e) => {
-        setError(e.message);
-        setData(null);
-      });
-
+  const reload = useCallback(async () => {
+    if (!userId) return;
+    const version=++request.current;
+    try { const result=await loadOverview(userId); if(version===request.current){setData(result);setError('');} }
+    catch(problem) { if(version===request.current){setError(problem.message);setData(null);} }
+  }, [userId]);
   useEffect(() => {
-    if (user) reload();
-  }, []);
+    void reload();
+    return ()=>{request.current++;};
+  }, [reload]);
 
+  async function openTrip(trip) {
+    try {
+      if (!trip.savedId) { setError('이 일정은 기존 형식입니다. 새 일정은 AI 여행 일정에서 만들 수 있어요.'); return; }
+      if(trip.source==='manual'){navigate(`/mytrip/edit/${encodeURIComponent(trip.savedId)}`);return;}
+      await createItineraryRepository(requireSupabase()).open({savedId:trip.savedId});
+      navigate('/ai-itinerary');
+    } catch(problem) { setError(problem.message); }
+  }
   async function unwish(placeId) {
     try {
       await toggleWish(placeId, user.userId);
@@ -86,7 +92,7 @@ export default function MyTrip() {
       </div>
     );
   }
-  if (data === undefined) return <div className="mt-root"><div className="mt-wrap" /></div>;
+  if (data === undefined || (data && data.user.id !== userId)) return <div className="mt-root"><div className="mt-wrap" /></div>;
   if (data === null) {
     return (
       <div className="mt-root">
@@ -97,15 +103,22 @@ export default function MyTrip() {
     );
   }
 
-  const { stats, trips, wishes, past } = data;
+  const { stats, trips, wishes } = data;
+  const nameOf = id => data.placeMap?.[id]?.name || places[id]?.name || `여행지 ${id}`;
+  const imageOf = id => data.placeMap?.[id]?.image;
+  const regionOf = id => data.placeMap?.[id]?.region || '';
+  const wishPageCount = Math.max(1, Math.ceil(wishes.length / 6));
+  const currentWishPage = Math.min(wishPage, wishPageCount);
+  const visibleWishes = wishes.slice((currentWishPage - 1) * 6, currentWishPage * 6);
   const upcoming = trips.filter((t) => t.status === "upcoming");
   const pastTrips = trips.filter((t) => t.status === "past").sort((a, b) => (a.end < b.end ? 1 : -1));
-  const next = upcoming[0];
-  const showHero = next && filter !== "past";
-  const minis =
-    filter === "upcoming" ? upcoming.slice(1)
-    : filter === "past" ? pastTrips
-    : [...upcoming.slice(1), ...pastTrips];
+  const historyPageCount = Math.max(1, Math.ceil(pastTrips.length / 3));
+  const currentHistoryPage = Math.min(historyPage, historyPageCount);
+  const visibleHistory = pastTrips.slice((currentHistoryPage - 1) * 3, currentHistoryPage * 3);
+  const filteredTrips = filter === 'upcoming' ? upcoming : filter === 'past' ? pastTrips : [...upcoming, ...pastTrips];
+  const tripPageCount = Math.max(1, Math.ceil(filteredTrips.length / 3));
+  const currentTripPage = Math.min(tripPage, tripPageCount);
+  const visibleTrips = filteredTrips.slice((currentTripPage - 1) * 3, currentTripPage * 3);
 
   return (
     <div className="mt-root">
@@ -140,79 +153,49 @@ export default function MyTrip() {
                 ["upcoming", `예정 ${upcoming.length}`],
                 ["past", `지난 ${pastTrips.length}`],
               ].map(([k, label]) => (
-                <span key={k} className={"mt-pl3" + (filter === k ? " mt-on" : "")} style={{ cursor: "pointer" }} onClick={() => setFilter(k)}>
+                <span key={k} className={"mt-pl3" + (filter === k ? " mt-on" : "")} style={{ cursor: "pointer" }} onClick={() => { setFilter(k); setTripPage(1); }}>
                   {label}
                 </span>
               ))}
             </div>
             <span className="mt-sp"></span>
-            <span className="mt-btn mt-co" style={{ cursor: "pointer" }} onClick={() => navigate("/ai-itinerary")}><PlusIco /> 새 일정 만들기</span>
+            <Link className="mt-btn mt-co" to="/mytrip/new"><PlusIco /> 직접 만들기</Link><Link className="mt-btn mt-nv" to="/ai-itinerary">AI로 만들기</Link>
           </div>
 
-          {showHero && (
-            <article className="mt-card mt-nx">
-              <div className="mt-nimg mt-ph" style={{ background: "linear-gradient(135deg,#3E566F,#1E3042)" }}>
-                <ImageIco size={48} style={{ color: "rgba(255,255,255,.7)" }} />
-                <span className="mt-chp mt-hot">다음 여행</span>
+          {error && <p role="alert">{error}</p>}
+          {visibleTrips.length === 0 ? (
+            <div className="mt-card mt-trip-empty">{filter === 'past' ? '지난 여행이 아직 없어요.' : filter === 'upcoming' ? '예정된 여행이 아직 없어요.' : '저장한 여행이 아직 없어요.'}</div>
+          ) : <div className="mt-trip-grid">
+            {visibleTrips.map(t => <article className="mt-card mt-trip-card" key={t.id}>
+              <div className="mt-trip-photo">
+                {t.image ? <img src={t.image} alt={`${t.region || ''} 여행 사진`} /> : <ImageIco size={36} />}
+                <span className={`mt-trip-status${t.status === 'past' ? ' is-past' : ''}`}>{t.status === 'past' ? '지난 여행' : ddayLabel(t)}</span>
               </div>
-              <div className="mt-nbd">
-                <div className="mt-nh">
-                  <div>
-                    <div className="mt-nt">{next.title}</div>
-                    <div className="mt-nd">
-                      <CalIco /> {fmtDate(next.start)} ~ {fmtDate(next.end, false)} · 여행지 {next.placeCount}곳
-                    </div>
-                  </div>
-                  <div className="mt-dd2">{ddayLabel(next)}</div>
-                </div>
-                <div className="mt-rts">
-                  {next.days.length === 0 && <div className="mt-rt"><span className="mt-rp">아직 담은 여행지가 없어요.</span></div>}
-                  {next.days.map((d) => (
-                    <div className="mt-rt" key={d.day}>
-                      <b>Day {d.day}</b>
-                      <span className="mt-rd">{fmtDate(d.date, false)}</span>
-                      <span className="mt-rp">{d.placeIds.map(nameOf).join(" → ")}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-nb">
-                  <span className="mt-btn mt-co" style={{ cursor: "pointer" }} onClick={soon}>일정 보기</span>
-                  <span className="mt-btn mt-nv" style={{ cursor: "pointer" }} onClick={soon}>일정 수정</span>
-                </div>
+              <div className="mt-trip-body">
+                <p className="mt-trip-region">{t.region || '나의 여행'} · {t.source === 'manual' ? '직접 만든 일정' : '저장 일정'}</p>
+                <h3 className="mt-trip-title" title={t.title}>{t.title}</h3>
+                <p className="mt-trip-dates"><CalIco /> {fmtDate(t.start, true, false)} ~ {fmtDate(t.end, false, false)}</p>
+                <p className="mt-trip-count">여행지 {t.placeCount}곳 · {Math.round((Date.parse(t.end)-Date.parse(t.start))/86400000)+1}일 일정</p>
+                <details className="mt-trip-days">
+                  <summary>일자별 코스 펼치기</summary>
+                  {t.days.length ? t.days.map(d => <div className="mt-trip-day" key={d.day}><b>Day {d.day} · {fmtShort(d.date)}</b><p>{(d.names || d.placeIds.map(nameOf)).join(' → ') || '아직 담은 여행지가 없어요.'}</p></div>) : <p>아직 담은 여행지가 없어요.</p>}
+                </details>
+                <div className="mt-trip-footer"><button type="button" className="mt-btn mt-co mt-trip-open" onClick={() => openTrip(t)}>일정 보기</button>{t.savedId && <Link className="mt-btn mt-ol mt-trip-open" to={`/mytrip/edit/${encodeURIComponent(t.savedId)}`}>편집</Link>}</div>
               </div>
-            </article>
-          )}
-          {!next && filter !== "past" && (
-            <div className="mt-card" style={{ padding: "32px", textAlign: "center", color: "#7A8088" }}>예정된 여행이 아직 없어요.</div>
-          )}
+            </article>)}
+          </div>}
+          {tripPageCount > 1 && <nav className="mt-wish-pagination" aria-label="여행 일정 목록 페이지">
+            <button type="button" disabled={currentTripPage === 1} onClick={() => setTripPage(currentTripPage - 1)}>이전</button>
+            <span aria-live="polite">{currentTripPage} / {tripPageCount} 페이지</span>
+            <button type="button" disabled={currentTripPage === tripPageCount} onClick={() => setTripPage(currentTripPage + 1)}>다음</button>
+          </nav>}
 
-          <div className="mt-row3">
-            {minis.map((t) => (
-              <article className="mt-card mt-cpr" key={t.id}>
-                <div className="mt-cth" style={{ background: bgOf(t.days[0]?.placeIds[0] ?? t.id) }}>
-                  <ImageIco style={{ color: "rgba(255,255,255,.7)" }} />
-                </div>
-                <div className="mt-ctx">
-                  <div className="mt-ct1">
-                    <span className="mt-ctt">{t.title}</span>
-                    {t.status === "upcoming" ? (
-                      <span className="mt-tag mt-c">{ddayLabel(t)}</span>
-                    ) : (
-                      <span className="mt-tag mt-n">다녀옴</span>
-                    )}
-                  </div>
-                  <div className="mt-ctd">{fmtShort(t.start)}{t.end !== t.start ? ` ~ ${fmtShort(t.end)}` : ""}</div>
-                  <div className="mt-ctd">여행지 {t.placeCount}곳</div>
-                </div>
-              </article>
-            ))}
-          </div>
         </section>
 
         <div className="mt-two">
           <section>
             <div className="mt-sh">
-              <div className="mt-h2">찜한 여행지<small>하트를 누른 곳 {wishes.length}곳</small></div>
+              <div className="mt-h2" id="wishes">찜한 여행지<small>하트를 누른 곳 {wishes.length}곳</small></div>
             </div>
             {wishes.length === 0 && (
               <div className="mt-card" style={{ padding: "32px", textAlign: "center", color: "#7A8088" }}>
@@ -220,13 +203,13 @@ export default function MyTrip() {
               </div>
             )}
             <div className="mt-g3">
-              {wishes.slice(0, 6).map((pid) => (
+              {visibleWishes.map((pid) => (
                 <article className="mt-card mt-sv" key={pid}>
-                  <div className="mt-ph" style={{ height: "96px", background: bgOf(pid) }}>
-                    <ImageIco size={28} style={{ color: "rgba(255,255,255,.7)" }} />
-                    <span className="mt-hrt" style={{ cursor: "pointer" }} onClick={() => unwish(pid)} title="찜 취소">
+                  <div className="mt-wish-photo" style={{ background: bgOf(pid) }}>
+                    {imageOf(pid) ? <img src={imageOf(pid)} alt="" loading="lazy" /> : <ImageIco size={28} style={{ color: "rgba(255,255,255,.7)" }} />}
+                    <button type="button" className="mt-hrt" onClick={() => unwish(pid)} aria-label={`${nameOf(pid)} 찜 취소`}>
                       <HeartIco />
-                    </span>
+                    </button>
                   </div>
                   <div className="mt-sb">
                     <Link to={placeDetailPath(pid)} className="mt-sn" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
@@ -247,35 +230,34 @@ export default function MyTrip() {
                 </article>
               ))}
             </div>
+            {wishPageCount > 1 && <nav className="mt-wish-pagination" aria-label="찜한 여행지 페이지">
+              <button type="button" disabled={currentWishPage === 1} onClick={() => setWishPage(currentWishPage - 1)}>이전</button>
+              <span aria-live="polite">{currentWishPage} / {wishPageCount} 페이지</span>
+              <button type="button" disabled={currentWishPage === wishPageCount} onClick={() => setWishPage(currentWishPage + 1)}>다음</button>
+            </nav>}
           </section>
 
           <section className="mt-vcol" ref={pastRef}>
             <div className="mt-sh">
-              <div className="mt-h2">지난 여행지<small>다녀온 곳 {stats.visited}</small></div>
+              <div className="mt-h2">지난 여행 일정<small>완료된 일정 {pastTrips.length}개</small></div>
             </div>
-            <section className="mt-card mt-vlist2">
-              {past.length === 0 && <div style={{ padding: "24px", color: "#7A8088", textAlign: "center" }}>아직 다녀온 여행지가 없어요.</div>}
-              {past.slice(0, 5).map((v) => (
-                <div className="mt-vr2" key={v.tripTitle + v.placeId}>
-                  <span className="mt-vd">{fmtShort(v.date)}</span>
-                  <div className="mt-vm">
-                    <div className="mt-vp2">{nameOf(v.placeId)}</div>
-                    <div className="mt-vs">{v.tripTitle}</div>
-                  </div>
-                  {v.reviewed ? (
-                    <span className="mt-tag mt-g"><CheckIco /> 리뷰 작성</span>
-                  ) : (
-                    <Link className="mt-btn mt-sm mt-ol" style={{ textDecoration: "none" }} to={`/community/write?type=review&placeId=${v.placeId}`}>
-                      리뷰 쓰기
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </section>
+            <div className="mt-history-list">
+              {pastTrips.length === 0 && <div className="mt-card mt-trip-empty">아직 지난 여행 일정이 없어요.</div>}
+              {visibleHistory.map(trip => <button type="button" className="mt-card mt-history-trip" key={trip.id} onClick={() => setHistoryTrip(trip)} aria-label={`${trip.title} 전체 일정 상세 보기`}>
+                {trip.image && <img src={trip.image} alt="" loading="lazy" />}
+                <span className="mt-history-copy"><strong title={trip.title}>{trip.title}</strong><span>{fmtDate(trip.start,true,false)} ~ {fmtDate(trip.end,false,false)}</span><span>{trip.days.length}일 코스 · 여행지 {trip.placeCount}곳</span><b>전체 일정 상세 보기 →</b></span>
+              </button>)}
+            </div>
+            {historyPageCount > 1 && <nav className="mt-wish-pagination" aria-label="지난 여행 일정 페이지">
+              <button type="button" disabled={currentHistoryPage === 1} onClick={() => setHistoryPage(currentHistoryPage - 1)}>이전</button>
+              <span aria-live="polite">{currentHistoryPage} / {historyPageCount} 페이지</span>
+              <button type="button" disabled={currentHistoryPage === historyPageCount} onClick={() => setHistoryPage(currentHistoryPage + 1)}>다음</button>
+            </nav>}
           </section>
         </div>
       </div>
 
+      {historyTrip && <TripHistoryDetail trip={historyTrip} placeMap={data.placeMap} onClose={() => setHistoryTrip(null)} />}
       {adding && (
         <AddToTripModal
           placeId={adding}

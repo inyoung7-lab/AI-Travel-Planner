@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { authFetch } from "../lib/auth.js";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PlaceCard, SearchBox } from "./Home.jsx";
 import "./TravelHome.css";
@@ -7,17 +8,19 @@ export default function SearchResults() {
   const [params] = useSearchParams();
   const query = params.get("q")?.trim() || "";
   const [searchState, setSearchState] = useState({ query: "", status: "idle" });
+  const searchRequest = useRef(null);
 
   useEffect(() => {
     if (!query) return undefined;
 
     const controller = new AbortController();
+    if (searchRequest.current?.query !== query) searchRequest.current = { query, id: crypto.randomUUID() };
 
-    fetch("/api/search", {
+    authFetch("/api/search", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, limit: 8 }),
+      body: JSON.stringify({ query, limit: 8, requestId: searchRequest.current.id }),
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -62,7 +65,7 @@ export default function SearchResults() {
             <h2>“{query || "여행지"}” 검색 결과</h2>
             {activeConditions.length > 0 && <p className="travel-search-conditions">{activeConditions.join(" · ")}</p>}
           </div>
-          {data && <span className="travel-data-badge">{data.dataSource === "example" ? "예시 데이터" : data.dataSource === "tourapi" ? "한국관광공사 TourAPI" : "검색 데이터"}</span>}
+          {data && <span className="travel-data-badge">{data.dataSource === "example" ? "예시 데이터" : data.dataSource === "tourapi" ? "한국관광공사 TourAPI" : data.dataSource === 'supabase-tourapi' ? '한국관광공사 저장 데이터' : "검색 데이터"}</span>}
         </div>
 
         {currentSearchState.status === "loading" && (

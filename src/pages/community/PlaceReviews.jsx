@@ -146,7 +146,7 @@ export default function PlaceReviews() {
                   {r.photos > 0 && (
                     <div className="cml-rths">
                       {GRADIENTS.slice(0, Math.min(r.photos, 3)).map((bg, i) => (
-                        <div className="cml-rth" style={{ background: bg }} key={i}><ImageIcon size={18} /></div>
+                        <div className="cml-rth" style={{ background: bg }} key={i}>{r.imageUrls?.[i] ? <img src={r.imageUrls[i]} alt={`여행 샘플 사진 ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={18} />}</div>
                       ))}
                     </div>
                   )}

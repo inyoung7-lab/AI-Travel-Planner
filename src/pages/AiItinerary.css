@@ -126,3 +126,8 @@
 @media (max-width: 760px) { .ai-plan-hero { min-height: 200px; } .ai-plan-layout { grid-template-columns: 1fr; width: min(100% - 28px, 620px); } .ai-plan-hero-inner { width: calc(100% - 36px); } .ai-plan-side { grid-column: auto; grid-template-columns: 1fr; } .ai-plan-form, .ai-plan-result { padding: 19px; } }
 @media (max-width: 620px) { .ai-plan-result-actions { flex-wrap: wrap; } .ai-plan-result-actions button { flex: 1 1 auto; } .ai-plan-saved-modal-header { padding: 20px 18px 15px; } .ai-plan-saved-list { padding: 14px; } .ai-plan-saved-card { padding: 14px; } .ai-plan-saved-day { grid-template-columns: 82px minmax(0,1fr); gap: 6px; } }
 @media (max-width: 480px) { .ai-plan-stop > img, .ai-plan-photo-empty { width: 27%; } .ai-plan-dates input { font-size: 11px; padding: 0 5px; } .ai-plan-timeline > li { grid-template-columns: 48px 10px minmax(0,1fr); gap: 6px; } .ai-plan-time strong { font-size: 11px; } .ai-plan-result-utility { align-items: flex-start; flex-wrap: wrap; } .ai-plan-result-actions { width: 100%; } }
+
+.ai-planning-context{margin:20px 0;padding:18px;border:1px solid #dae4ed;border-radius:14px;background:#f7fafc;color:#5f7185;font-size:13px;line-height:1.7}
+.ai-planning-context h3{margin:0 0 8px;color:#263746;font-size:17px}
+.ai-planning-context p{margin:6px 0}.ai-planning-context ul{padding-left:20px;margin:8px 0}
+.ai-planning-context>div{margin-top:12px}.ai-planning-context a{color:#5279b1}

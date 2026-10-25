@@ -1,3 +1,6 @@
+import AddToTripModal from "./mytrip/AddToTripModal.jsx";
+import { useWish } from "../lib/useWish.js";
+import { authFetch } from "../lib/auth.js";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import PlaceNearbyAndReviews from "./PlaceNearbyAndReviews.jsx";
@@ -13,6 +16,10 @@ function usePlace(url) {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "여행지 정보를 불러오지 못했어요.");
         setState({ url, place: data, error: "" });
+        if (/^\/api\/places\/(?:tourapi\/)?\d+$/.test(url)) {
+          const segments = url.split('/');
+          authFetch('/api/activity/view', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: segments.includes('tourapi') ? 'tourapi' : 'db', id: segments.at(-1) }) }).catch(() => {});
+        }
       })
       .catch((error) => { if (error.name !== "AbortError") setState({ url, place: null, error: error.message }); });
     return () => controller.abort();
@@ -26,11 +33,13 @@ function InfoCard({ label, value }) {
 
 export default function PlaceDetail({ source = "db" }) {
   const { id } = useParams();
+  const wish = useWish(source === "tourapi" ? `tourapi:${id}` : id);
   const url = source === "tourapi" ? `/api/places/tourapi/${encodeURIComponent(id)}` : `/api/places/${encodeURIComponent(id)}`;
   const { loading, place, error } = usePlace(url);
   const [imageSelection, setImageSelection] = useState({ id: null, index: 0 });
   const [overviewSelection, setOverviewSelection] = useState({ id: null, expanded: false });
   const [notice, setNotice] = useState("");
+  const [addingToTrip,setAddingToTrip]=useState(false);
 
   const imageIndex = imageSelection.id === `${source}:${id}` ? imageSelection.index : 0;
   const overviewExpanded = overviewSelection.id === `${source}:${id}` && overviewSelection.expanded;
@@ -63,7 +72,7 @@ export default function PlaceDetail({ source = "db" }) {
         <p className="place-preview-eyebrow">TRAVEL PLACE GUIDE</p>
         <h1>{place.name}</h1>
         <p className="place-preview-subtitle">{place.address || place.region || "주소 정보 없음"}</p>
-      </div><div className="place-preview-share-actions"><button type="button" onClick={share}>공유</button></div></div>
+      </div><div className="place-preview-share-actions"><button type="button" aria-pressed={wish.saved} disabled={wish.busy} onClick={() => wish.toggle().catch(error => setNotice(error.message))}>{wish.saved ? "♥ 찜 취소" : "♡ 찜하기"}</button><button type="button" onClick={share}>공유</button>{source === "db" && <button type="button" onClick={()=>setAddingToTrip(true)}>＋ 일정에 담기</button>}</div></div>
 
       <div className="place-preview-lead">
         <div className="place-preview-photo place-detail-photo">
@@ -80,6 +89,8 @@ export default function PlaceDetail({ source = "db" }) {
         </section>
       </div>
       {images.length > 1 && <div className="place-detail-gallery" aria-label="관광지 사진 목록">{images.map((image, index) => <button type="button" key={image} className={imageIndex === index ? "active" : ""} onClick={() => setImageSelection({ id: `${source}:${id}`, index })} aria-label={`${index + 1}번째 사진 보기`}><img src={image} alt="" /></button>)}</div>}
+      {place.imageCredits?.length > 0 && <p className="place-preview-disclaimer">사진 출처: {place.imageCredits.map((credit) => <span key={credit.url}><a href={credit.source} target="_blank" rel="noreferrer">{credit.name} · {credit.author}</a> (<a href={credit.licenseUrl} target="_blank" rel="noreferrer">{credit.license}</a>, 화면 크롭) </span>)}</p>}
+      {place.informationSourceUrl && <p className="place-preview-disclaimer"><a href={place.informationSourceUrl} target="_blank" rel="noreferrer">여행지 참고 자료 보기 ↗</a> · 운영 시간·요금·개방 여부는 방문 전 운영처에서 확인해 주세요.</p>}
 
       <section className="place-preview-section"><div className="place-preview-section-head"><div><p className="place-preview-eyebrow">VISIT INFORMATION</p><h2>방문 정보</h2></div></div>
         {facts.length ? <div className="place-preview-facts place-detail-facts">{facts.map(([label, value]) => <InfoCard key={label} label={label} value={value} />)}</div> : <p className="place-detail-empty">아직 등록된 방문 정보가 없습니다.</p>}
@@ -88,6 +99,7 @@ export default function PlaceDetail({ source = "db" }) {
       </section>
 
       <PlaceNearbyAndReviews place={place} source={source} />
+      {addingToTrip && <AddToTripModal placeId={Number(id)} placeName={place.name} onClose={()=>setAddingToTrip(false)} />}
       {notice && <div className="place-preview-notice" role="status">{notice}<button type="button" aria-label="알림 닫기" onClick={() => setNotice("")}>×</button></div>}
     </div>
   </main>;
@@ -102,47 +114,63 @@ function catalogRegion(item) {
 
 function PlaceCatalogCard({ item, region }) {
   const [imageFailed, setImageFailed] = useState(false);
-  return <Link className="place-detail-catalog-card" to={`/places/${item.id}`}>
+  const wish = useWish(item.id);
+  const [wishError, setWishError] = useState('');
+  const [adding,setAdding]=useState(false);
+  async function toggleWish() {
+    setWishError('');
+    try { await wish.toggle(); } catch (error) { setWishError(error.message); }
+  }
+  return <><article className="place-detail-catalog-card">
+    <Link className="place-catalog-main" to={`/places/${item.id}`}>
     {item.image && !imageFailed
       ? <img className="place-detail-catalog-image" src={item.image} alt={`${item.name} 대표 이미지`} loading="lazy" onError={() => setImageFailed(true)} />
       : <div className="place-detail-catalog-image-placeholder"><span>✦</span><strong>{region} 여행지</strong><small>사진 준비 중</small></div>}
-    <div className="place-detail-catalog-copy"><span className="place-detail-catalog-region">{region}</span><h3>{item.name}</h3><p>{item.address || "주소 정보 없음"}</p><strong>상세 보기 <span aria-hidden="true">→</span></strong></div>
-  </Link>;
+    <div className="place-detail-catalog-copy"><span className="place-detail-catalog-region">{region}</span><h3>{item.name}</h3><p>{item.address || "주소 정보 없음"}</p>{item.imageCredit && <small style={{ display: 'block', color: '#777', marginBottom: '8px' }}>사진: {item.imageCredit.author} · {item.imageCredit.license} · 크롭 (출처는 상세에서 확인)</small>}<strong>상세 보기 <span aria-hidden="true">→</span></strong></div>
+    </Link>
+    <button className={`place-catalog-heart${wish.saved ? ' is-saved' : ''}`} type="button" aria-label={`${item.name} ${wish.saved ? '찜 취소' : '찜하기'}`} aria-pressed={wish.saved} disabled={wish.busy} onClick={toggleWish}>{wish.saved ? '♥' : '♡'}</button>
+    <button type="button" className="place-catalog-add" onClick={()=>setAdding(true)}>＋ 일정에 담기</button>
+    {wishError && <p className="place-catalog-wish-error" role="status">{wishError}</p>}
+  </article>{adding && <AddToTripModal placeId={item.id} placeName={item.name} onClose={()=>setAdding(false)} />}</>;
 }
 
 export function PlaceCatalog() {
-  const { loading, place: data, error } = usePlace("/api/places");
   const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("전체");
-  const allItems = data?.items || [];
-  const regionCounts = new Map();
-  for (const item of allItems) {
-    const region = catalogRegion(item);
-    regionCounts.set(region, (regionCounts.get(region) || 0) + 1);
-  }
-  const regions = CATALOG_REGION_ORDER.filter((region) => regionCounts.has(region));
-  const searchTerm = query.trim().toLocaleLowerCase("ko-KR");
-  const items = allItems.filter((item) => `${item.name} ${catalogRegion(item)} ${item.address}`.toLocaleLowerCase("ko-KR").includes(searchTerm));
-  const visibleRegions = selectedRegion === "전체" ? regions : regions.filter((region) => region === selectedRegion);
+  const [page, setPage] = useState(1);
+  useEffect(() => { const timer = setTimeout(() => setSearch(query), 250); return () => clearTimeout(timer); }, [query]);
+  const params = new URLSearchParams({ page: String(page), q: search, region: selectedRegion });
+  const { loading, place: data, error } = usePlace(`/api/places?${params}`);
+  const regionCounts = data?.regionCounts || {};
+  const regions = CATALOG_REGION_ORDER.filter((region) => regionCounts[region]);
+  const items = data?.items || [];
+  const total = data?.total || 0;
+  const pageCount = Math.max(1, Math.ceil(total / (data?.pageSize || 24)));
   return <main className="place-preview"><div className="place-preview-inner">
     <nav className="place-preview-crumb"><Link to="/">홈</Link><span>›</span><span>여행지 목록</span></nav>
-    <div className="place-preview-title-row"><div><p className="place-preview-eyebrow">OUR DESTINATIONS</p><h1>여행지 둘러보기</h1><p className="place-preview-subtitle">현재 DB에 등록된 여행지의 상세 정보를 살펴보세요.</p></div></div>
-    <input className="place-detail-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름, 지역, 주소로 찾기" aria-label="여행지 찾기" />
+    <div className="place-preview-title-row"><div><p className="place-preview-eyebrow">OUR DESTINATIONS</p><h1>여행지 둘러보기</h1><p className="place-preview-subtitle">한국관광공사에서 제공하는 여행지 정보를 둘러보세요.</p></div></div>
+    <input className="place-detail-search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="이름, 지역, 주소로 찾기" aria-label="여행지 찾기" />
     {loading ? <p role="status">여행지 목록을 불러오는 중이에요…</p> : error ? <p role="alert">{error}</p> : <>
       <div className="place-catalog-regions" aria-label="지역별 여행지 선택">
-        {["전체", ...regions].map((region) => <button key={region} type="button" className={selectedRegion === region ? "active" : ""} aria-pressed={selectedRegion === region} onClick={() => setSelectedRegion(region)}>{region}<span>{region === "전체" ? allItems.length : regionCounts.get(region)}</span></button>)}
+        {["전체", ...regions].map((region) => <button key={region} type="button" className={selectedRegion === region ? "active" : ""} aria-pressed={selectedRegion === region} onClick={() => { setSelectedRegion(region); setPage(1); }}>{region}<span>{region === "전체" ? data.catalogTotal : regionCounts[region]}</span></button>)}
       </div>
-      <p className="place-detail-count">{selectedRegion === "전체" ? "전체" : selectedRegion} · {items.filter((item) => selectedRegion === "전체" || catalogRegion(item) === selectedRegion).length}곳</p>
-      {items.length === 0 || visibleRegions.every((region) => !items.some((item) => catalogRegion(item) === region))
-        ? <p className="place-catalog-empty">검색 결과가 없습니다.</p>
-        : visibleRegions.map((region) => {
-          const regionItems = items.filter((item) => catalogRegion(item) === region);
-          if (!regionItems.length) return null;
-          return <section className="place-catalog-section" key={region} aria-label={`${region} 여행지`}>
-            <div className="place-catalog-heading"><h2>{region} 여행지</h2><span>{regionItems.length}곳</span></div>
-            <div className="place-detail-catalog">{regionItems.map((item) => <PlaceCatalogCard key={item.id} item={item} region={region} />)}</div>
-          </section>;
-        })}
+      <p className="place-detail-count">{selectedRegion} · {total.toLocaleString()}곳 · {page} / {pageCount}페이지</p>
+      {items.length === 0 ? <p className="place-catalog-empty">검색 결과가 없습니다.</p> : CATALOG_REGION_ORDER.map((region) => {
+        const regionItems = items.filter((item) => catalogRegion(item) === region);
+        if (!regionItems.length) return null;
+        return <section className="place-catalog-section" key={region} aria-label={`${region} 여행지`}>
+          <div className="place-catalog-heading"><h2>{region} 여행지</h2><span>현재 페이지 {regionItems.length}곳</span></div>
+          <div className="place-detail-catalog">{regionItems.map((item) => <PlaceCatalogCard key={item.id} item={item} region={region} />)}</div>
+        </section>;
+      })}
+      {pageCount > 1 && <nav aria-label="여행지 목록 페이지" className="place-catalog-regions" style={{ justifyContent: 'center', marginTop: '32px' }}>
+        <button type="button" disabled={page <= 1} onClick={() => setPage(1)}>처음</button>
+        <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>이전</button>
+        <span>{page} / {pageCount}</span>
+        <button type="button" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>다음</button>
+        <button type="button" disabled={page >= pageCount} onClick={() => setPage(pageCount)}>마지막</button>
+      </nav>}
     </>}
   </div></main>;
 }

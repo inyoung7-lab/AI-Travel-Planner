@@ -1,8 +1,9 @@
 import { examplePlaces } from "../../shared/travelExamples.js";
 import { createTourApiRepository } from "./tourApiRepository.js";
+import { createSavedTourRepository } from './savedTourRepository.js';
 
 export class CatalogNotConfiguredError extends Error {
-  constructor(code = "CATALOG_NOT_CONFIGURED", message = "검색 데이터 저장소가 설정되지 않았습니다. .env의 TRAVEL_SEARCH_DATA_SOURCE를 example 또는 tourapi로 설정해 주세요.") {
+  constructor(code = "CATALOG_NOT_CONFIGURED", message = "검색 데이터 연결 설정을 확인해 주세요.") {
     super(message);
     this.name = "CatalogNotConfiguredError";
     this.code = code;
@@ -21,6 +22,7 @@ export function createTravelPlaceRepository({ mode = process.env.TRAVEL_SEARCH_D
   }
 
   if (mode === "tourapi") return createTourApiRepository(tourApiOptions);
+  if (mode === 'database') return createSavedTourRepository();
 
   return {
     dataSource: "database",

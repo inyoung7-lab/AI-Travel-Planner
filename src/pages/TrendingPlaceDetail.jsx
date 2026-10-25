@@ -1,12 +1,7 @@
-import { useLayoutEffect } from "react";
+import { useEffect, useState, useLayoutEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getPlaceDetailPath } from "./data/placeNavigation.js";
 import { scrollToPageTop } from "./data/pageScroll.js";
-import {
-  getRelatedTrendingPlaces,
-  getTrendingPlaceById,
-  summarizeTrend,
-} from "./data/trendingPlaceDetails.js";
 import "./TrendingPlaceDetail.css";
 
 const dayLabels = ["1일차", "2일차", "3일차", "4일차", "5일차", "6일차", "7일차"];
@@ -29,15 +24,17 @@ function getPoints(values, maximum) {
   }).join(" ");
 }
 
-function TrendChart({ trend }) {
-  const maximum = Math.ceil(Math.max(...trend.previous, ...trend.current) / 10) * 10;
-  const ticks = Array.from({ length: maximum / 10 + 1 }, (_, index) => maximum - index * 10);
+function TrendChart({ trend, dates }) {
+  const peak = Math.max(1, ...trend.previous, ...trend.current);
+  const step = Math.max(1, Math.ceil(peak / 5));
+  const maximum = Math.ceil(peak / step) * step;
+  const ticks = Array.from({ length: maximum / step + 1 }, (_, index) => maximum - index * step);
   const previousPoints = getPoints(trend.previous, maximum);
   const currentPoints = getPoints(trend.current, maximum);
 
   return (
-    <div className="trending-detail-chart" aria-label="두 기간의 예시 관심도 지수 그래프">
-      <svg viewBox="0 0 680 250" role="img" aria-label="세로축은 예시 관심도 지수이며 실제 관광 통계가 아닙니다">
+    <div className="trending-detail-chart" aria-label="이전 7일과 최근 7일의 회원 활동 비교 그래프">
+      <svg viewBox="0 0 680 250" role="img" aria-label="세로축은 실제 활동 건수입니다. 날짜별 수치는 아래 표에서 확인할 수 있습니다">
         {ticks.map((value) => {
           const y = getY(value, maximum);
           return (
@@ -47,7 +44,7 @@ function TrendChart({ trend }) {
             </g>
           );
         })}
-        <text x="17" y="118" transform="rotate(-90 17 118)" className="trending-chart-axis-title">예시 관심도 지수</text>
+        <text x="17" y="118" transform="rotate(-90 17 118)" className="trending-chart-axis-title">활동 건수</text>
         <polyline points={previousPoints} className="trending-chart-line trending-chart-line-previous" />
         <polyline points={currentPoints} className="trending-chart-line trending-chart-line-current" />
         {trend.previous.map((value, index) => {
@@ -60,114 +57,62 @@ function TrendChart({ trend }) {
           const y = getY(value, maximum);
           return <circle key={`current-${dayLabels[index]}`} cx={x} cy={y} r="3.5" className="trending-chart-dot trending-chart-dot-current" />;
         })}
-        {dayLabels.map((label, index) => {
+        {dates.map((date, index) => {
+          const label = date.slice(5).replace("-", "/");
           const x = plotLeft + index * ((plotRight - plotLeft) / (dayLabels.length - 1));
           return <text key={label} x={x} y="228" className="trending-chart-label">{label}</text>;
         })}
       </svg>
       <div className="trending-chart-legend">
-        <span><i className="trending-legend-previous" />이전 7일 예시</span>
-        <span><i className="trending-legend-current" />최근 7일 예시</span>
+        <span><i className="trending-legend-previous" />이전 7일</span>
+        <span><i className="trending-legend-current" />최근 7일</span>
       </div>
     </div>
   );
 }
 
-function RelatedPlaceCard({ place }) {
-  return (
-    <Link className="trending-related-card" to={getPlaceDetailPath(place.id, "trending")}>
-      <span className="trending-related-image">
-        {place.image ? <img src={place.image} alt={`${place.name} 대표 사진`} /> : <span>사진 준비 중</span>}
-      </span>
-      <span className="trending-related-copy">
-        <span className="trending-related-region">{place.region}</span>
-        <strong>{place.name}</strong>
-        <span>{place.tags.join(" · ")}</span>
-      </span>
-    </Link>
-  );
-}
-
 export default function TrendingPlaceDetail() {
   const { id } = useParams();
-  const place = getTrendingPlaceById(id);
-
-  useLayoutEffect(() => {
-    scrollToPageTop();
+  const [state, setState] = useState({ status: 'loading' });
+  const [metric, setMetric] = useState('total');
+  useLayoutEffect(() => { scrollToPageTop(); }, [id]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ status: 'loading' });
+    fetch(`/api/activity/place/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.message); return data; })
+      .then(data => setState({ status: 'success', data }))
+      .catch(error => { if (error.name !== 'AbortError') setState({ status: 'error', message: error.message }); });
+    return () => controller.abort();
   }, [id]);
-
-  if (!place) {
-    return (
-      <main className="trending-detail-page">
-        <section className="trending-not-found" role="status">
-          <h1>여행지를 찾을 수 없습니다</h1>
-          <p>주소의 여행지 ID를 확인해 주세요.</p>
-          <Link to="/">메인으로 돌아가기</Link>
-        </section>
-      </main>
-    );
-  }
-
-  const summary = summarizeTrend(place.trend);
-  const relatedPlaces = getRelatedTrendingPlaces(place);
-  const changeLabel = summary.changePercent === null
-    ? "비교 기준 없음"
-    : `${summary.changePercent > 0 ? "+" : ""}${summary.changePercent}%`;
-
-  return (
-    <main className="trending-detail-page">
-      <div className="trending-detail-container">
-        <Link className="trending-detail-back" to="/">← 메인으로</Link>
-        <header className="trending-detail-heading">
-          <p>{place.region}</p>
-          <h1>{place.name}</h1>
-        </header>
-
-        <div className={`trending-detail-hero-image${place.image ? "" : " is-placeholder"}`}>
-          {place.image ? <img src={place.image} alt={`${place.name} 대표 사진`} /> : <span>사진 준비 중</span>}
-        </div>
-
-        <section className="trending-detail-section trending-place-intro">
-          <h2>여행지 소개</h2>
-          <p>{place.introduction}</p>
-          <div className="trending-place-themes" aria-label="여행지 테마">
-            {place.tags.map((tag) => <span key={tag}>{tag}</span>)}
-          </div>
-        </section>
-
-        <section className="trending-detail-section">
-          <div className="trending-section-heading">
-            <div><h2>관심도 추이</h2><p>예시 관심도 지수 · 실제 검색 기록이나 관광 통계가 아닙니다.</p></div>
-            <span className="trending-example-badge">예시 데이터</span>
-          </div>
-          <TrendChart trend={place.trend} />
-        </section>
-
-        <section className="trending-detail-section trending-period-section">
-          <div className="trending-section-heading">
-            <div><h2>이전 기간과 비교</h2><p>임의의 예시 수치로 계산한 변화이며, 상승 이유를 나타내지 않습니다.</p></div>
-            <span className="trending-example-badge">예시 데이터</span>
-          </div>
-          <div className="trending-period-summary">
-            <div><span>이전 기간별 예시 지수 합계 · 7일</span><strong>{summary.previousTotal}</strong></div>
-            <div><span>최근 기간별 예시 지수 합계 · 7일</span><strong>{summary.currentTotal}</strong></div>
-            <div className="trending-period-change"><span>예시 변화율</span><strong>{changeLabel}</strong></div>
-          </div>
-          <p className="trending-no-cause">현재 실제 인기 통계와 인기 상승 이유는 연결되어 있지 않습니다.</p>
-        </section>
-
-        <section className="trending-detail-section">
-          <div className="trending-section-heading">
-            <div><h2>관련 여행지</h2><p>예시 장소 중 공통 테마가 있는 여행지입니다.</p></div>
-            <span className="trending-example-badge">예시 데이터</span>
-          </div>
-          {relatedPlaces.length > 0 ? (
-            <div className="trending-related-grid">
-              {relatedPlaces.map((related) => <RelatedPlaceCard key={related.id} place={related} />)}
-            </div>
-          ) : <p className="trending-related-empty">관련 예시 여행지가 없습니다.</p>}
-        </section>
+  if (state.status !== 'success') return <main className="trending-detail-page"><section className="trending-not-found" role="status"><h1>{state.status === 'loading' ? '회원 검색·조회 추이를 불러오는 중입니다' : '추이를 불러오지 못했어요'}</h1><p>{state.message}</p><Link to="/">메인으로 돌아가기</Link></section></main>;
+  const { place, previous, current } = state.data;
+  const valueOf = day => metric === "total" ? day.searches + day.views : day[metric];
+  const trend = { previous: previous.map(valueOf), current: current.map(valueOf) };
+  const previousTotal = trend.previous.reduce((a, b) => a + b, 0);
+  const currentTotal = trend.current.reduce((a, b) => a + b, 0);
+  const change = previousTotal ? `${((currentTotal - previousTotal) / previousTotal * 100).toFixed(1)}%` : '비교 기준 없음';
+  const label = metric === 'total' ? '검색·조회 합계' : metric === 'searches' ? '검색 결과 포함' : '여행지 상세 조회';
+  const searches = current.reduce((n,d)=>n+d.searches,0);
+  const views = current.reduce((n,d)=>n+d.views,0);
+  return <main className="trending-detail-page"><div className="trending-detail-container">
+    <Link className="trending-detail-back" to="/">← 메인으로</Link>
+    <header className="trending-detail-heading"><p>{place.region}</p><h1>{place.name} 검색·조회 추이</h1><p>전체 로그인 회원 기준 · 한국 시간</p></header>
+    <section className="trending-detail-section">
+      <div className="trending-section-heading"><div><h2>상세 추이 그래프</h2><p>최근 7일과 이전 7일의 실제 회원 활동을 비교합니다.</p></div><span className="trending-example-badge">전체 회원 기준</span></div>
+      <div className="trending-metric-tabs" role="group" aria-label="집계 항목">
+        <button aria-pressed={metric === 'total'} onClick={() => setMetric('total')}>검색·조회 합계</button>
+        <button aria-pressed={metric === 'searches'} onClick={() => setMetric('searches')}>검색 결과 포함</button>
+        <button aria-pressed={metric === 'views'} onClick={() => setMetric('views')}>상세 조회</button>
       </div>
-    </main>
-  );
+      <p>최근 7일: 검색 결과 포함 <strong>{searches}건</strong> · 상세 조회 <strong>{views}건</strong></p>
+      {currentTotal === 0 && <p role="status">최근 7일 동안 {label} 기록이 없습니다.{metric === 'searches' && views > 0 ? ` 상세 조회는 ${views}건 있으며, ‘상세 조회’에서 확인할 수 있습니다.` : ''}</p>}
+      <h3>{label}</h3><TrendChart trend={trend} dates={current.map(d=>d.date)} />
+      <p>이전: {previous[0].date} ~ {previous[6].date} / 최근: {current[0].date} ~ {current[6].date}</p>
+      <div className="trending-period-summary"><div><span>이전 7일</span><strong>{previousTotal}건</strong></div><div><span>최근 7일</span><strong>{currentTotal}건</strong></div><div><span>변화율</span><strong>{change}</strong></div></div>
+      <p className="trending-no-cause">검색은 이 여행지가 검색 결과에 포함된 횟수입니다. 상세 조회는 같은 회원·여행지별 30분에 한 번 집계합니다. 기록이 없는 날은 0이며, 과거 비로그인 기록은 포함하지 않습니다.</p>
+    </section>
+    <section className="trending-detail-section"><h2>날짜별 상세 기록</h2><table className="trending-daily-table"><thead><tr><th>날짜</th><th>검색 결과 포함</th><th>상세 조회</th></tr></thead><tbody>{[...previous, ...current].map(day => <tr key={day.date}><th>{day.date}</th><td>{day.searches}건</td><td>{day.views}건</td></tr>)}</tbody></table></section>
+    <section className="trending-detail-section"><h2>여행지 정보</h2>{place.image && <div className="trending-detail-hero-image"><img src={place.image} alt={place.name} /></div>}{place.photoCredit && <p>사진: {place.photoCredit.author} · {place.photoCredit.license} {place.photoCredit.sourceUrl && <a href={place.photoCredit.sourceUrl}>출처</a>}</p>}<Link to={getPlaceDetailPath(place.id, 'team')}>여행지 상세 정보 보기 →</Link></section>
+  </div></main>;
 }

@@ -1,7 +1,7 @@
-import oracledb from "oracledb";
-import { getConnection } from "../db.js";
+import { getSupabase, unwrap, allRows } from "../db.js";
 import { classifyTourApiPlace } from "./tourApiCategories.js";
-import { normalizeTravelRegion } from "../../shared/travelRegions.js";
+import { normalizeTravelRegion, normalizeTourApiRegion } from "../../shared/travelRegions.js";
+import { samplePlacePhoto } from './placePhotos.js';
 
 const BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
 const REQUEST_TIMEOUT = 8000;
@@ -97,11 +97,14 @@ async function geocodePlace(place) {
   return null;
 }
 
-export async function getTourDetail(contentId) {
+export async function getTourDetail(contentId, { refresh = false } = {}) {
   if (!/^\d+$/.test(String(contentId))) return null;
   const key = `tour:${contentId}`;
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
+  if (!refresh) {
+    const saved = await unwrap(getSupabase().from('comm_place_tour_detail').select('payload').eq('content_id', String(contentId)).maybeSingle());
+    if (saved?.payload?.isActive === false) return null;
+    if (saved?.payload?.source === 'tourapi' && !saved.payload.summaryOnly && !saved.payload.detailStale) return saved.payload;
+  }
   const common = (await request("detailCommon2", { contentId })).at(0);
   if (!common?.title) return null;
   const contentTypeId = String(common.contenttypeid || "12");
@@ -117,7 +120,7 @@ export async function getTourDetail(contentId) {
   const mainPhotos = permittedPhotoTypes.has(common.cpyrhtDivCd) ? [common.firstimage, common.firstimage2] : [];
   const fee = info.find((entry) => /입장료|이용요금|요금/.test(entry.infoname || ""));
   const value = {
-    source: "tourapi", contentId: String(contentId), name: cleanText(common.title), category: classifyTourApiPlace({ contentTypeId }),
+    source: "tourapi", contentId: String(contentId), contentTypeId, isActive: true, sourceModifiedTime: String(common.modifiedtime || ''), region: normalizeTourApiRegion(common), name: cleanText(common.title), category: classifyTourApiPlace({ contentTypeId }),
     address: cleanText([common.addr1, common.addr2].filter(Boolean).join(" ")),
     overview: cleanText(common.overview),
     phone: cleanText(common.tel || intro.infocenter || intro.infocenterculture),
@@ -130,6 +133,11 @@ export async function getTourDetail(contentId) {
     imageSource: "한국관광공사 TourAPI",
     extraInfo: info.filter((entry) => entry.infoname && entry.infotext).map((entry) => ({ label: cleanText(entry.infoname), value: cleanText(entry.infotext) })).slice(0, 12),
   };
+  // New external details are persisted before the page receives them.
+  const writer = getSupabase({ admin: true });
+  const storedPlace = await unwrap(writer.from('comm_place').upsert({ ext_key: `tourapi:${contentId}`, name: value.name, address: value.address,
+    region: value.region || null, lat: value.lat, lng: value.lng }, { onConflict: 'ext_key' }).select('place_id').single());
+  await unwrap(writer.from('comm_place_tour_detail').upsert({ place_id: storedPlace.place_id, content_id: String(contentId), payload: value, synced_at: new Date().toISOString() }));
   cache.set(key, { at: Date.now(), value });
   return value;
 }
@@ -162,25 +170,55 @@ export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "
   return { items: items.filter((item) => item.contentId !== String(excludeContentId)).slice(0, 8), radiusMeters: config.radius };
 }
 
+function upperPlace(row) {
+  const detail = row.comm_place_tour_detail;
+  return { ...Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toUpperCase(), v])),
+    PAYLOAD: detail?.payload ? JSON.stringify(detail.payload) : null };
+}
 export async function listDbPlaces() {
-  const connection = await getConnection();
-  try {
-    let rows;
-    try {
-      const result = await connection.execute(
-        `SELECT p.place_id, p.name, p.address, p.region, p.ext_key, d.payload
-         FROM COMM_PLACE p LEFT JOIN COMM_PLACE_TOUR_DETAIL d ON d.place_id = p.place_id
-         ORDER BY p.place_id`,
-        {}, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } },
-      );
-      rows = result.rows;
-    } catch (error) {
-      if (error.errorNum !== 942) throw error;
-      const result = await connection.execute("SELECT place_id, name, address, region, ext_key FROM COMM_PLACE ORDER BY place_id", {}, { outFormat: oracledb.OUT_FORMAT_OBJECT });
-      rows = result.rows;
-    }
-    return rows.map(mapDbPlaceListRow);
-  } finally { await connection.close(); }
+  const rows = await allRows(() => getSupabase().from('travel_saved_tour_catalog').select('*').eq('detail->>contentTypeId', '12').order('place_id'), 1000);
+  return rows.map((row) => mapDbPlaceListRow(upperPlace({ ...row, comm_place_tour_detail: { payload: row.detail } })));
+}
+
+const catalogPages = new Map();
+let catalogCounts;
+function getCatalogCounts() {
+  if (!catalogCounts || Date.now() >= catalogCounts.expires) {
+    const entry = { expires: Date.now() + 5 * 60000 };
+    entry.promise = unwrap(getSupabase().rpc('travel_tour_catalog_counts')).catch(error => {
+      if (catalogCounts === entry) catalogCounts = null;
+      throw error;
+    });
+    catalogCounts = entry;
+  }
+  return catalogCounts.promise;
+}
+export function listDbCatalogPage({ page = 1, q = '', region = '' } = {}) {
+  q = q.trim();
+  region = region === '전체' ? '' : region;
+  const key = JSON.stringify([page, q, region]);
+  const found = catalogPages.get(key);
+  if (found && Date.now() < found.expires) return found.promise;
+  if (catalogPages.size >= 80) catalogPages.delete(catalogPages.keys().next().value);
+  const entry = { expires: Date.now() + 60000 };
+  entry.promise = loadDbCatalogPage({ page, q, region }).catch(error => {
+    if (catalogPages.get(key) === entry) catalogPages.delete(key);
+    throw error;
+  });
+  catalogPages.set(key, entry);
+  return entry.promise;
+}
+async function loadDbCatalogPage({ page, q, region }) {
+  const pageSize = 24;
+  let query = getSupabase().from('travel_saved_tour_catalog').select('*', { count: 'exact' }).eq('detail->>contentTypeId', '12');
+  if (region && region !== '전체') query = query.eq('region', region);
+  if (q.trim()) query = query.ilike('search_text', `%${q.trim().replace(/[\\%_]/g, '\\$&')}%`);
+  const [{ data, count, error }, counts] = await Promise.all([
+    query.order('region').order('place_id').range((page - 1) * pageSize, page * pageSize - 1),
+    getCatalogCounts(),
+  ]);
+  if (error) throw error;
+  return { items: data.map((row) => mapDbPlaceListRow(upperPlace({ ...row, comm_place_tour_detail: { payload: row.detail } }))), total: count, page, pageSize, catalogTotal: counts.total, regionCounts: counts.regions };
 }
 
 export function mapDbPlaceListRow(row) {
@@ -190,30 +228,17 @@ export function mapDbPlaceListRow(row) {
   const secureImage = image?.replace(/^http:\/\/tong\.visitkorea\.or\.kr\//i, "https://tong.visitkorea.or.kr/");
   return {
     id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", extKey: row.EXT_KEY || "",
-    image: secureImage || (row.EXT_KEY === "sample:2" ? "/images/place-preview/hyeopjae-beach.png" : null),
+    image: secureImage || samplePlacePhoto(row.EXT_KEY)?.url || null,
+    imageCredit: detail?.imageCredits?.[0] || samplePlacePhoto(row.EXT_KEY) || null,
   };
 }
 
 export async function getDbPlace(id) {
-  const connection = await getConnection();
-  let row;
-  let storedTour = null;
-  try {
-    const result = await connection.execute("SELECT place_id, name, address, region, lat, lng, ext_key FROM COMM_PLACE WHERE place_id = :id", { id }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
-    row = result.rows[0];
-    if (row && /^tourapi:\d+$/.test(row.EXT_KEY || "")) {
-      try {
-        const snapshot = await connection.execute(
-          "SELECT payload FROM COMM_PLACE_TOUR_DETAIL WHERE place_id = :id",
-          { id }, { outFormat: oracledb.OUT_FORMAT_OBJECT, fetchInfo: { PAYLOAD: { type: oracledb.STRING } } },
-        );
-        if (snapshot.rows[0]?.PAYLOAD) storedTour = JSON.parse(snapshot.rows[0].PAYLOAD);
-      } catch (error) {
-        if (error.errorNum !== 942 && !(error instanceof SyntaxError)) throw error;
-      }
-    }
-  } finally { await connection.close(); }
+  const record = await unwrap(getSupabase().from('comm_place').select('*,comm_place_tour_detail(payload)').eq('place_id', id).maybeSingle());
+  const row = record ? upperPlace(record) : null;
+  const storedTour = record?.comm_place_tour_detail?.payload || null;
     if (!row) return null;
+    if (storedTour?.isActive === false) return null;
     const place = { id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", lat: row.LAT, lng: row.LNG, extKey: row.EXT_KEY || "" };
     let tourId = /^tourapi:(\d+)$/.exec(place.extKey)?.[1];
     if (!tourId && place.extKey === "sample:2") tourId = "127490";
@@ -237,8 +262,8 @@ export async function getDbPlace(id) {
       } catch { /* DB 정보만으로 상세를 표시합니다. */ }
     }
     let tour = storedTour;
-    if (tourId && !tour) {
-      try { tour = await getTourDetail(tourId); } catch { /* DB 정보만으로 상세를 표시합니다. */ }
+    if (tourId && (!tour || tour.summaryOnly || tour.detailStale)) {
+      try { const fresh = await getTourDetail(tourId); if (fresh) tour = fresh; } catch { /* DB 정보만으로 상세를 표시합니다. */ }
     }
     let geocoded = null;
     if (!place.lat && !tour?.lat) {
@@ -251,12 +276,16 @@ export async function getDbPlace(id) {
         cache.set(geocodeKey, { at: Date.now(), value: geocoded });
       }
     }
+    const referencePhoto = samplePlacePhoto(place.extKey);
+    const hasTourPhotos = tour?.images?.length > 0;
     return {
       source: "db", id: place.id, name: place.name, category: tour?.category || null, address: place.address || tour?.address || "",
       region: place.region, lat: place.lat ?? tour?.lat ?? geocoded?.lat ?? null, lng: place.lng ?? tour?.lng ?? geocoded?.lng ?? null,
       coordinateSource: geocoded ? "OpenStreetMap 기반 주소 검색" : null, coordinateApproximate: !!geocoded,
       overview: tour?.overview || "", phone: tour?.phone || "", hours: tour?.hours || "", closed: tour?.closed || "",
-      parking: tour?.parking || "", fee: tour?.fee || "", images: tour?.images || [],
-      imageSource: tour?.imageSource || null, extraInfo: tour?.extraInfo || [], tourContentId: tour?.contentId || null,
+      parking: tour?.parking || "", fee: tour?.fee || "", images: hasTourPhotos ? tour.images : referencePhoto ? [referencePhoto.url] : [],
+      imageCredits: hasTourPhotos ? tour.imageCredits || [] : referencePhoto ? [referencePhoto] : [],
+      informationSourceUrl: tour?.sourceUrl || null,
+      imageSource: hasTourPhotos ? tour.imageSource : referencePhoto ? 'Wikimedia Commons · 여행지 참고 사진' : null, extraInfo: tour?.extraInfo || [], tourContentId: tour?.contentId || null,
     };
 }

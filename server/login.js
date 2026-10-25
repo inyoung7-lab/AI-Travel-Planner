@@ -1,64 +1,13 @@
-import express from "express";
-import { getConnection } from "./db.js";
-
+import express from 'express';
+import { getSupabase } from './db.js';
 const router = express.Router();
-
-router.post("/", async (req, res) => {
-  let connection;
-
+router.post('/', async (req, res, next) => {
   try {
-    const { userId, password } = req.body;
-
-    connection = await getConnection();
-
-    const result = await connection.execute(
-      `
-      SELECT
-        USER_ID,
-        USER_PASSWORD,
-        USER_NAME,
-        EMAIL
-      FROM MEMBER
-      WHERE USER_ID = :userId
-        AND USER_PASSWORD = :password
-      `,
-      {
-        userId,
-        password,
-      }
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: "아이디 또는 비밀번호가 일치하지 않습니다.",
-      });
-    }
-
-    const user = result.rows[0];
-
-    return res.json({
-      success: true,
-      user: {
-        userId: user[0],
-        name: user[2],
-        email: user[3],
-      },
-    });
-
-  } catch (error) {
-    console.error("로그인 오류:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "서버 오류가 발생했습니다.",
-    });
-
-  } finally {
-    if (connection) {
-      await connection.close();
-    }
-  }
+    const { email, password } = req.body || {};
+    if (typeof email !== 'string' || typeof password !== 'string') return res.status(400).json({ message: '이메일과 비밀번호를 입력해 주세요.' });
+    const { data, error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
+    if (error) return res.status(401).json({ message: '이메일 또는 비밀번호를 확인해 주세요.' });
+    res.json({ success: true, session: data.session, user: { userId: data.user.id, name: data.user.user_metadata?.name, email: data.user.email } });
+  } catch (error) { next(error); }
 });
-
 export default router;

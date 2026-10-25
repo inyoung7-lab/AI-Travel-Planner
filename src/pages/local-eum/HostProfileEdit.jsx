@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useLogoutGuard } from '../../lib/auth.js';
 import { hasHostProfileChanges } from './hostProfileState.js';
 import { translate } from './localEumI18n.js';
 import { setLocalEumLocale, useLocalEumLocale } from './localEumLocaleStore.js';
 import LocalEumLanguageSelector from './components/LocalEumLanguageSelector.jsx';
 import HostOperationsWorkspace from './components/HostOperationsWorkspace.jsx';
 import HostOperationsDemo from './components/HostOperationsDemo.jsx';
+import HostProfileRegistration from './components/HostProfileRegistration.jsx';
 import { hostOperationsCopy } from './hostOperationsCopy.js';
 import './HostOperations.css';
 import {
@@ -15,8 +17,6 @@ import {
   loadHostOperations,
   loadHostProfile,
   saveHostProfile,
-  signIn,
-  signOut,
   watchAuthSession,
 } from './sessionRepository.js';
 import './SessionEdit.css';
@@ -27,15 +27,13 @@ export default function HostProfileEdit() {
 }
 
 function AuthenticatedHostProfileEdit() {
+  const location = useLocation();
   const locale = useLocalEumLocale();
   const t = (key, values) => translate(locale, key, values);
   const opsText = hostOperationsCopy[locale] || hostOperationsCopy.ko;
   const [authSession, setAuthSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(() => isSupabaseConfigured());
   const [authError, setAuthError] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [signingIn, setSigningIn] = useState(false);
   const [pageState, setPageState] = useState(null);
   const [operationsState, setOperationsState] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -84,13 +82,13 @@ function AuthenticatedHostProfileEdit() {
         });
       })
       .catch((error) => {
-        if (active) setPageState({ userId, host: null, draft: null, error: error.message });
+        if (active) setPageState({ userId, host: null, draft: null, error: error.message, errorCode: error.code });
       });
     return () => { active = false; };
   }, [userId, reloadCount]);
 
   useEffect(() => {
-    if (!userId || !current?.host?.host_id) return undefined;
+    if (!userId || !current?.host?.host_id || current.host.approval_status !== 'APPROVED') return undefined;
     let active = true;
     const hostId = current.host.host_id;
     loadHostOperations(userId, hostId)
@@ -106,7 +104,7 @@ function AuthenticatedHostProfileEdit() {
         }));
       });
     return () => { active = false; };
-  }, [userId, current?.host?.host_id, operationsReloadCount]);
+  }, [userId, current?.host?.host_id, current?.host?.approval_status, operationsReloadCount]);
 
   useEffect(() => {
     if (!changed) return undefined;
@@ -118,33 +116,10 @@ function AuthenticatedHostProfileEdit() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [changed]);
 
-  async function submitSignIn(event) {
-    event.preventDefault();
-    setSigningIn(true);
-    setAuthError('');
-    try {
-      await signIn(email.trim(), password);
-      setPassword('');
-    } catch (error) {
-      setAuthError(error.message || t('loginFailed'));
-    } finally {
-      setSigningIn(false);
-    }
-  }
-
-  async function handleSignOut() {
-    if (workspaceState.busy) return;
-    if ((changed || workspaceState.dirty) && !window.confirm(t('signOutUnsavedProfile'))) return;
-    setAuthError('');
-    try {
-      await signOut();
-      setPageState(null);
-      setOperationsState(null);
-      setMessage(t('signOutSuccess'));
-    } catch (error) {
-      setAuthError(error.message);
-    }
-  }
+  useLogoutGuard(() => {
+    if (workspaceState.busy || saving) return false;
+    return !(changed || workspaceState.dirty) || window.confirm(t('signOutUnsavedProfile'));
+  });
 
   function updateDraft(field, value) {
     setPageState((state) => state?.userId === userId
@@ -236,31 +211,18 @@ function AuthenticatedHostProfileEdit() {
   if (authLoading) return <main className="le-session-page"><div className="le-loading">Supabase 로그인 상태를 확인하는 중입니다…</div></main>;
 
   if (!authSession) {
-    return (
-      <main className="le-session-page le-host-center-page"><div className="le-shell le-host-center-shell">
-        <div className="le-crumbs"><Link to="/local-eum">{t('localEum')}</Link><span aria-hidden="true">/</span><strong>{t('hostProfile')}</strong></div>
-        <section className="le-auth-card" aria-labelledby="le-login-title">
-          <span className="le-eyebrow le-eyebrow-dark">LOCAL EUM · HOST PROFILE</span>
-          <h1 id="le-login-title">호스트 계정으로 로그인해 주세요</h1>
-          <p>호스트 프로필은 프로그램별 정보와 분리되어, 한 번 수정하면 이 호스트의 모든 체험에 공통으로 표시됩니다.</p>
-          <form className="le-auth-form" onSubmit={submitSignIn}>
-            <div className="le-field"><label htmlFor="le-profile-login-email">이메일</label><input id="le-profile-login-email" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} /></div>
-            <div className="le-field"><label htmlFor="le-profile-login-password">비밀번호</label><input id="le-profile-login-password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></div>
-            {authError ? <p className="le-message le-message-error" role="alert">{authError}</p> : null}
-            <button className="le-button-primary le-auth-submit" type="submit" disabled={signingIn}>{signingIn ? '로그인 중…' : 'HOST 계정 로그인'}</button>
-          </form>
-          <Link className="le-host-demo-entry" to="/local-eum/host/profile?demo=1">로그인 없이 호스트 운영센터 데모 보기 →</Link>
-        </section>
-      </div></main>
-    );
+    return <Navigate to="/login?host=1" replace state={{ from: location.pathname + location.search }} />;
   }
 
   if (loading) return <main className="le-session-page"><div className="le-loading">호스트 프로필을 불러오는 중입니다…</div></main>;
 
+  if (['HOST_REQUIRED', 'HOST_PROFILE_NOT_FOUND'].includes(current?.errorCode)) {
+    return <HostProfileRegistration key={userId} userId={userId} onRegistered={() => { setPageState(null); setOperationsState(null); setReloadCount((value) => value + 1); }} />;
+  }
+
   if (current?.error || !current?.host) {
     return (
       <main className="le-session-page le-host-center-page"><div className="le-shell le-host-center-shell">
-        <div className="le-auth-toolbar"><span>{authSession.user.email} · HOST 로그인</span><button type="button" onClick={handleSignOut}>로그아웃</button></div>
         <div className="le-loading le-loading-error" role="alert">
           <p>{current?.error || '호스트 프로필을 불러올 수 없습니다.'}</p>
           <button type="button" className="le-button-primary" onClick={() => {
@@ -275,9 +237,9 @@ function AuthenticatedHostProfileEdit() {
   }
 
   const { host, draft } = current;
-  const operations = operationsState?.userId === userId && operationsState?.hostId === host.host_id
-    ? operationsState
-    : null;
+  const operations = host.approval_status !== 'APPROVED'
+    ? { userId, hostId: host.host_id, experiences: [], applications: [], error: '' }
+    : operationsState?.userId === userId && operationsState?.hostId === host.host_id ? operationsState : null;
   return (
     <main className="le-session-page le-host-center-page"><div className="le-shell le-host-center-shell">
       <div className="le-crumbs"><Link to="/local-eum">로컬이음</Link><span aria-hidden="true">/</span><strong>{opsText.title}</strong></div>
@@ -288,9 +250,9 @@ function AuthenticatedHostProfileEdit() {
       </header>
       <div className="le-auth-toolbar">
         <LocalEumLanguageSelector locale={locale} onChange={setLocalEumLocale} className="le-locale-selector-compact" disabled={workspaceState.busy || saving} />
-        <span>{authSession.user.email} · HOST 로그인{host.approval_status !== 'APPROVED' ? ' · 승인 대기 중' : ''}</span>
-        <button type="button" onClick={handleSignOut} disabled={workspaceState.busy || saving}>{t('signOut')}</button>
+        {host.approval_status !== 'APPROVED' && <span>호스트 승인 대기 중</span>}
       </div></div>
+      {host.approval_status === 'PENDING' && <p className="le-message" role="status">프로필을 저장하고 수정할 수 있습니다. 체험 공개와 운영은 호스트 승인 후 이용할 수 있어요.</p>}
       <HostOperationsWorkspace userId={userId} host={host} locale={locale} operations={operations}
         onRefresh={refreshOperations} onExperiencesChanged={updateExperiences} onEditorStateChange={setWorkspaceState}>
       <section className="le-copy-editor le-host-profile-editor" aria-labelledby="le-host-profile-title">

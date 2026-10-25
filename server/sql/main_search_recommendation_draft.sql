@@ -1,6 +1,0 @@
--- OBSOLETE / SUPERSEDED. Do not execute this file.
--- This legacy filename is retained only to prevent accidental reuse.
--- Running it alongside the current SQL may duplicate objects or apply outdated definitions.
--- Use 01_main_search_create.sql for independent search objects.
--- Review 02_shared_link_pending.sql for PLACE/MEMBER and optional catalog dependencies.
--- No Oracle execution validation was performed for this legacy file or its replacements.

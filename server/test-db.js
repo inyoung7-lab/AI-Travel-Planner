@@ -1,24 +1,5 @@
-import { getConnection } from "./db.js";
-
-let connection;
-
+import { getSupabase, unwrap } from './db.js';
 try {
-  connection = await getConnection();
-
-  console.log("Oracle DB 연결 성공");
-
-  const result = await connection.execute(
-    `SELECT * FROM MEMBER`
-  );
-
-  console.log(result.rows);
-
-} catch (error) {
-  console.error("DB 연결 실패");
-  console.error(error);
-
-} finally {
-  if (connection) {
-    await connection.close();
-  }
-}
+  const places = await unwrap(getSupabase().from('comm_place').select('place_id,name').limit(1));
+  console.log('Supabase 연결 성공', places);
+} catch (error) { console.error('Supabase 연결 실패:', error.message); process.exitCode = 1; }

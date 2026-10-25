@@ -1,11 +1,21 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { signIn } from "./local-eum/sessionRepository.js";
 import "./Auth.css";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isHostLogin = searchParams.get("host") === "1";
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setErrorMessage("");
 
     const formData = new FormData(e.target);
 
@@ -15,36 +25,18 @@ function Login() {
     };
 
     try {
-      const response = await fetch("http://localhost:3000/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(loginData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        alert(result.message);
-        return;
-      }
-
-      // 로그인 성공
-      localStorage.setItem(
-        "user",
-        JSON.stringify(result.user)
-      );
-
-      alert(`${result.user.name}님 환영합니다.`);
-
-      // 홈으로 이동
-      navigate("/");
+      await signIn(String(loginData.userId).trim(), loginData.password);
+      const destination = location.state?.from;
+      navigate(isHostLogin
+        ? (typeof destination === "string" && /^\/local-eum\/host\/profile(?:\?|$)/.test(destination) ? destination : "/local-eum/host/profile")
+        : (destination === "/ai-itinerary" ? destination : "/"), { replace: true });
 
     } catch (error) {
       console.error("로그인 오류:", error);
 
-      alert("서버에 연결할 수 없습니다.");
+      setErrorMessage(error.message || "로그인에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -73,27 +65,31 @@ function Login() {
 
           <div className="login-card-title">
             <h2>로그인</h2>
-            <p>반가워요! 여행을 계속 이어가볼까요?</p>
+            <p>{isHostLogin ? "호스트 계정으로 로그인하면 프로필 관리로 이동합니다." : "반가워요! 여행을 계속 이어가볼까요?"}</p>
           </div>
 
           <form onSubmit={handleSubmit}>
 
             <div className="input-group">
-              <label>아이디</label>
+              <label htmlFor="login-user-id">이메일</label>
 
               <input
-                type="text"
+                id="login-user-id"
+                type="email"
+                autoComplete="username"
                 name="userId"
-                placeholder="아이디를 입력해주세요"
+                placeholder="이메일을 입력해주세요"
                 required
               />
             </div>
 
             <div className="input-group">
-              <label>비밀번호</label>
+              <label htmlFor="login-password">비밀번호</label>
 
               <input
                 type="password"
+                id="login-password"
+                autoComplete="current-password"
                 name="password"
                 placeholder="비밀번호를 입력해주세요"
                 required
@@ -111,11 +107,14 @@ function Login() {
 
             </div>
 
+            {errorMessage && <p role="alert">{errorMessage}</p>}
+
             <button
               type="submit"
               className="auth-button"
+              disabled={submitting}
             >
-              로그인
+              {submitting ? "로그인 중…" : "로그인"}
             </button>
 
           </form>

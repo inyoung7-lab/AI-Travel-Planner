@@ -52,3 +52,13 @@ export function requireSupabase() {
 export function getSupabaseConfigurationIssue() {
   return configIssue;
 }
+
+// Pin data requests to the selected account, even if another tab signs in/out mid-request.
+export function sessionSupabase(session) {
+  requireSupabase();
+  if (!session?.access_token || !session.user?.id) throw new Error('로그인이 필요합니다.');
+  return createClient(supabaseUrl, supabasePublishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `travel-data-${crypto.randomUUID()}` },
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } },
+  });
+}
