@@ -76,8 +76,14 @@ export default function PlaceDetail({ source = "db" }) {
 
       <div className="place-preview-lead">
         <div className="place-preview-photo place-detail-photo">
-          {images.length ? <img src={images[imageIndex]} alt={`${place.name} 관광 사진 ${imageIndex + 1}`} /> : <div className="place-detail-no-photo">등록된 사진이 없습니다</div>}
-          {images.length > 0 && <span>{place.imageSource || "관광지 사진"} · {imageIndex + 1} / {images.length}</span>}
+          {images.length ? <img src={images[imageIndex]} alt={`${place.imageRegional ? place.imageSubject : place.name} 관광 사진 ${imageIndex + 1}`} /> : <div className="place-detail-no-photo">등록된 사진이 없습니다</div>}
+          {images.length > 0 && <span>
+            {place.imageSourceUrl
+              ? <a href={place.imageSourceUrl} target="_blank" rel="noreferrer">{place.imageSource}</a>
+              : place.imageSource || "관광지 사진"}
+            {place.imageRegional && place.imageSubject ? ` · ${place.imageSubject}` : ""}
+            {` · ${imageIndex + 1} / ${images.length}`}
+          </span>}
         </div>
         <section className="place-preview-intro" aria-label="여행지 소개">
           <div className="place-preview-chips">{place.region && <span>{place.region}</span>}<span>{place.category || (source === "db" ? "DB 등록 장소" : "관광 정보")}</span></div>

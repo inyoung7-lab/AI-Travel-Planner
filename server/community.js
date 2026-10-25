@@ -1,4 +1,5 @@
 import express from 'express';
+import { mapDbPlaceListRow } from './repositories/placeDetailRepository.js';
 import { databaseSession, requireUser, unwrap } from './db.js';
 import { placePhotoCredits as photoCredits, photoCreditFor as creditFor } from './repositories/placePhotos.js';
 
@@ -130,15 +131,23 @@ router.get('/hot-places', async (req, res) => {
   }));
 });
 router.get('/counts', async (req, res) => res.json(await unwrap(req.db.rpc('travel_post_counts'))));
+function placeResult(p) {
+  const detail = p.comm_place_tour_detail?.payload || {};
+  const photo = mapDbPlaceListRow({PLACE_ID:p.place_id,NAME:p.name,ADDRESS:p.address,REGION:p.region,EXT_KEY:p.ext_key,PAYLOAD:JSON.stringify(detail)});
+  return {id:p.place_id,name:p.name,addr:p.address || '',region:p.region || '',lat:p.lat ?? null,lng:p.lng ?? null,image:photo.image,imageRegional:!!detail.imageRegional,imageSubject:detail.imageSubject || null,imageSource:detail.imageSource || null,category:detail.category || '관광지'};
+}
 router.get('/place-search', async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (!q) return res.json([]);
-  res.json(await unwrap(req.db.rpc('travel_search_places', { p_query: q })));
+  const matches = await unwrap(req.db.rpc('travel_search_places', { p_query: q }));
+  const rows = matches.length ? await unwrap(req.db.from('comm_place').select('*,comm_place_tour_detail(payload)').in('place_id', matches.map(p=>p.id))) : [];
+  const byId = new Map(rows.map(p=>[String(p.place_id),placeResult(p)]));
+  res.json(matches.map(p=>byId.get(String(p.id))).filter(Boolean));
 });
 router.get('/places-by-ids', async (req, res) => {
   const ids = [...new Set(String(req.query.ids || '').split(',').filter(integer).map(Number))].slice(0, 100);
-  const rows = ids.length ? await unwrap(req.db.from('comm_place').select('place_id,name,address,region').in('place_id', ids)) : [];
-  res.json(Object.fromEntries(rows.map((p) => [p.place_id, { name: p.name, addr: p.address || '', region: p.region || '' }])));
+  const rows = ids.length ? await unwrap(req.db.from('comm_place').select('*,comm_place_tour_detail(payload)').in('place_id', ids)) : [];
+  res.json(Object.fromEntries(rows.map((p) => [p.place_id, placeResult(p)])));
 });
 router.post('/places', requireUser, async (req, res) => {
   const b = req.body || {}, name = String(b.name || '').trim(), key = String(b.extKey || '').trim();

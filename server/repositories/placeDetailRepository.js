@@ -1,6 +1,7 @@
 import { getSupabase, unwrap, allRows } from "../db.js";
 import { classifyTourApiPlace } from "./tourApiCategories.js";
 import { normalizeTravelRegion, normalizeTourApiRegion } from "../../shared/travelRegions.js";
+import { photoFromRow } from "./placePhotoRepository.js";
 import { samplePlacePhoto } from './placePhotos.js';
 
 const BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
@@ -142,19 +143,21 @@ export async function getTourDetail(contentId, { refresh = false } = {}) {
   return value;
 }
 
-export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "" }) {
+export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "", responseCache = null }) {
   const config = NEARBY_CATEGORIES[category];
   if (!config) throw new RangeError("지원하지 않는 주변 장소 분류예요.");
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39 || lng < 124 || lng > 132) {
     throw new RangeError("올바른 국내 위치 좌표가 필요해요.");
   }
-  if (!process.env.TOUR_API_SERVICE_KEY?.trim()) throw new Error("TourAPI 인증키가 설정되지 않았어요.");
   const key = `nearby:${category}:${lat.toFixed(5)}:${lng.toFixed(5)}`;
   const cached = cache.get(key);
-  let items;
-  if (cached && Date.now() - cached.at < CACHE_MS) {
+  let items = responseCache ? await responseCache.get(key, category === "festival" ? 86400000 : 30 * 86400000).catch(() => null) : null;
+  if (Array.isArray(items)) {
+    // Reuse a previously stored response before requiring an external API key.
+  } else if (cached && Date.now() - cached.at < CACHE_MS) {
     items = cached.value;
   } else {
+    if (!process.env.TOUR_API_SERVICE_KEY?.trim()) throw new Error("TourAPI 인증키가 설정되지 않았어요.");
     const rows = await request("locationBasedList2", {
       mapX: String(lng), mapY: String(lat), radius: String(config.radius), arrange: "E",
       contentTypeId: config.contentTypeId, numOfRows: "30",
@@ -166,6 +169,7 @@ export async function getNearbyPlaces({ lat, lng, category, excludeContentId = "
       image: ["Type1", "Type3"].includes(item.cpyrhtDivCd) ? item.firstimage || item.firstimage2 || null : null,
     }));
     cache.set(key, { at: Date.now(), value: items });
+    if (responseCache) await responseCache.set(key, items).catch(() => {});
   }
   return { items: items.filter((item) => item.contentId !== String(excludeContentId)).slice(0, 8), radiusMeters: config.radius };
 }
@@ -226,9 +230,10 @@ export function mapDbPlaceListRow(row) {
   try { detail = row.PAYLOAD ? JSON.parse(row.PAYLOAD) : {}; } catch { /* 목록은 상세 데이터가 손상되어도 계속 표시합니다. */ }
   const image = Array.isArray(detail?.images) ? detail.images.find((url) => typeof url === "string" && url.trim()) : null;
   const secureImage = image?.replace(/^http:\/\/tong\.visitkorea\.or\.kr\//i, "https://tong.visitkorea.or.kr/");
+  const representative = photoFromRow(row);
   return {
     id: row.PLACE_ID, name: row.NAME, address: row.ADDRESS || "", region: row.REGION || "", extKey: row.EXT_KEY || "",
-    image: secureImage || samplePlacePhoto(row.EXT_KEY)?.url || null,
+    image: representative?.image || secureImage || samplePlacePhoto(row.EXT_KEY)?.url || null,
     imageCredit: detail?.imageCredits?.[0] || samplePlacePhoto(row.EXT_KEY) || null,
   };
 }
