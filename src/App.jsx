@@ -1,3 +1,4 @@
+import ManualTrip from "./pages/mytrip/ManualTrip.jsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/header.jsx";
 import Login from "./pages/Login.jsx";
@@ -42,6 +43,8 @@ function App() {
         <Route path="/community/questions/:id" element={<QuestionDetail />} />
         <Route path="/community/places/:id/reviews" element={<PlaceReviews />} />
         <Route path="/mytrip" element={<MyTrip />} />
+        <Route path="/mytrip/new" element={<ManualTrip />} />
+        <Route path="/mytrip/edit/:id" element={<ManualTrip />} />
         <Route path="/local-eum/host/sessions/:sessionId/edit" element={<SessionEdit />} />
         <Route path="/local-eum/host/profile" element={<HostProfileEdit />} />
         <Route path="/local-eum" element={<ExperienceCatalog />} />

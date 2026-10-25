@@ -1,0 +1,61 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { PGlite } from '@electric-sql/pglite';
+import { fetchSyncPage } from './sync-tourism.js';
+
+const row = (id, extra = {}) => ({ contentid: String(id), contenttypeid: '12', title: `장소 ${id}`, areacode: '39', addr1: '제주', mapx: '126.2', mapy: '33.4', showflag: '1', modifiedtime: '20261025090000', ...extra });
+test('transactional sync resumes, skips unchanged records, preserves detail, and hides unpublished places', async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
+    create table comm_place(place_id bigint generated always as identity primary key,ext_key text unique,name text,address text,region text,lat float8,lng float8);
+    create table comm_place_tour_detail(place_id bigint primary key references comm_place,content_id text,payload jsonb,synced_at timestamptz);
+    grant select,insert,update on comm_place,comm_place_tour_detail to service_role;
+    grant usage,select on sequence comm_place_place_id_seq to service_role;
+    grant select on comm_place,comm_place_tour_detail to anon,authenticated;`);
+    await db.exec(await readFile(new URL('../supabase/migrations/202610250005_tour_sync.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/202610250006_tour_legal_regions.sql', import.meta.url), 'utf8'));
+    assert.equal((await db.query(`select travel_tour_region('{"areacode":"31","lDongRegnCd":"31"}') region`)).rows[0].region, '울산');
+    assert.equal((await db.query(`select travel_tour_region('{"lDongRegnCd":"12","addr1":"전남광주통합특별시 목포시"}') region`)).rows[0].region, '전남');
+    await db.exec('update travel_tour_sync_state set page_size=2');
+    const start = async (run) => (await db.query('select travel_start_tour_sync($1) s', [run])).rows[0].s;
+    const apply = async (run, page, total, rows) => (await db.query('select travel_apply_tour_page($1,$2,$3,$4::jsonb) s', [run, page, total, JSON.stringify(rows)])).rows[0].s;
+    const first = randomUUID();
+    assert.equal((await start(first)).since_day, null);
+    assert.equal(await start(randomUUID()), null);
+    let state = await apply(first, 1, 3, [row(1), row(2)]);
+    assert.equal(state.next_page, 2);
+    await db.query('select travel_stop_tour_sync($1,$2)', [first, 'test interruption']);
+    const resumed = randomUUID();
+    assert.equal((await start(resumed)).next_page, 2);
+    await assert.rejects(apply(first, 2, 3, [row(3)]), /SYNC_LEASE_LOST/);
+    state = await apply(resumed, 2, 3, [row(3, { showflag: '0' })]);
+    assert.equal(state.status, 'idle');
+    assert.equal((await db.query('select count(*)::int n from travel_tour_source')).rows[0].n, 3);
+    assert.equal((await db.query('select count(*)::int n from travel_saved_tour_catalog')).rows[0].n, 2);
+    const second = randomUUID();
+    assert.match((await start(second)).since_day, /^\d{8}$/);
+    await apply(second, 1, 3, [row(1), row(2)]);
+    state = await apply(second, 2, 3, [row(3, { showflag: '0' })]);
+    assert.equal(state.changed_count, 0);
+    await db.exec(`update comm_place_tour_detail set payload=payload||'{"summaryOnly":false,"overview":"실제 상세 설명"}';`);
+    const third = randomUUID(); await start(third);
+    state = await apply(third, 1, 2, [row(1, { showflag: '0', modifiedtime: '20261025100000' }), row(2, { title: '변경된 이름' })]);
+    assert.equal(state.changed_count, 2);
+    assert.equal((await db.query('select count(*)::int n from comm_place')).rows[0].n, 2);
+    const visible = (await db.query('select * from travel_saved_tour_catalog')).rows;
+    assert.equal(visible.length, 1); assert.equal(visible[0].name, '변경된 이름');
+    assert.equal((await db.query('select payload from comm_place_tour_detail limit 1')).rows[0].payload.overview, '실제 상세 설명');
+    await db.exec('set role anon');
+    await assert.rejects(db.query('select * from travel_tour_source'), /permission denied/);
+  } finally { await db.close(); }
+});
+test('daily quota failure and missing pages stop without pretending completion', async () => {
+  const fake = (code, body) => async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ response: { header: { resultCode: code }, body } }) });
+  await assert.rejects(fetchSyncPage({ page: 1, pageSize: 1000, fetchImpl: fake('22') }), /TOUR_DAILY_LIMIT/);
+  await assert.rejects(fetchSyncPage({ page: 1, pageSize: 1000, fetchImpl: fake('0000', { pageNo: 1, numOfRows: 1000, totalCount: 10, items: {} }) }), /UNEXPECTED_EMPTY/);
+  const last = await fetchSyncPage({ page: 2, pageSize: 2, fetchImpl: fake('0000', { pageNo: 2, numOfRows: 1, totalCount: 3, items: { item: [row(3)] } }) });
+  assert.equal(last.rows.length, 1);
+});

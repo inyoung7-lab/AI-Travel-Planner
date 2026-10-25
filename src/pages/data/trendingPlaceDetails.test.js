@@ -16,13 +16,16 @@ test("popular card IDs resolve to their own trending detail route and data", () 
   assert.notDeepEqual(getTrendingPlaceById("7").trend, getTrendingPlaceById("3").trend);
 });
 
-test("common navigation routes trending and DB place cards", () => {
+test("common navigation separates trend graphs from DB and TourAPI place details", () => {
   const paths = [];
   const navigate = (path) => paths.push(path);
 
   assert.equal(openPlaceDetail(7, navigate, "trending"), true);
   assert.equal(openPlaceDetail(7, navigate, "team"), true);
-  assert.deepEqual(paths, ["/trending/7", "/places/7"]);
+  assert.equal(openPlaceDetail("tourapi:126905", navigate, "team"), true);
+  assert.equal(openPlaceDetail("tourapi:126905", navigate, "trending"), true);
+  assert.equal(openPlaceDetail("not-an-id", navigate, "team"), false);
+  assert.deepEqual(paths, ["/trending/7", "/places/7", "/places/tourapi/126905", "/trending/tourapi%3A126905"]);
 });
 
 test("unknown place IDs resolve to not found", () => {

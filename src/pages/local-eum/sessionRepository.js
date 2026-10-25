@@ -200,6 +200,16 @@ export async function saveHostProfile(userId, host, profile) {
   return { ...host, ...result.data, translation_columns_available: includeTranslations };
 }
 
+export async function registerMyHostProfile(userId, profile) {
+  requireSupabase();
+  if (!userId) throw new Error('로그인해 주세요.');
+  const displayName = profile.displayName.trim();
+  const bio = profile.bio.trim();
+  if (!displayName || Array.from(displayName).length > 80 || bio.length > 2000) throw new Error('호스트 이름은 1~80자, 소개는 2,000자 이내로 입력해 주세요.');
+  const result = await withSessionRecovery(() => supabase.rpc('lc_register_my_host_profile', { p_display_name: displayName, p_bio: bio }), userId);
+  return unwrap(result, '호스트 프로필을 만들지 못했습니다. 다시 시도해 주세요.');
+}
+
 export async function loadHostProfile(userId) {
   requireSupabase();
   if (!userId) {

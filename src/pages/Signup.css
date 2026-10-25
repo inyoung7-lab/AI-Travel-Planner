@@ -217,48 +217,6 @@
 
 
 /* =========================
-   아이디 + 중복확인
-========================= */
-
-.signup-id-row {
-  display: flex;
-
-  gap: 8px;
-}
-
-.signup-id-row input {
-  flex: 1;
-
-  min-width: 0;
-}
-
-.signup-id-row button {
-  width: 92px;
-
-  flex-shrink: 0;
-
-  border: 1px solid #ef8b73;
-
-  border-radius: 9px;
-
-  background: #fff;
-
-  color: #e97860;
-
-  font-size: 12px;
-  font-weight: 700;
-
-  cursor: pointer;
-
-  transition: 0.2s;
-}
-
-.signup-id-row button:hover {
-  background: #fff3ef;
-}
-
-
-/* =========================
    비밀번호 2칸
 ========================= */
 
@@ -469,9 +427,18 @@
     gap: 0;
   }
 
-  .signup-id-row button {
-    width: 82px;
 
-    font-size: 11px;
-  }
 }
+.signup-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.signup-input-group label span { color: #737c86; font-weight: 400; }
+.signup-field-help { margin: 6px 0 0; color: #727c87; font-size: 11px; line-height: 1.6; }
+.signup-error { margin: 0 0 14px; padding: 11px 13px; border: 1px solid #f0c8bf; border-radius: 9px; background: #fff5f2; color: #a63d2c; font-size: 13px; line-height: 1.6; }
+.signup-fields:disabled { opacity: .7; }
+.signup-fields:disabled .signup-submit { cursor: wait; transform: none; }
+.signup-complete { text-align: center; padding: 8px 0 0; }
+.signup-complete-mark { display: inline-grid; place-items: center; width: 52px; height: 52px; background: #fff0ea; color: #cf6c55; border-radius: 50%; font-size: 25px; }
+.signup-complete h3 { margin: 17px 0 12px; color: #263444; font-size: 21px; }
+.signup-complete p { color: #727c87; font-size: 14px; line-height: 1.8; }
+.signup-complete .signup-complete-email { color: #394858; font-weight: 600; overflow-wrap: anywhere; }
+.signup-complete-action { display: flex; align-items: center; justify-content: center; min-height: 49px; margin-top: 22px; padding: 10px 16px; border-radius: 9px; background: #ef876f; color: white; font-size: 15px; font-weight: 700; text-decoration: none; }
+.signup-complete-action:hover { background: #e97860; }

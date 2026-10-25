@@ -9,7 +9,7 @@ const DEFAULT_HOME_LIMIT = 8;
 export function createHomeRecommendationsHandler(repository, { historyRepository = null, limit = DEFAULT_HOME_LIMIT } = {}) {
   return async function homeRecommendationsHandler(req, res) {
     try {
-      const result = await repository.listPlaces({ filters: EMPTY_CONDITIONS });
+      const result = await repository.listPlaces({ filters: repository.dataSource === 'supabase-tourapi' ? { ...EMPTY_CONDITIONS, types: ['관광지'] } : EMPTY_CONDITIONS });
       const places = Array.isArray(result) ? result : result.places;
       const sourceClassifiedPlaces = repository.dataSource === "example"
         ? places || []

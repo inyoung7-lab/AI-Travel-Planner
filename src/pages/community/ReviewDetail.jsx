@@ -144,15 +144,18 @@ export default function ReviewDetail() {
               ))}
 
               {photoCount > 0 && (
-              <div className="cmp-mos">
-                <div className="cmp-mA" style={{ background: photoBg[0] }}><ImageIcon size={40} /></div>
-                <div className="cmp-mB" style={{ background: photoBg[1] }}><ImageIcon size={28} /></div>
+              <div className="cmp-mos" style={data.images?.length ? { display: 'grid', gridTemplateColumns: data.images.length === 1 ? '1fr' : 'repeat(2, minmax(0, 1fr))' } : undefined}>
+                {data.images?.length ? data.images.map((src, index) => <img key={src} src={src} alt={`여행지 참고 사진 ${index + 1}`} style={{ width: '100%', height: '320px', objectFit: 'cover', borderRadius: '12px' }} />) : <>
+                <div className="cmp-mA" style={{ background: photoBg[0] }}>{data.images?.[0] ? <img src={data.images[0]} alt="여행 샘플 사진 1" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={40} />}</div>
+                <div className="cmp-mB" style={{ background: photoBg[1] }}>{data.images?.[1] ? <img src={data.images[1]} alt="여행 샘플 사진 2" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={28} />}</div>
                 <div className="cmp-mC" style={{ background: photoBg[2] }}>
-                  <ImageIcon size={28} />
+                  {data.images?.[2] ? <img src={data.images[2]} alt="여행 샘플 사진 3" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={28} />}
                   {photoMore > 0 && <span className="cmp-mo"><b>+{photoMore}</b></span>}
                 </div>
+                </>}
               </div>
               )}
+              {data.imageCredits?.length > 0 && <p className="cmp-qb" style={{ fontSize: '12px', color: '#777' }}>사진 출처: {data.imageCredits.map((credit) => <span key={credit.url}><a href={credit.source} target="_blank" rel="noreferrer">{credit.name} · {credit.author}</a> (<a href={credit.licenseUrl} target="_blank" rel="noreferrer">{credit.license}</a>, 화면 크롭) </span>)}</p>}
 
               <div className="cmp-rvf">
                 <span onClick={() => toggleLike("post", post.id)} style={likeStyle(post.liked)}><Thumb /> {post.likes}</span>

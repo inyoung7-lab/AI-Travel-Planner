@@ -58,13 +58,15 @@ function HotPlaces({ items }) {
       }}
     >
       <article className="cmh-hxf" key={cur.placeId} style={{ background: curPlace.bg }}>
-        <div className="cmh-hxi">
+        {cur.imageUrl && <img className="cmh-hot-photo" src={cur.imageUrl} alt={`${cur.name || curPlace.name} 리뷰 샘플 사진`} />}
+        {!cur.imageUrl && <div className="cmh-hxi">
           <ImageIcon size={44} />
-        </div>
+        </div>}
         <span className="cmh-hxn">{cur.rank}</span>
+        {cur.imageCredit && <a className="cmh-photo-credit" href={cur.imageCredit.source} target="_blank" rel="noreferrer">사진: {cur.imageCredit.author} · {cur.imageCredit.license} · 크롭</a>}
         <div className="cmh-hxb">
           <span className="cmh-hxc">{cur.region}</span>
-          <div className="cmh-hxt">{curPlace.name}</div>
+          <div className="cmh-hxt">{cur.name || curPlace.name}</div>
           <div className="cmh-hxm">이번 달 리뷰 <b>{cur.count}</b></div>
         </div>
         <Link className="cmh-hxbtn" to={placeDetailPath(cur.placeId)}>
@@ -85,8 +87,8 @@ function HotPlaces({ items }) {
               onKeyDown={(e) => e.key === "Enter" && pick(i)}
             >
               <span className="cmh-hxk">{h.rank}</span>
-              <span className="cmh-hxth" style={{ background: pl.bg }}></span>
-              <div className="cmh-hxnm"><b>{pl.name}</b><em>{h.region}</em></div>
+              <span className="cmh-hxth" style={{ background: pl.bg }}>{h.imageUrl && <img src={h.imageUrl} alt="" loading="lazy" />}</span>
+              <div className="cmh-hxnm"><b>{h.name || pl.name}</b><em>{h.region}</em></div>
               <span className="cmh-hxcn">리뷰 <b>{h.count}</b></span>
             </div>
           );
@@ -149,8 +151,8 @@ function PostCard({ p }) {
       </div>
       {p.thumb && (
         <div className="cmh-bth" style={{ background: p.thumb.bg }}>
-          <ImageIcon />
-          <span className="cmh-pbd">+{p.thumb.more}</span>
+          {p.thumb.url ? <img src={p.thumb.url} alt={`${p.title} 샘플 사진`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon />}
+          {p.thumb.more > 0 && <span className="cmh-pbd">+{p.thumb.more}</span>}
         </div>
       )}
     </Wrap>

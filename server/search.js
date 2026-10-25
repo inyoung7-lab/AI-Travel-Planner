@@ -38,7 +38,7 @@ export function validateSearchInput(body) {
   return { query, limit };
 }
 
-export function createSearchHandler(repository, { historyRepository = null } = {}) {
+export function createSearchHandler(repository, { historyRepository = null, activityRecorder = null } = {}) {
   return async function searchHandler(req, res) {
     try {
       const { query, limit } = validateSearchInput(req.body);
@@ -85,6 +85,9 @@ export function createSearchHandler(repository, { historyRepository = null } = {
         }
       }
 
+      if (activityRecorder && repository.dataSource !== 'example') {
+        try { await activityRecorder(items, { requestId: req.body?.requestId, browserId: req.browserId, userId: req.user?.id }); } catch { console.error('[activity] 검색 집계 저장 실패'); }
+      }
       return res.status(200).json({
         query,
         filters,

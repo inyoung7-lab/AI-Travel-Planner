@@ -118,7 +118,7 @@ test("validates required query and optional bounded integer limit", () => {
 });
 
 test("reports an unconfigured catalog as an error, not an empty result", async () => {
-  const repository = createTravelPlaceRepository({ mode: "database" });
+  const repository = createTravelPlaceRepository({ mode: "" });
   const result = await invokeHandler(createSearchHandler(repository), { query: "부산" });
 
   assert.equal(result.statusCode, 503);
@@ -260,7 +260,7 @@ test("home recommendations use browser history and example cards remain clearly 
   const repository = { dataSource: "tourapi", async listPlaces() { return { places, matchCountComplete: true }; } };
   const historyRepository = { scope: "browser", async listRecentConditions({ browserId }) {
     assert.equal(browserId, "browser-for-home");
-    return [{ conditions: { regions: ["제주"], types: [], themes: ["산"] }, searchedAt: new Date() }];
+    return [{ conditions: { regions: ["제주"], types: [], themes: ["산"] }, searchedAt: new Date(Date.now() - 1000) }];
   } };
   const personalized = await invokeHandler(createHomeRecommendationsHandler(repository, { historyRepository }), {}, { browserId: "browser-for-home" });
   assert.equal(personalized.payload.personalization.applied, true);

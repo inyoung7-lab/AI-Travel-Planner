@@ -298,3 +298,16 @@
     font-size: 12px;
   }
 }
+
+.site-header-account { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffd0c2; font-size: 13px; font-weight: 600; }
+.site-header-logout { cursor: pointer; font-family: inherit; }
+.site-header-logout:disabled { cursor: wait; opacity: .65; }
+.site-header-error { position: absolute; right: 24px; top: 58px; max-width: calc(100vw - 48px); padding: 12px 16px; margin: 0; border: 1px solid #e8c4bc; border-radius: 10px; background: #fff5f2; color: #923c2c; font-size: 13px; box-shadow: 0 5px 20px #0002; }
+@media (max-width: 768px) {
+  .site-header-logout { display: inline-flex; padding: 0 10px; }
+  .site-header-account { max-width: 90px; font-size: 12px; }
+}
+
+@media (min-width: 951px) { .site-header-inner { grid-template-columns: 170px minmax(0, 1fr) auto; gap: 16px; } .site-header-nav { gap: clamp(12px, 2vw, 36px); } }
+@media (max-width: 950px) and (min-width: 769px) { .site-header-account { max-width: 65px; } .site-header-actions { gap: 4px; } .site-header-logout { padding: 0 8px; } }
+@media (max-width: 768px) { .site-header-account { max-width: 65px; } }

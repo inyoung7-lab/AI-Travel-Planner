@@ -1,32 +1,5 @@
-import oracledb from "oracledb";
-import { getRecentSearchWindow } from "../recommendations/recentSearchRecommendations.js";
-
-const insertSearchSql = `
-  INSERT INTO TRAVEL_SEARCH_LOG (
-    actor_key, query_text, conditions_json, matched_count, returned_count
-  ) VALUES (
-    :actorKey, :queryText, :conditionsJson, :matchedCount, :returnedCount
-  )
-  RETURNING search_id INTO :searchId
-`;
-
-const insertResultsSql = `
-  INSERT INTO TRAVEL_SEARCH_PLACE (
-    search_id, source_code, source_place_id, result_position
-  ) VALUES (
-    :searchId, :sourceCode, :sourcePlaceId, :resultPosition
-  )
-`;
-
-const selectRecentConditionsSql = `
-  SELECT conditions_json, searched_at
-  FROM TRAVEL_SEARCH_LOG
-  WHERE actor_key = :actorKey
-    AND actor_key IS NOT NULL
-    AND searched_at >= TO_TIMESTAMP_TZ(:windowStart, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM')
-    AND searched_at <= TO_TIMESTAMP_TZ(:windowEnd, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM')
-  ORDER BY searched_at DESC
-`;
+import { getSupabase, unwrap } from '../db.js';
+import { getRecentSearchWindow } from '../recommendations/recentSearchRecommendations.js';
 
 export class SearchHistoryInputError extends Error {
   constructor(message) {
@@ -36,13 +9,9 @@ export class SearchHistoryInputError extends Error {
   }
 }
 
-export function isOracleConnectionConfigured(env = process.env) {
-  return Boolean(env.DB_USER?.trim() && env.DB_PASSWORD?.trim() && env.DB_CONNECT_STRING?.trim());
-}
-
-function validateSearchRecord(record) {
+export function normalizeSearchHistoryRecord(record) {
   const {
-    queryText, conditions, matchedCount, returnedCount, returnedPlaces, actorKey = null,
+    queryText, conditions, matchedCount, returnedCount, returnedPlaces, browserId,
   } = record || {};
 
   if (typeof queryText !== "string" || !queryText.trim() || queryText.length > 1000) {
@@ -58,7 +27,7 @@ function validateSearchRecord(record) {
   if (!Array.isArray(returnedPlaces) || returnedPlaces.length !== returnedCount) {
     throw new SearchHistoryInputError("반환 건수와 결과 목록 수가 일치해야 합니다.");
   }
-  if (actorKey !== null && (typeof actorKey !== "string" || actorKey.length > 128)) {
+  if (typeof browserId !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(browserId)) {
     throw new SearchHistoryInputError("인증 주체 키 형식이 올바르지 않습니다.");
   }
 
@@ -87,7 +56,7 @@ function validateSearchRecord(record) {
   }
 
   return {
-    actorKey,
+    browserId,
     queryText: queryText.trim(),
     conditionsJson,
     matchedCount,
@@ -96,98 +65,22 @@ function validateSearchRecord(record) {
   };
 }
 
-function extractSearchId(result) {
-  const value = result?.outBinds?.searchId;
-  const searchId = Array.isArray(value) ? value[0] : value;
-  if (searchId === null || searchId === undefined) {
-    throw new Error("Search history insert did not return a search ID.");
-  }
-  return searchId;
-}
-
-export function createSearchHistoryRepository({ getConnection, driver = oracledb } = {}) {
-  if (typeof getConnection !== "function") {
-    throw new TypeError("Search history repository requires a connection factory.");
-  }
-
+export function createSearchHistoryRepository({ getClient = () => getSupabase({ admin: true }) } = {}) {
   return {
-    async listRecentConditions({ actorKey, now = new Date() } = {}) {
-      if (typeof actorKey !== "string" || !actorKey.trim() || actorKey.length > 128) {
-        throw new SearchHistoryInputError("최근 검색 이력 조회에는 검증된 ACTOR_KEY가 필요합니다.");
-      }
+    scope: 'browser',
+    async listRecentConditions({ browserId, at = new Date(), now = at } = {}) {
+      if (typeof browserId !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(browserId)) throw new SearchHistoryInputError('검증된 브라우저 식별자가 필요합니다.');
       const { from, to } = getRecentSearchWindow(now);
-      const connection = await getConnection();
-
-      try {
-        const result = await connection.execute(selectRecentConditionsSql, {
-          actorKey,
-          windowStart: from.toISOString().replace(/Z$/u, "+00:00"),
-          windowEnd: to.toISOString().replace(/Z$/u, "+00:00"),
-        }, {
-          outFormat: driver.OUT_FORMAT_OBJECT,
-          fetchInfo: { CONDITIONS_JSON: { type: driver.STRING } },
-        });
-        const rows = result.rows || [];
-        return Promise.all(rows.map(async (row) => {
-          let conditionsJson = row.CONDITIONS_JSON ?? row.conditions_json;
-          if (conditionsJson && typeof conditionsJson.getData === "function") {
-            conditionsJson = await conditionsJson.getData();
-          }
-          const searchedAt = row.SEARCHED_AT ?? row.searched_at;
-          return { conditionsJson, searchedAt };
-        }));
-      } finally {
-        try { await connection.close(); } catch { /* do not expose connection cleanup errors */ }
-      }
+      const rows = await unwrap(getClient().from('travel_search_log').select('conditions_json,searched_at').eq('browser_id', browserId)
+        .gte('searched_at', from.toISOString()).lte('searched_at', to.toISOString()).order('searched_at', { ascending: false }));
+      return rows.map((r) => ({ conditionsJson: JSON.stringify(r.conditions_json), searchedAt: r.searched_at }));
     },
-
     async recordSearch(record) {
-      const valid = validateSearchRecord(record);
-      const connection = await getConnection();
-      let committed = false;
-
-      try {
-        const result = await connection.execute(insertSearchSql, {
-          actorKey: valid.actorKey,
-          queryText: valid.queryText,
-          conditionsJson: { val: valid.conditionsJson, type: driver.CLOB },
-          matchedCount: valid.matchedCount,
-          returnedCount: valid.returnedCount,
-          searchId: { dir: driver.BIND_OUT, type: driver.NUMBER },
-        }, { autoCommit: false });
-        const searchId = extractSearchId(result);
-
-        if (valid.returnedPlaces.length > 0) {
-          const resultsInsert = await connection.executeMany(insertResultsSql, valid.returnedPlaces.map((place) => ({
-            searchId,
-            sourceCode: place.sourceCode,
-            sourcePlaceId: place.sourcePlaceId,
-            resultPosition: place.resultPosition,
-          })), {
-            autoCommit: false,
-            bindDefs: {
-              searchId: { type: driver.NUMBER },
-              sourceCode: { type: driver.STRING, maxSize: 40 },
-              sourcePlaceId: { type: driver.STRING, maxSize: 120 },
-              resultPosition: { type: driver.NUMBER },
-            },
-          });
-          if (resultsInsert.rowsAffected !== undefined && resultsInsert.rowsAffected !== valid.returnedPlaces.length) {
-            throw new Error("Search history result insert count did not match the returned results.");
-          }
-        }
-
-        await connection.commit();
-        committed = true;
-        return { searchId, saved: true };
-      } catch (error) {
-        if (!committed) {
-          try { await connection.rollback(); } catch { /* preserve the original transaction failure */ }
-        }
-        throw error;
-      } finally {
-        try { await connection.close(); } catch { /* close errors must not misreport a committed transaction */ }
-      }
+      const valid = normalizeSearchHistoryRecord(record);
+      const row = await unwrap(getClient().from('travel_search_log').insert({ browser_id: valid.browserId, query_text: valid.queryText,
+        conditions_json: JSON.parse(valid.conditionsJson), matched_count: valid.matchedCount, returned_count: valid.returnedCount,
+        returned_places: valid.returnedPlaces }).select('search_id').single());
+      return { searchId: row.search_id, saved: true };
     },
   };
 }

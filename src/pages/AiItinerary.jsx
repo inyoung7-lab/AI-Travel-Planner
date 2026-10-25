@@ -1,12 +1,13 @@
+import { koreanToday } from "../../shared/travelDates.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { supabase, requireSupabase, sessionSupabase } from "../lib/supabaseClient.js";
+import { createItineraryRepository, importBrowserItineraries } from "../lib/itineraryRepository.js";
 import AddItineraryPlaceModal from "./AddItineraryPlaceModal.jsx";
 import "./AiItinerary.css";
 
 const REGIONS = ["서울", "경기", "인천", "강원", "충북", "충남", "대전", "세종", "전북", "전남", "광주", "경북", "경남", "대구", "울산", "부산", "제주", "전국"];
 const STYLES = ["자연·힐링", "맛집", "액티비티", "문화·역사", "사진 명소", "여유로운", "알찬 일정"];
-const SAVED_ITINERARIES_KEY = "ai-travel-saved-itineraries";
-const CURRENT_ITINERARY_KEY = "ai-travel-itinerary";
 const dateInput = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
@@ -44,7 +45,7 @@ function itineraryDateRange(itinerary) {
   return end && end !== start ? `${start} ~ ${end}` : start;
 }
 
-function RouteSketch({ items }) {
+export function RouteSketch({ items }) {
   const mapRef = useRef(null);
   const [size, setSize] = useState({ width: 320, height: 220 });
   useEffect(() => {
@@ -115,24 +116,20 @@ function ItineraryPhoto({ item }) {
 }
 
 export default function AiItinerary() {
-  const [form, setForm] = useState({ startDate: dateInput(tomorrow), endDate: dateInput(afterTomorrow), region: "제주", budget: 500000, people: 2, transport: "자차", styles: ["자연·힐링"] });
-  const [plan, setPlan] = useState(() => {
-    try { const saved = JSON.parse(localStorage.getItem(CURRENT_ITINERARY_KEY) || "null"); return saved?.days?.length ? saved : null; }
-    catch { return null; }
-  });
-  const [savedPlans, setSavedPlans] = useState(() => {
-    try {
-      const normalizeDates = (itinerary) => ({
-        ...itinerary,
-        startDate: itinerary.startDate || itinerary.days?.[0]?.date,
-        endDate: itinerary.endDate || itinerary.days?.[itinerary.days.length - 1]?.date,
-      });
-      const savedList = JSON.parse(localStorage.getItem(SAVED_ITINERARIES_KEY) || "null");
-      if (Array.isArray(savedList)) return savedList.filter((entry) => entry?.days?.length).map(normalizeDates);
-      const legacyPlan = JSON.parse(localStorage.getItem(CURRENT_ITINERARY_KEY) || "null");
-      return legacyPlan?.days?.length ? [normalizeDates(legacyPlan)] : [];
-    } catch { return []; }
-  });
+  const today = koreanToday();
+  const [form, setForm] = useState({ startDate: dateInput(tomorrow), endDate: dateInput(afterTomorrow), region: "제주", district: "", budget: 500000, people: 2, transport: "자차", styles: ["자연·힐링"] });
+  const [districtOptions,setDistrictOptions]=useState({region:null,items:[]});
+  useEffect(()=>{
+    const controller=new AbortController();
+    if(form.region !== '전국')fetch(`/api/itineraries/districts?region=${encodeURIComponent(form.region)}`,{signal:controller.signal}).then(r=>r.ok?r.json():[]).then(items=>setDistrictOptions({region:form.region,items})).catch(()=>{});
+    return ()=>controller.abort();
+  },[form.region]);
+  const [plan, setPlan] = useState(null);
+  const [savedPlans, setSavedPlans] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [savedLoading, setSavedLoading] = useState(true);
+  const [signedIn, setSignedIn] = useState(false);
+  const accountRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [savedModalOpen, setSavedModalOpen] = useState(false);
   const [addPlaceModalOpen, setAddPlaceModalOpen] = useState(false);
@@ -140,6 +137,46 @@ export default function AiItinerary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    let active = true;
+    let version = 0;
+    let loadedUser;
+    async function loadSaved(session) {
+      const userId = session?.user?.id || null;
+      const requestVersion = ++version;
+      if (!active) return;
+      setSignedIn(Boolean(userId));
+      setSavedLoading(true);
+      setSavedPlans([]);
+      setPlan(null);
+      try {
+        if (!userId) return;
+        const repository = createItineraryRepository(sessionSupabase(session));
+        let imported = 0;
+        let importError;
+        try { imported = await importBrowserItineraries(window.localStorage, repository); }
+        catch (problem) { importError = problem.message; }
+        const saved = await repository.list();
+        if (!active || requestVersion !== version || accountRef.current !== userId) return;
+        setSavedPlans(saved.plans.filter(p=>p.source !== "manual"));
+        setPlan(saved.current?.source === "manual" ? null : saved.current);
+        setSelectedDay(0);
+        if (importError) setError(importError);
+        if (imported) setNotice(`브라우저에 있던 일정 ${imported}개를 계정에 옮겼어요.`);
+      } catch (problem) { if (active && requestVersion === version) setError(problem.message); }
+      finally { if (active && requestVersion === version) setSavedLoading(false); }
+    }
+    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
+      const id = session?.user?.id || null;
+      if (loadedUser === id) return;
+      loadedUser = id;
+      accountRef.current = id;
+      // Keep Supabase queries outside the auth callback to avoid its session lock.
+      queueMicrotask(() => { if (active) void loadSaved(session); });
+    }).data.subscription;
+    if (!supabase) void loadSaved(null);
+    return () => { active = false; version++; subscription?.unsubscribe(); };
+  }, []);
   useEffect(() => {
     fetch("/api/itineraries/status").then((response) => response.json()).then(setStatus).catch(() => setStatus({ configured: null }));
   }, []);
@@ -150,43 +187,6 @@ export default function AiItinerary() {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [savedModalOpen]);
 
-  // Refresh stored coordinates and photo metadata when a saved itinerary is opened.
-  const dbPlaceIds = [...new Set((plan?.days || []).flatMap((entry) => entry.items || [])
-    .filter((item) => /^db:\d+$/.test(String(item.id)))
-    .map((item) => item.id.slice(3)))].join(",");
-  useEffect(() => {
-    if (!dbPlaceIds) return undefined;
-    const controller = new AbortController();
-    fetch(`/api/community/places-by-ids?ids=${dbPlaceIds}`, { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : {})
-      .then((places) => setPlan((current) => {
-        if (!current) return current;
-        let changed = false;
-        const days = current.days.map((entry) => ({ ...entry, items: (entry.items || []).map((item) => {
-          const place = places[String(item.id).slice(3)];
-          const alreadyHasCoords = item.lat !== null && item.lat !== undefined && item.lat !== ""
-            && item.lng !== null && item.lng !== undefined && item.lng !== "";
-          if (!place) return item;
-          const next = {
-            ...item,
-            image: place.image || null,
-            imageRegional: !!place.imageRegional,
-            imageSubject: place.imageSubject || null,
-            imageSource: place.imageSource || null,
-            ...(!alreadyHasCoords && place.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : {}),
-          };
-          if (next.image === item.image && next.imageRegional === !!item.imageRegional
-            && next.imageSubject === (item.imageSubject || null) && next.imageSource === (item.imageSource || null)
-            && next.lat === item.lat && next.lng === item.lng) return item;
-          changed = true;
-          return next;
-        }) }));
-        return changed ? { ...current, days } : current;
-      }))
-      .catch((error) => { if (error.name !== "AbortError") console.error("장소 좌표를 불러오지 못했어요.", error); });
-    return () => controller.abort();
-  }, [dbPlaceIds, plan?.savedId]);
-
   const display = plan || EXAMPLE;
   const day = display.days[selectedDay] || display.days[0];
   const dayItems = day?.items || [];
@@ -196,12 +196,13 @@ export default function AiItinerary() {
     return Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) ? 0 : Math.round((end - start) / 86400000) + 1;
   }, [form.startDate, form.endDate]);
 
-  function update(field, value) { setForm((current) => ({ ...current, [field]: value })); }
+  function update(field, value) { setForm((current) => ({ ...current, [field]: value, ...(field === "region" ? {district:""} : {}) })); }
   function toggleStyle(style) { setForm((current) => ({ ...current, styles: current.styles.includes(style) ? current.styles.filter((item) => item !== style) : [...current.styles, style].slice(0, 4) })); }
 
   async function generate(event) {
     event.preventDefault();
     setError(""); setNotice("");
+    if (form.startDate < koreanToday()) { setError("지난 날짜로는 새 여행 일정을 만들 수 없어요. 오늘 이후 날짜를 선택해 주세요."); return; }
     if (totalDays < 1 || totalDays > 5) { setError("여행 기간은 1~5일로 선택해 주세요."); return; }
     setLoading(true);
     try {
@@ -222,7 +223,7 @@ export default function AiItinerary() {
       [items[index], items[index + direction]] = [items[index + direction], items[index]];
       return { ...entry, items };
     }) }));
-    setNotice("순서를 바꿨어요. 저장 버튼을 누르면 이 브라우저에 보관됩니다.");
+    setNotice("순서를 바꿨어요. 저장 버튼을 누르면 계정에 보관됩니다.");
   }
 
   function removeItem(index) {
@@ -246,7 +247,7 @@ export default function AiItinerary() {
     const id = `db:${place.id}`;
     if (plan.days[selectedDay]?.items?.some((item) => item.id === id)) return;
     const newItem = {
-      id, name: place.name, type: "관광지", time: "", address: place.addr || "",
+      id, name: place.name, type: place.category || "관광지", time: "", address: place.addr || "",
       lat: place.lat ?? null, lng: place.lng ?? null, image: place.image || null,
       imageRegional: !!place.imageRegional, imageSubject: place.imageSubject || null, imageSource: place.imageSource || null,
       reason: "직접 추가한 여행지", url: `/places/${place.id}`,
@@ -257,30 +258,37 @@ export default function AiItinerary() {
     setNotice(`${place.name}을(를) ${selectedDay + 1}일차에 추가했어요. 일정 저장하기를 눌러 변경 내용을 저장해 주세요.`);
   }
 
-  function save() {
-    if (!plan) return;
-    const savedPlan = {
-      ...plan,
-      savedId: plan.savedId || globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-      startDate: plan.startDate || plan.days?.[0]?.date,
-      endDate: plan.endDate || plan.days?.[plan.days.length - 1]?.date,
-      savedAt: new Date().toISOString(),
-    };
-    const samePlan = (saved) => saved.savedId === savedPlan.savedId;
-    const updatedPlans = [savedPlan, ...savedPlans.filter((saved) => !samePlan(saved))];
-    localStorage.setItem(CURRENT_ITINERARY_KEY, JSON.stringify(savedPlan));
-    localStorage.setItem(SAVED_ITINERARIES_KEY, JSON.stringify(updatedPlans));
-    setPlan(savedPlan);
-    setSavedPlans(updatedPlans);
-    setNotice("이 브라우저에 일정을 저장했어요.");
+  async function save() {
+    if (!plan || saving) return;
+    if (!signedIn) { setError("일정을 저장하려면 로그인해 주세요."); return; }
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const account = accountRef.current;
+      const { data, error } = await requireSupabase().auth.getSession();
+      if (error || !account || data.session?.user.id !== account) throw new Error("다시 로그인해 주세요.");
+      const repository = createItineraryRepository(sessionSupabase(data.session));
+      const saved = await repository.save(plan);
+      if (accountRef.current !== account) return;
+      setPlan(saved);
+      setSavedPlans((current) => [saved, ...current.filter((entry) => entry.savedId !== saved.savedId)]);
+      setNotice("계정에 일정을 저장했어요. 다른 기기에서도 불러올 수 있어요.");
+    } catch (problem) { setError(problem.message); }
+    finally { setSaving(false); }
   }
 
-  function openSavedPlan(saved) {
-    localStorage.setItem(CURRENT_ITINERARY_KEY, JSON.stringify(saved));
-    setPlan(saved);
-    setSelectedDay(0);
-    setSavedModalOpen(false);
-    setNotice("저장한 일정을 불러왔어요.");
+  async function openSavedPlan(saved) {
+    if (saving) return;
+    setSaving(true); setError("");
+    try {
+      const account = accountRef.current;
+      const { data, error } = await requireSupabase().auth.getSession();
+      if (error || !account || data.session?.user.id !== account) throw new Error("다시 로그인해 주세요.");
+      const selected = await createItineraryRepository(sessionSupabase(data.session)).open(saved);
+      if (accountRef.current !== account) return;
+      setPlan(selected); setSelectedDay(0); setSavedModalOpen(false);
+      setNotice("저장한 일정을 불러왔어요.");
+    } catch (problem) { setError(problem.message); }
+    finally { setSaving(false); }
   }
 
   return <main className="ai-plan-page">
@@ -288,8 +296,9 @@ export default function AiItinerary() {
     <div className="ai-plan-layout">
       <form className="ai-plan-card ai-plan-form" onSubmit={generate}>
         <div className="ai-plan-card-title"><span className="ai-plan-icon">✦</span><div><h2>어떤 여행을 떠나시나요?</h2><p>여행 조건을 선택해 주세요.</p></div></div>
-        <label className="ai-plan-field">여행 기간<div className="ai-plan-dates"><input type="date" value={form.startDate} onChange={(event) => update("startDate", event.target.value)} required aria-label="출발일" /><span>—</span><input type="date" value={form.endDate} onChange={(event) => update("endDate", event.target.value)} required aria-label="도착일" /></div><small>최대 5일 · {totalDays > 0 ? `${totalDays}일` : "날짜를 확인해 주세요"}</small></label>
+        <label className="ai-plan-field">여행 기간<div className="ai-plan-dates"><input type="date" min={today} value={form.startDate} onChange={(event) => update("startDate", event.target.value)} required aria-label="출발일" /><span>—</span><input type="date" min={form.startDate > today ? form.startDate : today} value={form.endDate} onChange={(event) => update("endDate", event.target.value)} required aria-label="도착일" /></div><small>오늘 이후 출발 · 최대 5일 · {totalDays > 0 ? `${totalDays}일` : "날짜를 확인해 주세요"}</small></label>
         <label className="ai-plan-field">지역<select value={form.region} onChange={(event) => update("region", event.target.value)}>{REGIONS.map((region) => <option key={region}>{region}</option>)}</select>{form.region === "전국" && <small>관광지가 있는 지역 중 하나를 무작위로 골라 일정을 만들어요.</small>}</label>
+        {form.region !== '전국' && <label className="ai-plan-field">세부 지역<select value={form.district} onChange={event=>update('district',event.target.value)}><option value="">가까운 권역 자동 추천</option>{districtOptions.region===form.region && districtOptions.items.map(name=><option key={name} value={name}>{name}</option>)}</select><small>선택한 시·군·구 안에서 가까운 코스로 구성해요.</small></label>}
         <label className="ai-plan-field">총 예산 <small>(1인 기준, 참고용)</small><select value={form.budget} onChange={(event) => update("budget", event.target.value)}><option value="0">예산 제한 없음</option><option value="200000">20만 원 내외</option><option value="500000">50만 원 내외</option><option value="1000000">100만 원 내외</option><option value="2000000">200만 원 내외</option></select></label>
         <div className="ai-plan-inline"><label className="ai-plan-field">여행 인원<select value={form.people} onChange={(event) => update("people", event.target.value)}>{Array.from({ length: 10 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count}명</option>)}</select></label><label className="ai-plan-field">이동 수단<select value={form.transport} onChange={(event) => update("transport", event.target.value)}>{["자차", "대중교통", "도보·택시"].map((value) => <option key={value}>{value}</option>)}</select></label></div>
         <fieldset className="ai-plan-styles"><legend>여행 스타일 <small>(최대 4개)</small></legend><div>{STYLES.map((style) => <button type="button" className={form.styles.includes(style) ? "selected" : ""} aria-pressed={form.styles.includes(style)} onClick={() => toggleStyle(style)} key={style}>{style}</button>)}</div></fieldset>
@@ -298,23 +307,24 @@ export default function AiItinerary() {
         {error && <p className="ai-plan-error" role="alert">{error}</p>}
       </form>
 
-      <section className="ai-plan-card ai-plan-result"><div className="ai-plan-result-top"><div className="ai-plan-result-utility"><p className="ai-plan-kicker">{plan ? "AI GENERATED ITINERARY" : "PREVIEW ITINERARY"}</p><div className="ai-plan-result-actions">{plan ? <button className="ai-plan-save" type="button" onClick={save}>일정 저장하기</button> : <span className="ai-plan-preview-badge">화면 예시</span>}<button className="ai-plan-saved-open" type="button" onClick={() => setSavedModalOpen(true)}>저장한 일정 보기</button></div></div><div className="ai-plan-result-heading"><h2>{plan ? display.title : "이런 일정을 만들 수 있어요"}</h2>{plan?.requestedRegion === "전국" && <span className="ai-plan-random-region">전국 중 {plan.region} 지역을 무작위로 선택했어요</span>}<p>{display.summary}</p></div></div>
+      <section className="ai-plan-card ai-plan-result"><div className="ai-plan-result-top"><div className="ai-plan-result-utility"><p className="ai-plan-kicker">{plan ? "AI GENERATED ITINERARY" : "PREVIEW ITINERARY"}</p><div className="ai-plan-result-actions">{plan ? <button className="ai-plan-save" type="button" onClick={save} disabled={saving || savedLoading}>{saving ? "저장 중…" : "일정 저장하기"}</button> : <span className="ai-plan-preview-badge">화면 예시</span>}<button className="ai-plan-saved-open" type="button" onClick={() => setSavedModalOpen(true)}>저장한 일정 보기</button></div></div><div className="ai-plan-result-heading"><h2>{plan ? display.title : "이런 일정을 만들 수 있어요"}</h2>{plan?.requestedRegion === "전국" && <span className="ai-plan-random-region">전국 중 {plan.region} 지역을 무작위로 선택했어요</span>}<p>{display.summary}</p></div></div>
+        {plan?.planningContext && <PlanningContext context={plan.planningContext} />}
         <div className="ai-plan-day-tabs" role="tablist" aria-label="날짜별 일정">{display.days.map((entry, index) => <button role="tab" aria-selected={selectedDay === index} type="button" className={selectedDay === index ? "active" : ""} onClick={() => setSelectedDay(index)} key={entry.day}>{dayLabel(entry.date, index)}</button>)}</div>
         <div className="ai-plan-day-title"><span>DAY {selectedDay + 1}</span><h3>{day?.theme}</h3></div>
-        <ol className="ai-plan-timeline">{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><div className="ai-plan-time">{plan ? <input type="time" value={item.time || ""} onChange={(event) => updateItemTime(index, event.target.value)} aria-label={`${item.name} 방문 시간 변경`} title={`${item.name} 방문 시간 변경`} /> : <strong>{item.time || "시간 미정"}</strong>}<span>{item.type}</span></div><div className="ai-plan-timeline-dot" /><article className="ai-plan-stop"><ItineraryPhoto item={item} /><div className="ai-plan-stop-copy"><span>{item.type}</span><h4>{plan && item.url ? <Link to={item.url}>{item.name}</Link> : item.name}</h4><p>{item.reason}</p><small>⌖ {item.address}</small></div>{plan && <div className="ai-plan-reorder"><button type="button" aria-label={`${item.name} 순서 올리기`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button><button type="button" aria-label={`${item.name} 순서 내리기`} disabled={index === dayItems.length - 1} onClick={() => moveItem(index, 1)}>↓</button><button className="ai-plan-delete" type="button" aria-label={`${item.name} 일정에서 삭제하기`} onClick={() => removeItem(index)}>삭제</button></div>}</article></li>)}</ol>
+        <ol className="ai-plan-timeline">{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><div className="ai-plan-time"><>{plan ? <input type="time" value={item.time || ""} onChange={(event) => updateItemTime(index, event.target.value)} aria-label={`${item.name} 방문 시간 변경`} /> : <strong>{item.time || "시간 미정"}</strong>}</><span>{item.type}</span></div><div className="ai-plan-timeline-dot" /><article className="ai-plan-stop"><ItineraryPhoto item={item} /><div className="ai-plan-stop-copy"><span>{item.type}</span><h4>{plan && item.url ? <Link to={item.url}>{item.name}</Link> : item.name}</h4><p>{item.reason}</p><small>⌖ {item.address}</small></div>{plan && <div className="ai-plan-reorder"><button type="button" aria-label={`${item.name} 순서 올리기`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button><button type="button" aria-label={`${item.name} 순서 내리기`} disabled={index === dayItems.length - 1} onClick={() => moveItem(index, 1)}>↓</button><button className="ai-plan-delete" type="button" aria-label={`${item.name} 일정에서 삭제하기`} onClick={() => removeItem(index)}>삭제</button></div>}</article></li>)}</ol>
         {plan && <button className="ai-plan-add-place" type="button" onClick={() => setAddPlaceModalOpen(true)}><span aria-hidden="true">＋</span> 가고싶은 여행지 추가하기</button>}
         {notice && <p className="ai-plan-notice" role="status">{notice}</p>}
         <p className="ai-plan-disclaimer">{plan ? "AI가 생성한 제안입니다. 방문 전 영업·운영 시간, 요금과 이동 경로를 확인해 주세요. 장소 정보: 한국관광공사 TourAPI." : "위 일정은 화면 구성 예시입니다. 실제 AI 추천 결과가 아닙니다."}</p>
       </section>
 
       <aside className="ai-plan-side"><section className="ai-plan-card ai-plan-route"><div className="ai-plan-side-title"><h2>여행 동선</h2><span>{plan ? `${dayItems.length}곳` : "미리보기"}</span></div><RouteSketch items={dayItems} /><ol>{dayItems.map((item, index) => <li key={`${item.id}-${index}`}><span>{index + 1}</span><p>{item.name}</p><small>{item.time}</small></li>)}</ol><p className="ai-plan-route-note">점 사이의 선은 위치 관계를 나타냅니다. 실제 도로 경로가 아닙니다.</p></section>
-        <section className="ai-plan-card ai-plan-helper"><div className="ai-plan-side-title"><h2>✦ AI 여행 도우미</h2></div><p>{plan ? display.summary : "여행 조건을 선택하고 일정을 만들면 추천 이유와 여행 팁을 알려드려요."}</p>{plan?.tips?.length > 0 && <ul>{plan.tips.map((tip, index) => <li key={index}>{tip}</li>)}</ul>}<div className="ai-plan-helper-source">관광공사 장소 검색 → OpenAI 일정 구성</div></section></aside>
+        <section className="ai-plan-card ai-plan-helper"><div className="ai-plan-side-title"><h2>✦ AI 여행 도우미</h2></div><p>{plan ? display.summary : "여행 조건을 선택하고 일정을 만들면 추천 이유와 여행 팁을 알려드려요."}</p>{plan?.tips?.length > 0 && <ul>{plan.tips.map((tip, index) => <li key={index}>{tip}</li>)}</ul>}<div className="ai-plan-helper-source">저장된 관광정보 · 가까운 권역 · 날짜별 날씨와 행사 반영</div></section></aside>
     </div>
     {addPlaceModalOpen && <AddItineraryPlaceModal dayLabel={dayLabel(day?.date, selectedDay)} existingIds={dayItems.map((item) => item.id)} onAdd={addPlace} onClose={() => setAddPlaceModalOpen(false)} />}
     {savedModalOpen && <div className="ai-plan-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSavedModalOpen(false); }}>
       <section className="ai-plan-saved-modal" role="dialog" aria-modal="true" aria-labelledby="ai-plan-saved-title">
         <header className="ai-plan-saved-modal-header"><div><p className="ai-plan-kicker">MY TRIPS</p><h2 id="ai-plan-saved-title">저장한 일정</h2><span>{savedPlans.length}개의 일정</span></div><button type="button" className="ai-plan-modal-close" onClick={() => setSavedModalOpen(false)} aria-label="닫기">×</button></header>
-        {savedPlans.length ? <div className="ai-plan-saved-list">{savedPlans.map((saved, savedIndex) => <button type="button" className="ai-plan-saved-card" onClick={() => openSavedPlan(saved)} key={`${saved.title}-${saved.startDate}-${savedIndex}`}>
+        {savedLoading ? <p role="status">저장한 일정을 불러오는 중이에요…</p> : !signedIn ? <div className="ai-plan-saved-empty"><strong>로그인하면 저장한 일정을 볼 수 있어요</strong><Link to="/login" state={{ from: "/ai-itinerary" }}>로그인하기</Link></div> : savedPlans.length ? <div className="ai-plan-saved-list">{savedPlans.map((saved, savedIndex) => <button type="button" className="ai-plan-saved-card" onClick={() => openSavedPlan(saved)} key={`${saved.title}-${saved.startDate}-${savedIndex}`}>
           <span className="ai-plan-saved-date">{itineraryDateRange(saved)}</span>
           <strong className="ai-plan-saved-name">{saved.title || "이름 없는 일정"}</strong>
           <span className="ai-plan-saved-day-count">{saved.days.length}일 일정</span>
@@ -324,4 +334,17 @@ export default function AiItinerary() {
       </section>
     </div>}
   </main>;
+}
+
+function PlanningContext({context}) {
+ return <section className="ai-planning-context" aria-label="일정 추천 기준">
+  <h3>{context.district} 중심 추천</h3>
+  <p>{context.distanceNote} 중심점에서 약 {context.radiusKm}km 안의 후보를 사용했습니다.</p>
+  <p>{context.season.note}</p>
+  <div className="ai-context-weather"><strong>날씨</strong><p>{context.weather.note}</p>
+   {context.weather.days.length>0 && <ul>{context.weather.days.map(day=><li key={day.date}>{day.date} · {day.minC ?? '미확인'}~{day.maxC ?? '미확인'}°C · 강수 {day.rainPercent ?? '미확인'}% · 바람 {day.windKph ?? '미확인'}km/h</li>)}</ul>}
+   {context.weather.source && <a href={context.weather.sourceUrl} target="_blank" rel="noreferrer">날씨 출처: Open-Meteo</a>}
+  </div>
+  <div><strong>행사</strong><p>{context.events.note}</p>{context.events.items.length>0 ? <ul>{context.events.items.map((event,i)=><li key={i}>{event.name} · {event.start} ~ {event.end}</li>)}</ul> : <p>선택한 권역·날짜에서 확인된 행사가 없어 행사 후보를 넣지 않았습니다.</p>}</div>
+ </section>;
 }

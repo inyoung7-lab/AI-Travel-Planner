@@ -11,6 +11,12 @@ const REGION_ALIASES = [
   ["경상북도", "경북"], ["경상남도", "경남"], ["제주특별자치도", "제주"],
 ];
 
+export function normalizeTourApiRegion(item) {
+  if (String(item.lDongRegnCd) === '12') return /^전남광주통합특별시\s+(동구|서구|남구|북구|광산구)(\s|$)/.test(item.addr1 || '') ? '광주' : '전남';
+  const legal = { '11': '서울', '26': '부산', '27': '대구', '28': '인천', '29': '광주', '30': '대전', '31': '울산', '36': '세종', '41': '경기', '42': '강원', '51': '강원', '43': '충북', '44': '충남', '45': '전북', '52': '전북', '46': '전남', '47': '경북', '48': '경남', '49': '제주', '50': '제주' };
+  return legal[String(item.lDongRegnCd || '')] || normalizeTravelRegion(String(item.areacode || '')) || normalizeTravelRegion(item.addr1);
+}
+
 /** Canonical short region names shared by parsed history and TourAPI candidates. */
 export function normalizeTravelRegion(value) {
   if (typeof value !== "string") return "";

@@ -1,5 +1,7 @@
 # External API usage
 
+> Historical Oracle implementation notes from the main branch. The running merged app uses Supabase. Follow `docs/supabase-migration.md` and `server/sync-tourism.js` for current storage and refresh procedures. The Oracle maintenance scripts below are retained as reference and are not loaded by the server.
+
 The running app reads the home destination recommendations and registered place details from `COMM_PLACE` and `COMM_PLACE_TOUR_DETAIL`. Registered place coordinates are stored in `COMM_PLACE`, so viewing a registered place does not call TourAPI or Photon.
 
 Curated representative photo metadata is stored in `COMM_PLACE_PHOTO` (path, source, source URL, subject, and regional flag). Image bytes stay in `public/images/place-preview`. The API creates the table and inserts missing seed rows automatically at startup. Existing Oracle rows are preserved, so edit them to change a place photo; the application does not read a JavaScript mapping.

@@ -90,3 +90,9 @@
   .trending-detail-chart { padding: 10px 5px 8px; }
   .trending-chart-legend { gap: 12px; font-size: 10px; }
 }
+
+.trending-metric-tabs { display:flex; gap:12px; margin:20px 0; }
+.trending-metric-tabs button { padding:12px 20px; border:1px solid #dbe3ee; border-radius:24px; background:white; cursor:pointer; }
+.trending-metric-tabs button[aria-pressed="true"] { background:#537bb8; color:white; }
+.trending-daily-table { width:100%; border-collapse:collapse; text-align:left; }
+.trending-daily-table th,.trending-daily-table td { padding:12px; border-bottom:1px solid #e6ebf2; }

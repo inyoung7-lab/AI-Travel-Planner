@@ -1,3 +1,4 @@
+import { useLogoutGuard } from '../../lib/auth.js';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ExperienceDetailContent from './components/ExperienceDetailContent.jsx';
@@ -22,7 +23,6 @@ import {
   saveExperienceDescription,
   saveExperienceSteps,
   signIn,
-  signOut,
   toKstFields,
   watchAuthSession,
 } from './sessionRepository.js';
@@ -415,20 +415,11 @@ export default function SessionEdit({ embedded = false, embeddedSessionId, edito
     }
   }
 
-  async function handleSignOut() {
-    if (hasUnsavedChanges && !window.confirm('저장하지 않은 변경사항이 있습니다. 로그아웃할까요?')) return;
-    setAuthError('');
-    try {
-      await signOut();
-      setRecord(null);
-      setForm(null);
-      setAddSessionOpen(false);
-      setNewSessionForm(null);
-      setMessage('로그아웃했습니다.');
-    } catch (error) {
-      setAuthError(error.message);
-    }
-  }
+  useLogoutGuard(() => {
+    if (embedded) return true;
+    if (saving || stepsSaving || experienceDescriptionSaving || addingSession || agentBusy) return false;
+    return !hasUnsavedChanges || window.confirm('저장하지 않은 변경사항이 있습니다. 로그아웃할까요?');
+  });
 
   if (!isSupabaseConfigured()) {
     return (
@@ -489,7 +480,6 @@ export default function SessionEdit({ embedded = false, embeddedSessionId, edito
     return (
       <PageTag className={embedded ? "le-session-page le-embedded-editor" : "le-session-page"} data-panel={embedded ? editorPanel : undefined}>
         <div className="le-shell">
-          <div className="le-auth-toolbar"><span>{authSession.user.email}로 로그인됨</span><button type="button" onClick={handleSignOut}>로그아웃</button></div>
           <div className="le-loading le-loading-error" role="alert">
             <p>{currentLoadError || '운영 회차를 불러올 수 없습니다.'}</p>
             <button type="button" className="le-button-primary" onClick={() => {
@@ -706,14 +696,12 @@ export default function SessionEdit({ embedded = false, embeddedSessionId, edito
 
         <div className="le-auth-toolbar">
           <LocalEumLanguageSelector locale={locale} onChange={setLocalEumLocale} />
-          <span>{authSession.user.email} · HOST 로그인</span>
           <Link
             to="/local-eum/host/profile"
             onClick={(event) => {
               if (hasUnsavedChanges && !window.confirm('저장하지 않은 체험 편집 내용이 있습니다. 호스트 프로필 화면으로 이동할까요?')) event.preventDefault();
             }}
           >호스트 운영센터</Link>
-          <button type="button" onClick={handleSignOut}>로그아웃</button>
         </div>
 
         <section id="le-experience-picker" className="le-session-picker" aria-label="01. 체험 및 운영 회차 선택">

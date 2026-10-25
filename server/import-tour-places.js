@@ -1,13 +1,12 @@
 // Usage: node server/import-tour-places.js [--apply] [--per-region=5]
 // Without --apply, preview the TourAPI attractions that would be added.
 import dotenv from "dotenv";
-import oracledb from "oracledb";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { getConnection } from "./db.js";
+import { getSupabase, unwrap, allRows } from "./db.js";
 import { normalizeTravelRegion } from "../shared/travelRegions.js";
 
-dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
+dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet: true });
 
 const REGIONS = [
   ["서울", "1"], ["경기", "31"], ["인천", "2"], ["강원", "32"],
@@ -73,38 +72,19 @@ async function fetchAttractions(areaCode) {
 export async function importTourPlaces({ apply = false, perRegion = 5 } = {}) {
   if (!process.env.TOUR_API_SERVICE_KEY?.trim()) throw new Error("TOUR_API_SERVICE_KEY가 설정되지 않았습니다.");
   if (!Number.isInteger(perRegion) || perRegion < 1 || perRegion > 50) throw new Error("perRegion은 1~50이어야 합니다.");
-  const connection = await getConnection();
-  try {
-    const result = await connection.execute(
-      "SELECT name, region, ext_key FROM COMM_PLACE",
-      {}, { outFormat: oracledb.OUT_FORMAT_OBJECT },
-    );
-    const existing = result.rows.map((row) => ({ name: row.NAME, region: normalizeTravelRegion(row.REGION), extKey: row.EXT_KEY }));
-    const selected = [];
-    for (const [region, areaCode] of REGIONS) {
-      const items = await fetchAttractions(areaCode);
-      const places = chooseAttractions(items, existing, region, areaCode, perRegion);
-      selected.push(...places);
-      console.log(`${region}: ${places.length}곳`, places.map((place) => place.name).join(", "));
-    }
-    if (apply && selected.length) {
-      try {
-        await connection.executeMany(
-          `INSERT INTO COMM_PLACE (name, address, region, lat, lng, ext_key)
-           VALUES (:name, :address, :region, :lat, :lng, :extKey)`,
-          selected,
-        );
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      }
-    }
-    console.log(`${apply ? "추가 완료" : "추가 예정"}: ${selected.length}곳`);
-    return selected;
-  } finally {
-    await connection.close();
+  const db = getSupabase({ admin: apply });
+  const rows = await allRows(() => db.from('comm_place').select('name,region,ext_key').order('place_id'));
+  const existing = rows.map((row) => ({ name: row.name, region: normalizeTravelRegion(row.region), extKey: row.ext_key }));
+  const selected = [];
+  for (const [region, areaCode] of REGIONS) {
+    const items = await fetchAttractions(areaCode);
+    const places = chooseAttractions(items, existing, region, areaCode, perRegion);
+    selected.push(...places);
+    console.log(`${region}: ${places.length}곳`, places.map((place) => place.name).join(', '));
   }
+  if (apply && selected.length) await unwrap(db.from('comm_place').insert(selected.map(({ extKey, ...place }) => ({ ...place, ext_key: extKey }))));
+  console.log(`${apply ? '추가 완료' : '추가 예정'}: ${selected.length}곳`);
+  return selected;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
