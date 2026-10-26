@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient.js';
-import { agentInvocationErrorMessage } from '../agentInvocationError.js';
+import { agentInvocationErrorMessage, readPromptInjectionMessage } from '../agentInvocationError.js';
 import './AiExperienceAgent.css';
 
 const copy = {
@@ -14,7 +14,7 @@ const criteriaKeys = ['participation_reason', 'host_unique_value', 'active_parti
 async function invokeAgent(body) {
   if (!supabase) throw new Error('Supabase 연결 설정을 확인해 주세요.');
   const { data, error } = await supabase.functions.invoke('local-eum-agent', { body });
-  if (error) throw new Error(agentInvocationErrorMessage(error, body.locale));
+  if (error) throw new Error(await readPromptInjectionMessage(error, body.locale) || agentInvocationErrorMessage(error, body.locale));
   return data;
 }
 

@@ -2,6 +2,8 @@
 
 검토 기준일: 2026-10-18
 
+> 이 문서는 당시 상태를 기록합니다. 2026-10-20에 번역·회차 운영 SQL을 적용한 최신 상태는 [README](README.md)와 [적용 기록](migrations/20261020_language_friends_and_host_lifecycle.applied.md)을 확인하세요.
+
 검토 브랜치: `hykang`
 
 대상 Supabase: `local-eum-dev` (`rhkaxmqdkztpbljkunxb`)

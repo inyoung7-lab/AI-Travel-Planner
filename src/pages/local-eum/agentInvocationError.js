@@ -10,6 +10,21 @@ export function classifyAgentInvocationError(error) {
   return 'UNKNOWN';
 }
 
+export async function readPromptInjectionMessage(error, locale = 'ko') {
+  const response = error?.context;
+  if (Number(response?.status) !== 400 || typeof response?.clone !== 'function') return null;
+  try {
+    const payload = await response.clone().json();
+    if (payload?.code !== 'PROMPT_INJECTION') return null;
+  } catch { return null; }
+  const messages = {
+    ko: '입력에서 AI 지시 변경 또는 비밀정보 요구가 감지되어 분석을 중단했습니다. 체험 아이디어와 개선안만 입력해 주세요.',
+    en: 'Analysis stopped because the input appears to override AI instructions or request confidential information. Enter only the experience idea or selected improvement.',
+    ja: 'AIへの指示変更や機密情報の要求と思われる入力を検出したため、分析を中止しました。体験アイデアまたは選択した改善案のみ入力してください。',
+  };
+  return messages[locale] || messages.ko;
+}
+
 const messages = {
   ko: {
     FUNCTION_NOT_DEPLOYED: 'Supabase 프로젝트에서 local-eum-agent 함수를 찾지 못했습니다. 함수 배포 상태를 확인해 주세요.',

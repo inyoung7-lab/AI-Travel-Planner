@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import {
   LANGUAGE_FRIENDS_DEMO,
   filterLanguageFriendsDemo,
+  getLanguageFriendsDatabaseExperienceId,
   getLanguageFriendsDemoExperience,
 } from './languageFriendsDemo.js';
 
@@ -54,7 +55,7 @@ test('each demo has a bundled generated cover image and useful alternative text'
     assert.equal(url.host, 'rhkaxmqdkztpbljkunxb.supabase.co');
     const objectPath = url.pathname.replace('/storage/v1/object/public/local-eum-media/', '');
     assert.ok(existsSync(resolve(process.cwd(), 'public/images/local-eum', objectPath)));
-    assert.match(item.hero_image_alt, /AI 생성 시연 이미지/);
+    assert.match(item.hero_image_alt, /AI 생성 이미지/);
   }
   const changwon = LANGUAGE_FRIENDS_DEMO.find(item => item.region_code === 'CHANGWON');
   assert.ok(changwon.hero_image_url.endsWith('/experiences/115/cover-v2.webp'));
@@ -65,4 +66,6 @@ test('each demo has a bundled generated cover image and useful alternative text'
 test('slug lookup is explicit and never falls back to a database numeric ID', () => {
   assert.equal(getLanguageFriendsDemoExperience('demo-lf-seoul-01')?.experience_id, 'demo-lf-seoul-01');
   assert.equal(getLanguageFriendsDemoExperience('101'), null);
+  assert.deepEqual(LANGUAGE_FRIENDS_DEMO.map(item => getLanguageFriendsDatabaseExperienceId(item.experience_id)), [113, 114, 115]);
+  assert.equal(getLanguageFriendsDatabaseExperienceId('unknown'), null);
 });

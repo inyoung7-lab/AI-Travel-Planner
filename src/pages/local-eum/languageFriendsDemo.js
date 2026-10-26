@@ -4,6 +4,7 @@ const STORAGE_COVER_BASE = 'https://rhkaxmqdkztpbljkunxb.supabase.co/storage/v1/
 const programs = [
   {
     experience_id: 'demo-lf-seoul-01',
+    database_experience_id: 113,
     host_id: 500,
     host,
     template_id: 103,
@@ -19,7 +20,7 @@ const programs = [
     verified_host_languages: [],
     demo_simulated_languages: ['ko', 'en'],
     hero_image_url: `${STORAGE_COVER_BASE}/experiences/113/cover.webp`,
-    hero_image_alt: '서울숲 산책길에서 대화를 나누는 참가자들의 AI 생성 시연 이미지',
+    hero_image_alt: '서울숲 산책길에서 대화를 나누는 참가자들의 AI 생성 이미지',
     translations: {
       en: {
         title: 'Make Language Friends on a Seoul Forest Walk',
@@ -71,6 +72,7 @@ const programs = [
   },
   {
     experience_id: 'demo-lf-busan-01',
+    database_experience_id: 114,
     host_id: 500,
     host,
     template_id: 103,
@@ -86,7 +88,7 @@ const programs = [
     verified_host_languages: [],
     demo_simulated_languages: ['ko', 'en'],
     hero_image_url: `${STORAGE_COVER_BASE}/experiences/114/cover.webp`,
-    hero_image_alt: '부산시민공원 산책로에서 이야기를 나누는 참가자들의 AI 생성 시연 이미지',
+    hero_image_alt: '부산시민공원 산책로에서 이야기를 나누는 참가자들의 AI 생성 이미지',
     translations: {
       en: {
         title: 'A Local-Friend Walk Starting with Busan Expressions',
@@ -138,6 +140,7 @@ const programs = [
   },
   {
     experience_id: 'demo-lf-changwon-01',
+    database_experience_id: 115,
     host_id: 500,
     host,
     template_id: 103,
@@ -153,7 +156,7 @@ const programs = [
     verified_host_languages: [],
     demo_simulated_languages: ['ko', 'ja'],
     hero_image_url: `${STORAGE_COVER_BASE}/experiences/115/cover-v2.webp`,
-    hero_image_alt: '창동 도심의 좁은 예술 골목을 걷는 참가자들의 AI 생성 시연 이미지',
+    hero_image_alt: '창동 도심의 좁은 예술 골목을 걷는 참가자들의 AI 생성 이미지',
     translations: {
       en: {
         title: 'Make Korean-Japanese Culture Friends in Changdong Art Village',
@@ -225,6 +228,10 @@ const DEMO_BY_SLUG = new Map(LANGUAGE_FRIENDS_DEMO.map(program => [program.exper
 
 export function getLanguageFriendsDemoExperience(slug) {
   return DEMO_BY_SLUG.get(String(slug)) || null;
+}
+
+export function getLanguageFriendsDatabaseExperienceId(slug) {
+  return getLanguageFriendsDemoExperience(slug)?.database_experience_id ?? null;
 }
 
 export function filterLanguageFriendsDemo({ demoMode = false, region = '', interest = 'LANGUAGE_FRIENDS', programLanguages = [], recruitingOnly = false } = {}) {

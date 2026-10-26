@@ -95,7 +95,7 @@ async function handle(request: Request): Promise<Response> {
     return respond(result, 200, corsOrigin);
   } catch (error) {
     const code = error instanceof AgentError ? error.code : 'INTERNAL';
-    const status = code === 'BAD_REQUEST' || code === 'TOOL_ARGUMENT' ? 400 : code === 'UNAUTHORIZED' ? 401 : code === 'FORBIDDEN' ? 403 : code === 'RATE_LIMIT' ? 429 : code === 'CONFIG' ? 503 : 502;
+    const status = code === 'BAD_REQUEST' || code === 'TOOL_ARGUMENT' || code === 'PROMPT_INJECTION' ? 400 : code === 'UNAUTHORIZED' ? 401 : code === 'FORBIDDEN' ? 403 : code === 'RATE_LIMIT' ? 429 : code === 'CONFIG' ? 503 : 502;
     // Never log prompts, JWTs, personal details, model output, or keys.
     console.warn('local-eum-agent request', { code, status, ...(error instanceof AgentError && error.diagnostic ? { stage: error.diagnostic } : {}) });
     return respond({ code, error: error instanceof AgentError ? error.message : 'AI 분석을 완료하지 못했습니다. 다시 시도해 주세요.' }, status, corsOrigin);
