@@ -34,7 +34,7 @@ export function watchAuthSession(onChange) {
 export async function signIn(email, password) {
   requireSupabase();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message || '로그인에 실패했습니다.');
+  if (error) throw error;
   return data.session;
 }
 

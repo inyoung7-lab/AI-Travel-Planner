@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { signIn } from "./local-eum/sessionRepository.js";
+import { loginErrorMessage } from "../lib/loginErrors.js";
 import "./Auth.css";
 
 function Login() {
@@ -32,9 +33,7 @@ function Login() {
         : (destination === "/ai-itinerary" ? destination : "/"), { replace: true });
 
     } catch (error) {
-      console.error("로그인 오류:", error);
-
-      setErrorMessage(error.message || "로그인에 실패했습니다.");
+      setErrorMessage(loginErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +106,7 @@ function Login() {
 
             </div>
 
-            {errorMessage && <p role="alert">{errorMessage}</p>}
+            {errorMessage && <p className="login-error" role="alert">{errorMessage}</p>}
 
             <button
               type="submit"
