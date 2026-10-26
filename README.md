@@ -338,6 +338,8 @@ Vercel의 **Vite 정적 화면 + Express API Function**으로 배포하도록 �
 
 ## 11. 관련 문서
 
+5가지 사용자 관점의 모의 점검 결과와 개선 제안은 [기능 점검 및 개선 의견](docs/ai-persona-evaluation.md)에 정리했습니다. 실제 사용자 5명의 피드백과는 구분합니다.
+
 ### 최종 기획·발표 자료
 
 - [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf)
