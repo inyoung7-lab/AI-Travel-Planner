@@ -11,8 +11,33 @@ export function mapSavedTourPlace(row) {
     name: row.name, region: row.region, regionCode: row.region, address: row.address, type: subtype || detail.category, category: detail.category,
     tags, description: String(detail.overview || '').slice(0, 160), image: detail.images?.[0] || null, reason: '관광공사에서 가져와 저장한 장소', lat: row.lat, lng: row.lng };
 }
-export function createSavedTourRepository() {
-  return { dataSource: 'supabase-tourapi', async listPlaces({ filters = {} } = {}) {
+export function createSavedTourRepository({ getClient = () => getSupabase({ admin: true }) } = {}) {
+  const homeCache = new Map();
+  return { dataSource: 'supabase-tourapi',
+  async listHomePlaces({ regions = [], limit = 8 } = {}) {
+    const selected = [...new Set(regions.length ? regions : ['서울', '부산', '제주', '전남', '경남', '강원'])].slice(0, 17);
+    const key = JSON.stringify(selected);
+    let cached = homeCache.get(key);
+    if (!cached || cached.expires < Date.now()) {
+      const promise = Promise.all(selected.map(async region => {
+        const { data, error } = await getClient().from('travel_saved_tour_catalog')
+          .select('place_id,ext_key,name,address,region,lat,lng,detail')
+          .eq('region', region).eq('detail->>contentTypeId', '12')
+          .not('detail->images->>0', 'is', null).order('place_id').limit(12);
+        if (error) throw error;
+        return (data || []).map(mapSavedTourPlace).filter(Boolean);
+      })).then(groups => {
+        // Interleave regions so the default list does not consist of one region.
+        return Array.from({ length: 12 }, (_, i) => groups.map(group => group[i]).filter(Boolean)).flat();
+      });
+      cached = { expires: Date.now() + 60000, promise };
+      homeCache.set(key, cached);
+      if (homeCache.size > 24) homeCache.delete(homeCache.keys().next().value);
+      promise.catch(() => { if (homeCache.get(key) === cached) homeCache.delete(key); });
+    }
+    return (await cached.promise).slice(0, limit);
+  },
+  async listPlaces({ filters = {} } = {}) {
     const cacheKey = JSON.stringify([filters.regions || [], filters.types || [], filters.keywords || []]);
     let cached = catalogCache.get(cacheKey);
     if (!cached || cached.expires < Date.now()) {
