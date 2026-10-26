@@ -309,12 +309,12 @@ Remove-Item Env:RUN_PLANNER_LIVE
 
 ### 최종 기획·발표 자료
 
-- [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf) · [수정 가능한 원문](deliverables/final-project-20261025/원문/01_프로젝트_기획서.md)
-- [기능요구명세서·아키텍처 PDF](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf) · [수정 가능한 원문](deliverables/final-project-20261025/원문/02_기능요구명세서_아키텍처.md)
-- [테스트·피드백 보고서 PDF](deliverables/final-project-20261025/03_테스트_피드백_보고서.pdf) · [수정 가능한 원문](deliverables/final-project-20261025/원문/03_테스트_피드백_보고서.md)
+- [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf)
+- [기능요구명세서·아키텍처 PDF](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf)
+- [테스트·피드백 보고서 PDF](deliverables/final-project-20261025/03_테스트_피드백_보고서.pdf)
 - [발표 PowerPoint 20장](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx)
 - [슬라이드별 발표 대본](deliverables/final-project-20261025/05_발표자_대본.md)
-- [전체 자료 ZIP](deliverables/final-project-20261025/여행한걸음_최종프로젝트_자료.zip) · [자료 안내](deliverables/final-project-20261025/자료_안내.md)
+- [자료 안내](deliverables/final-project-20261025/자료_안내.md)
 
 이 자료들은 2026-10-25 구현·검증 결과를 기준으로 새로 작성했습니다. 외부 사용자 테스트는 실제 결과를 추가할 수 있는 양식으로 포함했습니다.
 
