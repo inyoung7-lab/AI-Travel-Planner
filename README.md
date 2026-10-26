@@ -334,7 +334,7 @@ Vercel의 **Vite 정적 화면 + Express API Function**으로 배포하도록 �
 
 운영 환경에서는 HTTPS, Supabase Auth URL·리다이렉트, 웹/API 허용 origin, 서버 비밀값, 고정 쿠키 서명값, RLS, 관광정보 예약 동기화를 확인합니다. 회원 동의 문구·정책과 동의 이력 보관 범위도 운영 요구사항에 맞춰 점검합니다.
 
-공개 서비스 주소는 위에 기록했습니다. 외부 사용자 5명 이상의 실제 테스트 결과는 아직 확정하지 않았습니다. 실제 참가자에게 탐색·찜·AI 생성·직접 편집·저장·리뷰 과제를 제공하고, 완료 여부·시간·막힌 단계·의견을 기록해 개선 전후를 비교합니다. 별도 제출 자료의 테스트·피드백 보고서에 실행안과 기록 양식을 포함했습니다.
+공개 서비스 주소는 위에 기록했습니다. 외부 사용자 5명 이상의 실제 테스트 결과는 아직 확정하지 않았습니다. 실제 참가자에게 탐색·찜·AI 생성·직접 편집·저장·리뷰 과제를 제공하고, 완료 여부·시간·막힌 단계·의견을 기록해 개선 전후를 비교합니다. 테스트 보고서에는 자동 검사와 API·DB 연동 검증을 정리하고, 피드백 문서는 별도 항목으로 연결했습니다.
 
 ## 11. 관련 문서
 
@@ -344,7 +344,7 @@ Vercel의 **Vite 정적 화면 + Express API Function**으로 배포하도록 �
 
 - [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf)
 - [기능요구명세서·아키텍처 PDF](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf)
-- [테스트 보고서 PDF](deliverables/final-project-20261025/03_테스트_피드백_보고서.pdf)
+- [테스트 보고서 PDF](deliverables/final-project-20261025/03_테스트_보고서.pdf)
 - [피드백](docs/ai-persona-evaluation.md)
 - [발표 PowerPoint 30장](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx)
 - [데이터베이스 설계서 PDF](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf)
