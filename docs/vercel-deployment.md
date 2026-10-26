@@ -1,6 +1,6 @@
 # Vercel 배포 및 검증
 
-2026-10-26 기준. 배포 대상은 Vite 정적 화면과 Express API이며, Supabase Auth·DB·Edge Function은 기존 Supabase에서 운영합니다. Vercel 로그인 상태와 별개로 이 프로젝트의 실제 공개 URL과 운영 검증은 아직 확정하지 않았습니다.
+2026-10-26 기준. 배포 대상은 Vite 정적 화면과 Express API이며, Supabase Auth·DB·Edge Function은 기존 Supabase에서 운영합니다. 2026-10-26 Production 배포를 완료했습니다. 공개 주소: https://ai-travel-planner-pi-indol.vercel.app . 현재 배포 경로는 로컬 `chlee` 작업 폴더에서 실행한 Vercel CLI입니다.
 
 ## 실행 구조
 
@@ -57,3 +57,16 @@
 - [Express 앱 내보내기](https://vercel.com/docs/frameworks/backend/express)
 - [함수 실행시간](https://vercel.com/docs/functions/configuring-functions/duration)
 - [프로젝트 설정](https://vercel.com/docs/project-configuration/vercel-json)
+
+## 2026-10-26 배포 기록
+
+- Vercel 프로젝트: birdcross10-9368s-projects/ai-travel-planner
+- Production 도메인: https://ai-travel-planner-pi-indol.vercel.app
+- Production 배포 ID: dpl_8aN5eM5C8gLacXdFAffR9owtDgPs
+- 확인: health 200, 없는 API 404 JSON, 비로그인 나의 여행 401, /mytrip 직접 경로 200 HTML, 관광지 DB 총 12,556곳 조회 200, AI configured=true.
+- Supabase·TourAPI·AI 설정은 기존 로컬 값을 Vercel 서버 환경에 등록했다. 비밀값은 명령 인자·문서·채팅에 표시하지 않았다.
+- 원본 GitHub 자동 배포: 저장소 연결 요청이 권한 오류로 거절되어 미완료. 저장소 소유자가 Vercel GitHub 앱의 접근 권한을 승인해야 한다. 복제 저장소를 임의로 만들지 않았다.
+- 호스트 Agent: 새 Production origin의 사전 요청은 403. 현재 Supabase 계정에 Edge Secrets 관리 권한이 없으므로 관리자가 LOCAL_EUM_ALLOWED_ORIGINS에 공개 origin을 등록해야 한다. JWT·HOST·소유권 검사는 유지한다.
+- 이 기본 연결 검증은 전체 기능 종단간 테스트나 외부 사용자 5명 테스트를 대체하지 않는다.
+
+공개 브라우저 검증: 비로그인 상태에서 제주·3일 조건으로 실제 AI 일정 생성 성공. 서귀포 남원 권역, 날짜별 날씨, 후보 장소 5곳과 위치 지도를 확인했다. 생성 결과를 계정 일정으로 저장하지 않았다. [실제 공개 화면](screenshots/13-vercel-ai.jpg).
