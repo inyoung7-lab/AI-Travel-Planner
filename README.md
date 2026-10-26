@@ -6,6 +6,15 @@
 
 **[공개 서비스 바로가기](https://ai-travel-planner-pi-indol.vercel.app)**
 
+### 프로젝트 자료
+
+| 구분 | 문서 |
+| --- | --- |
+| 기획·발표 | [프로젝트 기획서](deliverables/final-project-20261025/01_프로젝트_기획서.pdf) · [발표 자료 PPT](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx) |
+| 기능·설계 | [기능요구명세서·아키텍처](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf) · [데이터베이스 설계서](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf) · [전체 ERD·데이터 사전](database/ERD.md) |
+| 테스트·피드백 | [테스트 보고서](deliverables/final-project-20261025/03_테스트_보고서.pdf) · [피드백](docs/ai-persona-evaluation.md) |
+| 기능 화면 | [화면별 기능 가이드](docs/feature-screens.md) |
+
 여행지를 찾는 순간부터 날짜별 계획, 저장, 여행 후 리뷰까지 연결하는 서비스입니다. 실제 관광정보를 바탕으로 AI 일정 초안을 만들거나, 원하는 장소를 직접 골라 나만의 일정을 작성할 수 있습니다. 지역 체험을 탐색하는 여행자와 체험을 기획·운영하는 호스트를 위한 기능도 제공합니다.
 
 > 현재 실행 구조입니다. 인증과 데이터 저장은 **Supabase Auth·PostgreSQL**을 사용합니다. 저장소에 남아 있는 Oracle SQL·인수인계·관리 스크립트는 이전 구현 기록이며 현재 서버의 실행 경로가 아닙니다.
@@ -336,35 +345,7 @@ Vercel의 **Vite 정적 화면 + Express API Function**으로 배포하도록 �
 
 공개 서비스 주소는 위에 기록했습니다. 외부 사용자 5명 이상의 실제 테스트 결과는 아직 확정하지 않았습니다. 실제 참가자에게 탐색·찜·AI 생성·직접 편집·저장·리뷰 과제를 제공하고, 완료 여부·시간·막힌 단계·의견을 기록해 개선 전후를 비교합니다. 테스트 보고서에는 자동 검사와 API·DB 연동 검증을 정리하고, 피드백 문서는 별도 항목으로 연결했습니다.
 
-## 11. 관련 문서
-
-5가지 사용자 관점의 모의 점검 결과와 개선 제안은 [기능 점검 및 개선 의견](docs/ai-persona-evaluation.md)에 정리했습니다. 실제 사용자 5명의 피드백과는 구분합니다.
-
-### 최종 기획·발표 자료
-
-- [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf)
-- [기능요구명세서·아키텍처 PDF](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf)
-- [테스트 보고서 PDF](deliverables/final-project-20261025/03_테스트_보고서.pdf)
-- [피드백](docs/ai-persona-evaluation.md)
-- [발표 PowerPoint 30장](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx)
-- [데이터베이스 설계서 PDF](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf)
-- [실제 기능 화면 가이드](docs/feature-screens.md)
-- [자료 안내](deliverables/final-project-20261025/자료_안내.md)
-
-제출 자료에는 개발 기간 약 2주, SQL 조건 기반 RAG, 데이터·권한 경계 및 검증 추적, 실제 촬영 화면, 전체 DB 관계도와 Vercel 운영 구성을 반영했습니다. 외부 사용자 테스트는 미실시 상태와 실제 기록 양식을 구분했습니다. 별도 발표자 대본 파일은 제외하고 PPT 노트에는 출처와 해석에 필요한 주석만 남겼습니다.
-
-### 구현·운영 참고
-
-- [현재 Supabase 전환·데이터 동기화·검증 기록](docs/supabase-migration.md)
-- [현재 DB 관계도](database/ERD.md)
-- [로컬 체험 안내](docs/local-eum/README.md)
-- [호스트 Agent 운영 안내](docs/local-eum/ai-agent-runbook.md)
-- [로컬 체험 Supabase 설정](docs/local-eum/supabase-setup-guide.md)
-- [호스트 운영 가이드](docs/local-eum/host-operations-guide.md)
-
-초기 설계 문서와 Oracle 인수인계 자료에는 전환 전 설명이 남아 있을 수 있습니다. 현재 실행·인증·저장은 이 README와 Supabase 전환 안내의 최신 운영 설명을 우선합니다. 발표·제출 자료는 별도 제작한 기획서·요구명세서·테스트 보고서·PPT 패키지로 관리합니다.
-
-## 12. 실제 화면과 현재 제공 범위
+## 11. 실제 화면과 현재 제공 범위
 
 ![AI 일정 생성 실행 화면](docs/screenshots/03-ai-itinerary-top.jpg)
 
