@@ -237,14 +237,17 @@ Copy-Item .env.example .env.local
 
 ### 로컬 실행
 
-두 터미널에서 각각 실행합니다.
-
-```powershell
-npm run server
-```
+한 터미널에서 화면과 API를 함께 실행합니다. API가 준비된 뒤 화면 서버를 시작하며, 종료하면 함께 실행한 서버도 종료합니다.
 
 ```powershell
 npm run dev
+```
+
+화면과 API를 따로 실행하려면 두 터미널에서 아래 명령을 각각 사용합니다.
+
+```powershell
+npm run server
+npm run dev:web
 ```
 
 웹은 `http://localhost:5173`, API는 `http://localhost:3000`입니다. 개발 중 `/api`는 Vite 프록시를 통해 Express에 연결됩니다. 환경 설정을 바꾼 뒤에는 해당 서버를 재시작합니다.
