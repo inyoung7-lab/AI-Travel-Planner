@@ -13,7 +13,7 @@
 | 기획·발표 | [프로젝트 기획서](deliverables/final-project-20261025/01_프로젝트_기획서.pdf) · [발표 자료 PPT](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx) |
 | 기능·설계 | [기능요구명세서·아키텍처](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf) · [데이터베이스 설계서](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf) · [전체 ERD·데이터 사전](database/ERD.md) |
 | 테스트·피드백 | [테스트 보고서](deliverables/final-project-20261025/03_테스트_보고서.pdf) · [피드백](docs/ai-persona-evaluation.md) |
-| 기능 화면 | [화면별 기능 가이드](docs/feature-screens.md) |
+| 기능 화면 | [화면별 기능 가이드 · 전체 캡처와 사용 방법](docs/feature-screens.md) |
 
 여행지를 찾는 순간부터 날짜별 계획, 저장, 여행 후 리뷰까지 연결하는 서비스입니다. 실제 관광정보를 바탕으로 AI 일정 초안을 만들거나, 원하는 장소를 직접 골라 나만의 일정을 작성할 수 있습니다. 지역 체험을 탐색하는 여행자와 체험을 기획·운영하는 호스트를 위한 기능도 제공합니다.
 
