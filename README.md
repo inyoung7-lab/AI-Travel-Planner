@@ -344,7 +344,8 @@ Vercel의 **Vite 정적 화면 + Express API Function**으로 배포하도록 �
 
 - [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf)
 - [기능요구명세서·아키텍처 PDF](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf)
-- [테스트·피드백 보고서 PDF](deliverables/final-project-20261025/03_테스트_피드백_보고서.pdf)
+- [테스트 보고서 PDF](deliverables/final-project-20261025/03_테스트_피드백_보고서.pdf)
+- [피드백](docs/ai-persona-evaluation.md)
 - [발표 PowerPoint 30장](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx)
 - [데이터베이스 설계서 PDF](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf)
 - [실제 기능 화면 가이드](docs/feature-screens.md)
