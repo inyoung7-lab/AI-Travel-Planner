@@ -1,8 +1,11 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/index.js": { "maxDuration": 300 }
+  },
   "rewrites": [
-    { "source": "/local-eum", "destination": "/index.html" },
-    { "source": "/local-eum/:path*", "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/:path*", "destination": "/index.html" }
   ]
 }

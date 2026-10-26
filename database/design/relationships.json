@@ -1,0 +1,226 @@
+[
+  {
+    "from": "travel_itineraries",
+    "to": "auth.users",
+    "fields": "user_id",
+    "ref": "id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+    "from": "lc_hosts",
+    "to": "auth.users",
+    "fields": "auth_user_id",
+    "ref": "id",
+    "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_user_roles",
+    "to": "auth.users",
+    "fields": "assigned_by",
+    "ref": "id",
+    "definition": "FOREIGN KEY (assigned_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "from": "lc_user_roles",
+    "to": "auth.users",
+    "fields": "user_id",
+    "ref": "id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+    "from": "lc_experience_steps",
+    "to": "lc_experiences",
+    "fields": "experience_id",
+    "ref": "experience_id",
+    "definition": "FOREIGN KEY (experience_id) REFERENCES lc_experiences(experience_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_experiences",
+    "to": "lc_hosts",
+    "fields": "host_id",
+    "ref": "host_id",
+    "definition": "FOREIGN KEY (host_id) REFERENCES lc_hosts(host_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_experiences",
+    "to": "lc_program_templates",
+    "fields": "template_id",
+    "ref": "template_id",
+    "definition": "FOREIGN KEY (template_id) REFERENCES lc_program_templates(template_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_experiences",
+    "to": "lc_places",
+    "fields": "venue_place_id, host_id",
+    "ref": "place_id, owner_host_id",
+    "definition": "FOREIGN KEY (venue_place_id, host_id) REFERENCES lc_places(place_id, owner_host_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_places",
+    "to": "lc_hosts",
+    "fields": "owner_host_id",
+    "ref": "host_id",
+    "definition": "FOREIGN KEY (owner_host_id) REFERENCES lc_hosts(host_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_sessions",
+    "to": "lc_experiences",
+    "fields": "experience_id",
+    "ref": "experience_id",
+    "definition": "FOREIGN KEY (experience_id) REFERENCES lc_experiences(experience_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_sessions",
+    "to": "lc_places",
+    "fields": "meeting_place_id",
+    "ref": "place_id",
+    "definition": "FOREIGN KEY (meeting_place_id) REFERENCES lc_places(place_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_applications",
+    "to": "auth.users",
+    "fields": "auth_user_id",
+    "ref": "id",
+    "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "from": "lc_applications",
+    "to": "lc_sessions",
+    "fields": "session_id",
+    "ref": "session_id",
+    "definition": "FOREIGN KEY (session_id) REFERENCES lc_sessions(session_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "lc_application_payments",
+    "to": "lc_applications",
+    "fields": "application_id",
+    "ref": "application_id",
+    "definition": "FOREIGN KEY (application_id) REFERENCES lc_applications(application_id) ON DELETE RESTRICT"
+  },
+  {
+    "from": "travel_profiles",
+    "to": "auth.users",
+    "fields": "user_id",
+    "ref": "id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_place_tour_detail",
+    "to": "comm_place",
+    "fields": "place_id",
+    "ref": "place_id",
+    "definition": "FOREIGN KEY (place_id) REFERENCES comm_place(place_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_post_image",
+    "to": "comm_post",
+    "fields": "post_id",
+    "ref": "post_id",
+    "definition": "FOREIGN KEY (post_id) REFERENCES comm_post(post_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_comment",
+    "to": "comm_comment",
+    "fields": "parent_id",
+    "ref": "comment_id",
+    "definition": "FOREIGN KEY (parent_id) REFERENCES comm_comment(comment_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_comment",
+    "to": "comm_post",
+    "fields": "post_id",
+    "ref": "post_id",
+    "definition": "FOREIGN KEY (post_id) REFERENCES comm_post(post_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_comment",
+    "to": "travel_profiles",
+    "fields": "user_id",
+    "ref": "user_id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES travel_profiles(user_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "mytrip_plan",
+    "to": "travel_profiles",
+    "fields": "user_id",
+    "ref": "user_id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES travel_profiles(user_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "mytrip_wish",
+    "to": "comm_place",
+    "fields": "place_id",
+    "ref": "place_id",
+    "definition": "FOREIGN KEY (place_id) REFERENCES comm_place(place_id)"
+  },
+  {
+    "from": "mytrip_wish",
+    "to": "travel_profiles",
+    "fields": "user_id",
+    "ref": "user_id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES travel_profiles(user_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_post_like",
+    "to": "comm_post",
+    "fields": "post_id",
+    "ref": "post_id",
+    "definition": "FOREIGN KEY (post_id) REFERENCES comm_post(post_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_post_like",
+    "to": "travel_profiles",
+    "fields": "user_id",
+    "ref": "user_id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES travel_profiles(user_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_comment_like",
+    "to": "comm_comment",
+    "fields": "comment_id",
+    "ref": "comment_id",
+    "definition": "FOREIGN KEY (comment_id) REFERENCES comm_comment(comment_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_comment_like",
+    "to": "travel_profiles",
+    "fields": "user_id",
+    "ref": "user_id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES travel_profiles(user_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "mytrip_place",
+    "to": "comm_place",
+    "fields": "place_id",
+    "ref": "place_id",
+    "definition": "FOREIGN KEY (place_id) REFERENCES comm_place(place_id)"
+  },
+  {
+    "from": "mytrip_place",
+    "to": "mytrip_plan",
+    "fields": "trip_id",
+    "ref": "trip_id",
+    "definition": "FOREIGN KEY (trip_id) REFERENCES mytrip_plan(trip_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_post",
+    "to": "travel_profiles",
+    "fields": "user_id",
+    "ref": "user_id",
+    "definition": "FOREIGN KEY (user_id) REFERENCES travel_profiles(user_id) ON DELETE CASCADE"
+  },
+  {
+    "from": "comm_post_place",
+    "to": "comm_place",
+    "fields": "place_id",
+    "ref": "place_id",
+    "definition": "FOREIGN KEY (place_id) REFERENCES comm_place(place_id)"
+  },
+  {
+    "from": "comm_post_place",
+    "to": "comm_post",
+    "fields": "post_id",
+    "ref": "post_id",
+    "definition": "FOREIGN KEY (post_id) REFERENCES comm_post(post_id) ON DELETE CASCADE"
+  }
+]

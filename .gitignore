@@ -31,3 +31,6 @@ dist/
 /server/data/
 supabase/.temp/
 .vercel/
+/database/design/schema-snapshot.json
+.env.*
+!.env.example
