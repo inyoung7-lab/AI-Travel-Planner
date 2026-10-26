@@ -22,8 +22,7 @@
       rgba(20, 35, 51, 0.72) 0%,
       rgba(20, 35, 51, 0.38) 42%,
       rgba(255, 247, 241, 0.88) 100%
-    ),
-    url("/images/signup-bg.jpg");
+    );
 
   background-size: cover;
   background-position: center;

@@ -8,5 +8,7 @@ dist
 Wallet
 docs
 scripts
-server
 supabase
+database
+deliverables
+server/data

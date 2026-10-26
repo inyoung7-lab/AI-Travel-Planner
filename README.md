@@ -137,9 +137,9 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    U[여행자·호스트] --> W[React / Vite]
+    U[여행자·호스트] --> W[Vercel 정적 웹 / React·Vite]
     W --> A[Supabase Auth]
-    W --> E[Express API]
+    W --> E[Vercel Function / Express API]
     W -->|인증·RLS 적용 일정 편집| P[(Supabase PostgreSQL)]
     E -->|사용자 토큰·RLS| P
     E --> L[Codyssey LLM]
@@ -161,6 +161,12 @@ flowchart TD
 | 검색·활동 | `travel_search_log`, `travel_site_activity` |
 | 관광 원본·동기화 | `travel_tour_source`, `travel_tour_sync_state` |
 | 로컬 체험 | 기존 `lc_*` 호스트·체험·회차·신청 테이블 |
+
+실제 Supabase 메타데이터를 확인한 공개 스키마는 **테이블 26개, 뷰 4개, 외래키 32개**입니다. 관리형 `auth.users`는 별도입니다. 26개 공개 테이블의 RLS 활성화를 확인했으며, 개별 정책의 전체 보안 감사 완료를 의미하지 않습니다.
+
+![전체 데이터베이스 관계도](database/design/erd-overview.png)
+
+전체 그림은 [SVG로 확대](database/design/erd-overview.svg)할 수 있습니다. [영역별 ERD와 전체 데이터 사전](database/ERD.md)에 모든 열·타입·NULL·PK·FK·UNIQUE·CHECK를 정리했습니다. **실선은 실제 FK**이며 `content_id`·`ext_key`·활동 JSON의 코드 매핑과 구분합니다.
 
 일정의 날짜별 코스는 JSONB payload로 보관합니다. JSON 파일을 운영 저장소로 사용하지 않습니다. 일반 API는 사용자 토큰과 RLS를 적용하며, 서버 전용 키를 브라우저에 전달하지 않습니다.
 
@@ -284,9 +290,9 @@ npm run lint
 npm run build
 ```
 
-최근 충돌 통합 검증에서 `test:travel` 42개, `test:supabase` 40개, 장소 상세·캐시 8개가 통과했고 빌드도 성공했습니다. 호스트 Agent 모의 검사는 2026-10-25 기준 16개가 통과했습니다. 묶음 간 일부 검사가 중복되므로 독립적인 테스트 총합으로 계산하지 않습니다. 빌드에는 배경 이미지 경로·번들 크기 경고가 남아 있습니다.
+최근 충돌 통합 검증에서 `test:travel` 42개, `test:supabase` 40개, 장소 상세·캐시 8개가 통과했고 빌드도 성공했습니다. 호스트 Agent 모의 검사 16개와 로그인 오류 3개도 2026-10-26 재실행해 통과했습니다. 묶음 간 일부 검사가 중복되므로 독립적인 테스트 총합으로 계산하지 않습니다. 이번 개정에서는 배포 진입점·라우팅 계약 2건도 통과했습니다. 존재하지 않던 로그인·가입 배경 이미지 참조는 제거했고, 초기 번들 크기 경고는 후속 최적화 대상으로 남아 있습니다. Lint는 오류 0건이며 기존 경고 13건이 남아 있습니다.
 
-실제 Supabase·API 연동에서는 일정 저장·편집·재조회, 찜, 리뷰, 타인 데이터 접근 차단 및 실제 AI 생성의 샘플 요청을 확인했습니다. 통합 후 장소 검색과 ID 조회의 사진·좌표 연결도 확인했습니다. 최근 전체 화면 클릭 검증은 브라우저 연결 문제로 완료하지 못했으며 자동 검사 통과와 화면 사용성 평가는 구분합니다.
+실제 Supabase·API 연동에서는 일정 저장·편집·재조회, 찜, 리뷰, 타인 데이터 접근 차단 및 실제 AI 생성의 샘플 요청을 확인했습니다. 통합 후 장소 검색과 ID 조회의 사진·좌표 연결도 확인했습니다. 2026-10-26에는 실제 Chrome에서 AI 3일 일정 생성, 장소 추가 검색, 여행지 목록, 나의 여행, 지난 일정 전체 상세와 리뷰 연결, 커뮤니티, 체험·호스트 프로필을 확인하고 화면을 직접 촬영했습니다. 관광지 목록의 최초 요청 1회 실패 후 재조회 정상도 관찰했으며, 원인 재현과 응답시간 측정은 추가 대상입니다. 모든 화면의 모든 저장 동작을 완주한 시험이나 외부 사용자 사용성 평가를 의미하지 않습니다.
 
 실제 DB를 수정하고 정리하는 테스트는 기본 실행에서 건너뜁니다. 서버와 테스트 환경을 준비한 뒤 명시적으로 실행합니다. 두 번째 검사는 실제 모델 호출도 포함합니다.
 
@@ -315,7 +321,9 @@ Remove-Item Env:RUN_PLANNER_LIVE
 
 ## 10. 배포와 사용자 검증
 
-`npm run build`는 웹의 정적 산출물 `dist`를 만듭니다. 전체 서비스에는 **정적 웹 + Express API + Supabase + 호스트 Edge Function** 연결이 필요합니다. 현재 [`vercel.json`](vercel.json)에는 로컬 체험 경로의 SPA rewrite만 있어, 전체 서비스 배포 시 다른 내부 경로의 새로고침과 운영 `/api` 전달을 추가로 구성해야 합니다.
+Vercel의 **Vite 정적 화면 + Express API Function**으로 배포하도록 설정했습니다. `api/index.js`가 `server/app.js`를 내보내고, 로컬 `server/server.js`만 포트를 엽니다. `/api/*`를 먼저 처리한 뒤 모든 화면 경로를 SPA로 전달합니다. 공개 서비스에서도 Supabase Auth·DB·호스트 Edge Function을 사용합니다.
+
+[배포 설정과 수용 검사 안내](docs/vercel-deployment.md)에 환경 변수, Auth URL, API 200/404/401 검사, 장시간 수집 작업 분리를 정리했습니다. Vercel 로그인은 확인했지만 **본 프로젝트의 배포 URL과 운영 성공 여부는 아직 확정하지 않았습니다.** 서버 비밀값을 등록하고 실제 URL에서 검증해야 합니다.
 
 운영 환경에서는 HTTPS, Supabase Auth URL·리다이렉트, 웹/API 허용 origin, 서버 비밀값, 고정 쿠키 서명값, RLS, 관광정보 예약 동기화를 확인합니다. 회원 동의 문구·정책과 동의 이력 보관 범위도 운영 요구사항에 맞춰 점검합니다.
 
@@ -328,10 +336,12 @@ Remove-Item Env:RUN_PLANNER_LIVE
 - [프로젝트 기획서 PDF](deliverables/final-project-20261025/01_프로젝트_기획서.pdf)
 - [기능요구명세서·아키텍처 PDF](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf)
 - [테스트·피드백 보고서 PDF](deliverables/final-project-20261025/03_테스트_피드백_보고서.pdf)
-- [발표 PowerPoint 20장](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx)
+- [발표 PowerPoint 30장](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx)
+- [데이터베이스 설계서 PDF](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf)
+- [실제 기능 화면 가이드](docs/feature-screens.md)
 - [자료 안내](deliverables/final-project-20261025/자료_안내.md)
 
-자료 개정 2.0은 2026-10-26 기준으로 개발 기간 약 2주, SQL 조건 기반 RAG, 데이터·권한 경계 및 검증 추적을 반영했습니다. 외부 사용자 테스트는 미실시 상태와 실제 기록 양식을 구분했습니다. 별도 발표자 대본 파일은 제외하고 PPT 노트에는 출처와 해석에 필요한 주석만 남겼습니다.
+자료 개정 3.0은 2026-10-26 기준으로 개발 기간 약 2주, SQL 조건 기반 RAG, 데이터·권한 경계 및 검증 추적, 실제 촬영 화면, 전체 DB 관계도와 Vercel 운영 구성을 반영했습니다. 외부 사용자 테스트는 미실시 상태와 실제 기록 양식을 구분했습니다. 별도 발표자 대본 파일은 제외하고 PPT 노트에는 출처와 해석에 필요한 주석만 남겼습니다.
 
 ### 구현·운영 참고
 
@@ -343,3 +353,16 @@ Remove-Item Env:RUN_PLANNER_LIVE
 - [호스트 운영 가이드](docs/local-eum/host-operations-guide.md)
 
 초기 설계 문서와 Oracle 인수인계 자료에는 전환 전 설명이 남아 있을 수 있습니다. 현재 실행·인증·저장은 이 README와 Supabase 전환 안내의 최신 운영 설명을 우선합니다. 발표·제출 자료는 별도 제작한 기획서·요구명세서·테스트 보고서·PPT 패키지로 관리합니다.
+
+## 12. 실제 화면과 현재 제공 범위
+
+![AI 일정 생성 실행 화면](docs/screenshots/03-ai-itinerary-top.jpg)
+
+![나의 여행 실행 화면](docs/screenshots/05-mytrip.jpg)
+
+위 화면은 2026-10-26 개발 환경에서 테스트 계정으로 촬영했습니다. [전체 화면 가이드](docs/feature-screens.md)에서 탐색·직접 작성·리뷰·체험의 입력과 결과를 확인할 수 있습니다.
+
+- 커뮤니티의 기존 사진과 샘플 사진은 표시하지만 **리뷰 작성 화면의 새 사진 업로드는 준비 중**입니다.
+- 체험은 시연 데이터와 AI 생성 이미지 표시를 포함하며, 실제 결제·예약 확정 기능으로 안내하지 않습니다.
+- 날씨·행사·계절은 확보한 정보만 참고합니다. 실제 도로 이동시간과 운영 여부를 확정하지 않습니다.
+- 공개 배포 후 기능 검사와 외부 사용자 5명 이상의 테스트 결과는 실제 수행 뒤 추가합니다.
