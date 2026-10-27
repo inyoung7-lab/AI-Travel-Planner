@@ -137,6 +137,7 @@ export default function AiItinerary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [saveError, setSaveError] = useState("");
   useEffect(() => {
     let active = true;
     let version = 0;
@@ -146,6 +147,7 @@ export default function AiItinerary() {
       const requestVersion = ++version;
       if (!active) return;
       setSignedIn(Boolean(userId));
+      setSaveError("");
       setSavedLoading(true);
       setSavedPlans([]);
       setPlan(null);
@@ -201,7 +203,7 @@ export default function AiItinerary() {
 
   async function generate(event) {
     event.preventDefault();
-    setError(""); setNotice("");
+    setError(""); setNotice(""); setSaveError("");
     if (form.startDate < koreanToday()) { setError("지난 날짜로는 새 여행 일정을 만들 수 없어요. 오늘 이후 날짜를 선택해 주세요."); return; }
     if (totalDays < 1 || totalDays > 5) { setError("여행 기간은 1~5일로 선택해 주세요."); return; }
     setLoading(true);
@@ -260,19 +262,19 @@ export default function AiItinerary() {
 
   async function save() {
     if (!plan || saving) return;
-    if (!signedIn) { setError("일정을 저장하려면 로그인해 주세요."); return; }
-    setSaving(true); setError(""); setNotice("");
+    if (!signedIn) { setNotice(""); setSaveError("로그인이 필요합니다. 로그인 후 일정을 저장해 주세요."); return; }
+    setSaving(true); setError(""); setNotice(""); setSaveError("");
     try {
       const account = accountRef.current;
       const { data, error } = await requireSupabase().auth.getSession();
-      if (error || !account || data.session?.user.id !== account) throw new Error("다시 로그인해 주세요.");
+      if (error || !account || data.session?.user.id !== account) throw new Error("로그인이 필요합니다. 다시 로그인한 후 일정을 저장해 주세요.");
       const repository = createItineraryRepository(sessionSupabase(data.session));
       const saved = await repository.save(plan);
       if (accountRef.current !== account) return;
       setPlan(saved);
       setSavedPlans((current) => [saved, ...current.filter((entry) => entry.savedId !== saved.savedId)]);
       setNotice("계정에 일정을 저장했어요. 다른 기기에서도 불러올 수 있어요.");
-    } catch (problem) { setError(problem.message); }
+    } catch (problem) { setSaveError(problem.message); }
     finally { setSaving(false); }
   }
 
@@ -307,7 +309,7 @@ export default function AiItinerary() {
         {error && <p className="ai-plan-error" role="alert">{error}</p>}
       </form>
 
-      <section className="ai-plan-card ai-plan-result"><div className="ai-plan-result-top"><div className="ai-plan-result-utility"><p className="ai-plan-kicker">{plan ? "AI GENERATED ITINERARY" : "PREVIEW ITINERARY"}</p><div className="ai-plan-result-actions">{plan ? <button className="ai-plan-save" type="button" onClick={save} disabled={saving || savedLoading}>{saving ? "저장 중…" : "일정 저장하기"}</button> : <span className="ai-plan-preview-badge">화면 예시</span>}<button className="ai-plan-saved-open" type="button" onClick={() => setSavedModalOpen(true)}>저장한 일정 보기</button></div></div><div className="ai-plan-result-heading"><h2>{plan ? display.title : "이런 일정을 만들 수 있어요"}</h2>{plan?.requestedRegion === "전국" && <span className="ai-plan-random-region">전국 중 {plan.region} 지역을 무작위로 선택했어요</span>}<p>{display.summary}</p></div></div>
+      <section className="ai-plan-card ai-plan-result"><div className="ai-plan-result-top"><div className="ai-plan-result-utility"><p className="ai-plan-kicker">{plan ? "AI GENERATED ITINERARY" : "PREVIEW ITINERARY"}</p><div className="ai-plan-result-actions">{plan ? <button className="ai-plan-save" type="button" onClick={save} disabled={saving || savedLoading}>{saving ? "저장 중…" : "일정 저장하기"}</button> : <span className="ai-plan-preview-badge">화면 예시</span>}<button className="ai-plan-saved-open" type="button" onClick={() => setSavedModalOpen(true)}>저장한 일정 보기</button></div></div>{saveError && <div className="ai-plan-error" role="alert">{saveError}</div>}<div className="ai-plan-result-heading"><h2>{plan ? display.title : "이런 일정을 만들 수 있어요"}</h2>{plan?.requestedRegion === "전국" && <span className="ai-plan-random-region">전국 중 {plan.region} 지역을 무작위로 선택했어요</span>}<p>{display.summary}</p></div></div>
         {plan?.planningContext && <PlanningContext context={plan.planningContext} />}
         <div className="ai-plan-day-tabs" role="tablist" aria-label="날짜별 일정">{display.days.map((entry, index) => <button role="tab" aria-selected={selectedDay === index} type="button" className={selectedDay === index ? "active" : ""} onClick={() => setSelectedDay(index)} key={entry.day}>{dayLabel(entry.date, index)}</button>)}</div>
         <div className="ai-plan-day-title"><span>DAY {selectedDay + 1}</span><h3>{day?.theme}</h3></div>
