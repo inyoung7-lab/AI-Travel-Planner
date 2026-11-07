@@ -11,7 +11,7 @@ export class CatalogNotConfiguredError extends Error {
   }
 }
 
-export function createTravelPlaceRepository({ mode = process.env.TRAVEL_SEARCH_DATA_SOURCE, tourApiOptions } = {}) {
+export function createTravelPlaceRepository({ mode = process.env.TRAVEL_SEARCH_DATA_SOURCE ?? 'database', tourApiOptions } = {}) {
   if (mode === "example") {
     return {
       dataSource: "example",

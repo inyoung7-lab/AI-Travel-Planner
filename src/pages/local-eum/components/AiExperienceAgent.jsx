@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient.js';
-import { agentInvocationErrorMessage } from '../agentInvocationError.js';
+import { readAgentInvocationErrorMessage } from '../agentInvocationError.js';
 import './AiExperienceAgent.css';
 
 const copy = {
@@ -14,7 +14,7 @@ const criteriaKeys = ['participation_reason', 'host_unique_value', 'active_parti
 async function invokeAgent(body) {
   if (!supabase) throw new Error('Supabase 연결 설정을 확인해 주세요.');
   const { data, error } = await supabase.functions.invoke('local-eum-agent', { body });
-  if (error) throw new Error(agentInvocationErrorMessage(error, body.locale));
+  if (error) throw new Error(await readAgentInvocationErrorMessage(error, body.locale));
   return data;
 }
 
@@ -77,14 +77,14 @@ export default function AiExperienceAgent({ experience, session, locale, onCopyD
     {mode === 'idea' ? <label className="le-ai-agent-idea">{t.ideaLabel}<textarea rows="4" maxLength="2000" value={idea} disabled={readOnly || Boolean(busy)} placeholder={t.ideaHint} onChange={(event) => { setIdea(event.target.value); setAnalysis(null); setPlanResult(null); setLastAlternative(null); setReviewed(false); setMessage(''); }} /></label> : null}
     <button className="le-button-primary" type="button" onClick={analyze} disabled={readOnly || Boolean(busy) || (mode === 'idea' && idea.trim().length < 10)}>{busy === 'analyze' ? t.analyzing : t.analyze}</button>
     {busy ? <p className="le-ai-agent-progress" role="status" aria-live="polite">{busy === 'plan' ? t.planning : t.analyzing}</p> : null}
-    {error ? <div className="le-ai-agent-error" role="alert"><p>{error}</p><p>{t.limits}</p><button type="button" disabled={readOnly || Boolean(busy)} onClick={() => (lastAlternative ? makePlan(lastAlternative) : analyze())}>{t.retry}</button></div> : null}
+    {error ? <div className="le-ai-agent-error" role="alert"><p>{error}</p><button type="button" disabled={readOnly || Boolean(busy)} onClick={() => (lastAlternative ? makePlan(lastAlternative) : analyze())}>{t.retry}</button></div> : null}
     {report ? <div className="le-ai-agent-report">
       <h3>{report.headline}</h3><p>{report.motivation}</p><p>{report.positioning}</p>
       <div className="le-ai-agent-columns"><div><h4>{t.score}: {analysis.evaluation.total}/{analysis.evaluation.maximum}</h4><p>{analysis.evaluation.rubric}</p><ol>{analysis.evaluation.criteria.map((item) => <li key={item.key}><strong>{t.criteria[criteriaKeys.indexOf(item.key)]}: {item.score}/4</strong> — {item.evidence}</li>)}</ol></div><div><h4>{t.cost}</h4><p>{analysis.cost.attendees} {t.people} · {t.revenue}: {analysis.cost.revenue === null ? t.unknown : `${analysis.cost.revenue.toLocaleString()} ${t.won}`}</p><p>{t.directCost}: {analysis.cost.directCost === null ? t.unknown : `${analysis.cost.directCost.toLocaleString()} ${t.won}`}</p><small>{analysis.cost.note}</small></div></div>
       <h4>{t.risks}</h4><ValueList items={report.risks} />
       <h4>{t.evidence}</h4>{analysis.citations.length ? <ul>{analysis.citations.map((item) => <li key={item.id}><a href={item.url} target="_blank" rel="noopener noreferrer">{item.title}</a> · {item.checkedAt}<p>{item.fact}</p></li>)}</ul> : <p>{t.noEvidence}</p>}
       <h4>{t.alternatives}</h4><div className="le-ai-agent-alternatives">{report.alternatives.map((item, index) => <article key={`${index}-${item.title}`}><h5>{item.title}</h5><p>{item.concept}</p><p>{item.distinctValue}</p><p>{t.payment[item.paymentModel]}</p><p>{item.hostService}</p><ValueList items={item.prerequisites} /><button type="button" className="le-button-secondary" disabled={readOnly || Boolean(busy)} onClick={() => makePlan(item)}>{t.plan}</button></article>)}</div>
-      <details><summary>{t.tool}</summary><ul>{analysis.trace.map((item) => <li key={item.tool}>{item.tool} · {item.outcome} · {item.count}</li>)}</ul></details>
+      <details><summary>{t.tool}</summary><ol>{analysis.trace.map((item, index) => <li key={`${index}-${item.tool}`}>{item.tool} · {item.outcome} · {item.count}{item.reason ? <p>{item.reason}</p> : null}</li>)}</ol></details>
     </div> : null}
     {plan ? <div className="le-ai-agent-plan"><h3>{t.planTitle}: {plan.title}</h3><p>{plan.tagline}</p><p>{plan.customerValue}</p><p><strong>{t.audience}:</strong> {plan.audience} · <strong>{t.duration}:</strong> {plan.durationMinutes} {t.minutes}</p><ol>{plan.timeline.map((step, index) => <li key={`${index}-${step.minute}`}><strong>{step.minute} {t.minutes}: {step.activity}</strong><div>{t.hostRole}: {step.hostRole}</div><div>{t.output}: {step.participantOutput}</div></li>)}</ol><div className="le-ai-agent-columns"><div><h4>{t.materials}</h4><ValueList items={plan.materials} /><h4>{t.included}</h4><ValueList items={plan.included} /><h4>{t.excluded}</h4><ValueList items={plan.excluded} /></div><div><h4>{t.meeting}</h4><p>{plan.meetingConsiderations}</p><h4>{t.pricing}</h4><p>{plan.priceValidation}</p><h4>{t.safety}</h4><ValueList items={plan.safetyLegalChecks} /><h4>{t.preparation}</h4><ValueList items={plan.preparationTasks} /></div></div><label className="le-ai-agent-idea">{t.edit}<textarea rows="8" maxLength="20000" value={descriptionDraft} onChange={(event) => { setDescriptionDraft(event.target.value); setReviewed(false); setMessage(''); }} /></label>{mode === 'idea' ? <p>{t.ideaWarning} <strong>{experience.title}</strong></p> : null}<label className="le-ai-agent-review"><input type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />{t.review}</label><button className="le-button-primary" type="button" disabled={!reviewed || !descriptionDraft.trim()} onClick={() => { onCopyDraft(descriptionDraft.trim()); setMessage(t.handoffDone); }}>{t.handoff}</button>{message ? <p role="status">{message}</p> : null}</div> : null}
   </section>;

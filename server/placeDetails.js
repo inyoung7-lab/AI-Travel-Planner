@@ -17,11 +17,23 @@ router.get("/nearby", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
-  const page = Math.max(1, Math.min(100000, parseInt(req.query.page, 10) || 1));
-  try { res.set('Cache-Control', 'public, max-age=30').json(await listDbCatalogPage({ page, q: String(req.query.q || '').slice(0, 200), region: String(req.query.region || '').slice(0, 20) })); }
-  catch (error) { console.error("[places] 목록 조회 오류:", error.message); res.status(500).json({ message: "여행지 목록을 불러오지 못했어요." }); }
-});
+export function createCatalogHandler(listCatalog = listDbCatalogPage) {
+  return async (req, res) => {
+    const page = Math.max(1, Math.min(100000, parseInt(req.query.page, 10) || 1));
+    try {
+      const result = await listCatalog({ page, q: String(req.query.q || '').slice(0, 200), region: String(req.query.region || '').slice(0, 20) });
+      res.set('Cache-Control', 'public, max-age=30').json(result);
+    } catch (error) {
+      console.error("[places] 목록 조회 오류:", { code: error.code || 'INTERNAL', stage: error.catalogStage || 'catalog' });
+      const temporary = error.code === '57014' || error.status === 503;
+      res.set('Cache-Control', 'no-store');
+      if (temporary) res.set('Retry-After', '2');
+      res.status(temporary ? 503 : 500).json({ message: temporary ? '여행지 조회가 일시적으로 지연되고 있어요. 잠시 후 새로고침해 주세요.' : '여행지 목록을 불러오지 못했어요.' });
+    }
+  };
+}
+
+router.get("/", createCatalogHandler());
 
 router.get("/tourapi/:id", async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ message: "잘못된 여행지 번호예요." });

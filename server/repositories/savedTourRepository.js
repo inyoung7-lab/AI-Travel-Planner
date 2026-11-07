@@ -11,7 +11,9 @@ export function mapSavedTourPlace(row) {
     name: row.name, region: row.region, regionCode: row.region, address: row.address, type: subtype || detail.category, category: detail.category,
     tags, description: String(detail.overview || '').slice(0, 160), image: detail.images?.[0] || null, reason: '관광공사에서 가져와 저장한 장소', lat: row.lat, lng: row.lng };
 }
-export function createSavedTourRepository({ getClient = () => getSupabase({ admin: true }) } = {}) {
+// The public catalog already grants SELECT through RLS. Public recommendations
+// must not depend on a privileged key used for activity and history writes.
+export function createSavedTourRepository({ getClient = () => getSupabase() } = {}) {
   const homeCache = new Map();
   return { dataSource: 'supabase-tourapi',
   async listHomePlaces({ regions = [], limit = 8 } = {}) {

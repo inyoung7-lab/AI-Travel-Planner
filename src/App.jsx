@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/header.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
+import ServicePolicy from "./pages/ServicePolicy.jsx";
 import CommunityHome from "./pages/community/CommunityHome.jsx";
 import ReviewDetail from "./pages/community/ReviewDetail.jsx";
 import QuestionDetail from "./pages/community/QuestionDetail.jsx";
@@ -36,6 +37,8 @@ function App() {
         <Route path="/places/:id" element={<PlaceDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/terms" element={<ServicePolicy kind="terms" />} />
+        <Route path="/privacy" element={<ServicePolicy kind="privacy" />} />
         <Route path="/community" element={<CommunityHome />} />
         <Route path="/community/write" element={<Write />} />
         <Route path="/community/talks/:id" element={<TalkDetail />} />

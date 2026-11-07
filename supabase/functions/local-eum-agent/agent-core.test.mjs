@@ -23,23 +23,26 @@ function reportFor(fixture, citationId, action = 'analyze') {
   };
 }
 
-function modelFixture(fixture, action, badCitation = false) {
+const defaultRoute = ['retrieve_local_knowledge', 'estimate_program_cost', 'search_existing_experiences', 'evaluate_experience_value'];
+
+function modelFixture(fixture, action, badCitation = false, route = defaultRoute) {
   const calls = [];
   let citationId = null;
-  return { calls, async call(payload) {
+  return { calls, route, async call(payload) {
     calls.push(payload);
-    const name = payload.tool_choice?.name;
-    if (!name) {
+    if (payload.tool_choice !== 'auto') {
       const retrieved = payload.input.find((item) => item.type === 'function_call_output' && item.output.includes('"matches"'));
       const matches = retrieved ? JSON.parse(retrieved.output).matches : [];
       citationId = matches[0]?.id || null;
       return { output_text: JSON.stringify(reportFor(fixture, badCitation ? 'invented-source' : citationId, action)) };
     }
+    const name = route[calls.length - 1];
+    if (!name) return { output: [], decision: { action: 'finish', reason: 'Enough evidence for this report.' } };
     let args;
     if (name === 'search_existing_experiences' || name === 'retrieve_local_knowledge') args = { query: fixture.query, region: fixture.region };
     else if (name === 'evaluate_experience_value') args = { criteria: keys.map((key) => ({ key, evidenceType: fixture.missing.includes(key) ? 'missing' : 'observed', evidence: fixture.expectedRisk, strength: 1 })) };
     else args = { attendees: 4, assumedMaterialCostPerPerson: null, assumedFixedCost: null };
-    return { output: [{ type: 'function_call', name, call_id: `call-${calls.length}`, arguments: JSON.stringify(args) }] };
+    return { output: [{ type: 'function_call', name, call_id: `call-${calls.length}`, arguments: JSON.stringify(args), reason: `Need ${name} for this subject.` }] };
   } };
 }
 
@@ -53,12 +56,16 @@ for (const fixture of fixtures) {
       searchExperiences: async () => [{ experience_id: 111, title: fixture.title }],
       modelCall: model.call, logger: (trace) => traces.push(trace),
     });
-    assert.deepEqual(traces.map((item) => item.tool), ['search_existing_experiences', 'retrieve_local_knowledge', 'evaluate_experience_value', 'estimate_program_cost']);
+    assert.deepEqual(traces.map((item) => item.tool), model.route);
+    assert.ok(result.trace.every(item => item.reason));
+    assert.ok(traces.every(item => !Object.hasOwn(item, 'reason')));
     assert.equal(result.cost.revenue, 72000);
     assert.equal(result.cost.directCost, null);
     for (const key of fixture.missing) assert.equal(result.evaluation.criteria.find((item) => item.key === key).score, 0);
     assert.equal(result.report.alternatives.length, 2);
-    assert.equal(model.calls.length, 5);
+    assert.equal(model.calls.length, 6);
+    assert.equal(result.execution.strategy, 'model_selected_json_actions');
+    assert.ok(model.calls.slice(0, -1).every(call => call.tool_choice === 'auto'));
     if (fixture.label === 'sea food lab' || fixture.label === 'secret map') assert.ok(result.citations.length > 0);
   });
 }
@@ -70,6 +77,58 @@ test('plan action produces an editable plan through the same tool cycle', async 
   assert.equal(result.report.plan.timeline.length, 2);
   assert.equal(result.cost.revenue, null);
   assert.equal(model.calls.at(-1).tool_choice, 'none');
+});
+
+const existingRequest = { action: 'analyze', mode: 'existing', locale: 'ko', experienceId: 111 };
+const existingContext = { experience: { experience_id: 111, title: fixtures[0].title }, session: { fee_amount: 15000, capacity: 8 } };
+
+test('model can skip searches, choose a different order and finish after required outputs', async () => {
+  const model = modelFixture(fixtures[0], 'analyze', false, ['evaluate_experience_value', 'estimate_program_cost']);
+  const result = await runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => assert.fail('Search was not selected'), modelCall: model.call });
+  assert.deepEqual(result.trace.map(item => item.tool), model.route);
+  assert.equal(result.citations.length, 0);
+  assert.equal(result.searchedCount, 0);
+  assert.equal(model.calls.length, 4);
+});
+
+test('model can refine a search by selecting it again', async () => {
+  const route = ['search_existing_experiences', 'retrieve_local_knowledge', 'search_existing_experiences', 'evaluate_experience_value', 'estimate_program_cost'];
+  const model = modelFixture(fixtures[0], 'analyze', false, route);
+  let reads = 0;
+  const result = await runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => { reads++; return []; }, modelCall: model.call });
+  assert.equal(reads, 2);
+  assert.deepEqual(result.trace.map(item => item.tool), route);
+});
+
+test('unknown or multiple calls are rejected before any tool executes', async () => {
+  for (const names of [['delete_experience'], ['search_existing_experiences', 'estimate_program_cost']]) {
+    await assert.rejects(runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => assert.fail('No tools should execute'), modelCall: async () => ({ output: names.map(name => ({ type: 'function_call', name, call_id: name, arguments: '{}' })) }) }), error => error.code === 'MODEL_TOOL');
+  }
+});
+
+test('early finish receives missing-output feedback and cannot loop indefinitely', async () => {
+  const calls = [];
+  await assert.rejects(runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => [], modelCall: async payload => { calls.push(structuredClone(payload)); return { output: [], decision: { action: 'finish', reason: 'Done' } }; } }), error => error.code === 'AGENT_LIMIT');
+  assert.equal(calls.length, 7);
+  assert.match(calls[1].input.at(-1).content, /evaluate_experience_value.*estimate_program_cost/);
+});
+
+test('repeated tool selection and the total tool budget are bounded', async () => {
+  for (const route of [Array(3).fill('search_existing_experiences'), ['search_existing_experiences', 'retrieve_local_knowledge', 'evaluate_experience_value', 'estimate_program_cost', 'search_existing_experiences', 'retrieve_local_knowledge', 'evaluate_experience_value']]) {
+    const model = modelFixture(fixtures[0], 'analyze', false, route);
+    await assert.rejects(runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => [], modelCall: model.call }), error => error.code === 'AGENT_LIMIT');
+  }
+});
+
+test('malformed arguments do not reach the search implementation', async () => {
+  await assert.rejects(runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => assert.fail('Invalid arguments must not execute'), modelCall: async () => ({ output: [{ type: 'function_call', name: 'search_existing_experiences', call_id: 'bad', arguments: '{broken', reason: 'Search the region' }] }) }), error => error.code === 'TOOL_ARGUMENT');
+});
+
+test('elapsed budget prevents subsequent model calls', async () => {
+  let now = 0;
+  let calls = 0;
+  await assert.rejects(runAgent({ request: existingRequest, context: existingContext, searchExperiences: async () => [], now: () => now, modelCall: async payload => { calls++; assert.ok(payload.timeout_ms <= 30000); now = 90001; return { output: [], decision: { action: 'finish', reason: 'Done' } }; } }), error => error.code === 'AGENT_LIMIT');
+  assert.equal(calls, 1);
 });
 
 test('retrieval ranks matching Masan source and does not invent evidence', () => {

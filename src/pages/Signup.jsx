@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { SERVICE_POLICY_PATHS } from "../../shared/servicePolicies.js";
 import { requireSupabase } from "../lib/supabaseClient.js";
 import { SIGNUP_NAME_MAX_LENGTH, SIGNUP_PASSWORD_MIN_LENGTH, signupRequest, signupErrorMessage } from "./signupForm.js";
 import "./Signup.css";
@@ -82,8 +83,12 @@ export default function Signup() {
                   </div>
                 </div>
                 <label className="signup-agreement">
-                  <input type="checkbox" name="agreement" value="accepted" required />
-                  <span>이용약관 및 개인정보 처리방침에 동의합니다.</span>
+                  <input type="checkbox" name="termsAgreement" value="accepted" required />
+                  <span><Link to={SERVICE_POLICY_PATHS.terms} target="_blank" rel="noopener noreferrer">이용약관</Link>을 읽고 동의합니다. (필수)</span>
+                </label>
+                <label className="signup-agreement">
+                  <input type="checkbox" name="privacyAgreement" value="accepted" required />
+                  <span><Link to={SERVICE_POLICY_PATHS.privacy} target="_blank" rel="noopener noreferrer">개인정보 수집·이용 안내</Link>를 읽고 동의합니다. (필수)</span>
                 </label>
                 {error && <p className="signup-error" role="alert">{error}</p>}
                 <button type="submit" className="signup-submit">{submitting ? "가입 중…" : "회원가입"}</button>

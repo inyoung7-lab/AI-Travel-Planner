@@ -1,3 +1,5 @@
+import { signupConsentMetadata } from '../../shared/servicePolicies.js';
+
 export const SIGNUP_NAME_MAX_LENGTH = 100;
 export const SIGNUP_PASSWORD_MIN_LENGTH = 8;
 
@@ -9,10 +11,11 @@ export function signupRequest(values) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('사용할 수 있는 이메일 주소를 입력해 주세요.');
   if (password.length < SIGNUP_PASSWORD_MIN_LENGTH) throw new Error('비밀번호는 8자 이상 입력해 주세요.');
   if (password !== values.passwordConfirm) throw new Error('비밀번호 확인이 일치하지 않습니다.');
-  if (!values.agreement) throw new Error('이용약관 및 개인정보 처리방침에 동의해 주세요.');
+  const consent = signupConsentMetadata(values);
   // The auth.users trigger maps metadata.name to travel_profiles.user_name.
-  // UUID is assigned by Auth; confirmation and agreement controls are not profile columns.
-  return { email, password, options: { data: { name } } };
+  // The reviewed consent migration records immutable server-timestamped evidence.
+  // Auth metadata alone can be edited by the account owner and is not an audit log.
+  return { email, password, options: { data: { name, travel_consent: consent } } };
 }
 
 export function signupErrorMessage(error) {

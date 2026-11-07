@@ -184,46 +184,65 @@ export async function listDbPlaces() {
   return rows.map((row) => mapDbPlaceListRow(upperPlace({ ...row, comm_place_tour_detail: { payload: row.detail } })));
 }
 
-const catalogPages = new Map();
-let catalogCounts;
-function getCatalogCounts() {
-  if (!catalogCounts || Date.now() >= catalogCounts.expires) {
-    const entry = { expires: Date.now() + 5 * 60000 };
-    entry.promise = unwrap(getSupabase().rpc('travel_tour_catalog_counts')).catch(error => {
-      if (catalogCounts === entry) catalogCounts = null;
+export function createCatalogPageReader({ getClient = getSupabase, now = Date.now } = {}) {
+  const pages = new Map();
+  const searchCounts = new Map();
+  const aggregateCounts = new Map();
+  async function readQuery(read, stage) {
+    for (let attempt = 0; ; attempt++) {
+      try { return await read(); }
+      catch (error) {
+        // Retry a cancelled, read-only SQL statement once; never replay writes.
+        if (error.code !== '57014' || attempt >= 1) {
+          error.catalogStage = stage;
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
+  }
+  function cached(cache, key, ttl, read) {
+    const found = cache.get(key);
+    if (found && now() < found.expires) return found.promise;
+    if (cache.size >= 80) cache.delete(cache.keys().next().value);
+    const entry = { expires: now() + ttl };
+    entry.promise = Promise.resolve().then(read).catch(error => {
+      if (cache.get(key) === entry) cache.delete(key);
       throw error;
     });
-    catalogCounts = entry;
+    cache.set(key, entry);
+    return entry.promise;
   }
-  return catalogCounts.promise;
+  function filtered(query, q, region) {
+    query = query.eq('detail->>contentTypeId', '12');
+    if (region) query = query.eq('region', region);
+    if (q) query = query.ilike('search_text', `%${q.replace(/[\\%_]/g, '\\$&')}%`);
+    return query;
+  }
+  return function listPage({ page = 1, q = '', region = '' } = {}) {
+    q = q.trim();
+    region = region === '전체' ? '' : region;
+    return cached(pages, JSON.stringify([page, q, region]), 60000, async () => {
+      const pageSize = 24;
+      // Do not combine the expensive exact count with ordered row retrieval.
+      const [rows, counts, searchTotal] = await Promise.all([
+        readQuery(() => unwrap(filtered(getClient().from('travel_saved_tour_catalog').select('*'), q, region)
+          .order('region').order('place_id').range((page - 1) * pageSize, page * pageSize - 1)), 'page'),
+        cached(aggregateCounts, 'all', 5 * 60000, () => readQuery(() => unwrap(getClient().rpc('travel_tour_catalog_counts')), 'aggregate_count')),
+        q ? cached(searchCounts, JSON.stringify([q, region]), 5 * 60000, () => readQuery(async () => {
+          const { count, error } = await filtered(getClient().from('travel_saved_tour_catalog').select('place_id', { count: 'exact', head: true }), q, region);
+          if (error) throw Object.assign(new Error(error.message), { code: error.code });
+          if (!Number.isInteger(count) || count < 0) throw new Error('여행지 검색 건수를 확인하지 못했습니다.');
+          return count;
+        }, 'search_count')) : null,
+      ]);
+      const total = q ? searchTotal : region ? counts.regions[region] || 0 : counts.total;
+      return { items: rows.map(row => mapDbPlaceListRow(upperPlace({ ...row, comm_place_tour_detail: { payload: row.detail } }))), total, page, pageSize, catalogTotal: counts.total, regionCounts: counts.regions };
+    });
+  };
 }
-export function listDbCatalogPage({ page = 1, q = '', region = '' } = {}) {
-  q = q.trim();
-  region = region === '전체' ? '' : region;
-  const key = JSON.stringify([page, q, region]);
-  const found = catalogPages.get(key);
-  if (found && Date.now() < found.expires) return found.promise;
-  if (catalogPages.size >= 80) catalogPages.delete(catalogPages.keys().next().value);
-  const entry = { expires: Date.now() + 60000 };
-  entry.promise = loadDbCatalogPage({ page, q, region }).catch(error => {
-    if (catalogPages.get(key) === entry) catalogPages.delete(key);
-    throw error;
-  });
-  catalogPages.set(key, entry);
-  return entry.promise;
-}
-async function loadDbCatalogPage({ page, q, region }) {
-  const pageSize = 24;
-  let query = getSupabase().from('travel_saved_tour_catalog').select('*', { count: 'exact' }).eq('detail->>contentTypeId', '12');
-  if (region && region !== '전체') query = query.eq('region', region);
-  if (q.trim()) query = query.ilike('search_text', `%${q.trim().replace(/[\\%_]/g, '\\$&')}%`);
-  const [{ data, count, error }, counts] = await Promise.all([
-    query.order('region').order('place_id').range((page - 1) * pageSize, page * pageSize - 1),
-    getCatalogCounts(),
-  ]);
-  if (error) throw error;
-  return { items: data.map((row) => mapDbPlaceListRow(upperPlace({ ...row, comm_place_tour_detail: { payload: row.detail } }))), total: count, page, pageSize, catalogTotal: counts.total, regionCounts: counts.regions };
-}
+
+export const listDbCatalogPage = createCatalogPageReader();
 
 export function mapDbPlaceListRow(row) {
   let detail = {};

@@ -122,7 +122,7 @@ export default function Home() {
           {hotState.status === 'success' && <TrendChart days={hotState.days} />}
         </div>
         {hotState.status === 'loading' && <p role="status">여행지를 불러오는 중입니다.</p>}
-        {hotState.status === 'error' && <p role="status">인기 여행지를 불러오지 못했습니다.</p>}
+        {hotState.status === 'error' && <div className="travel-search-error" role="status"><p>인기 순위를 불러오지 못했습니다. 아래 여행지 추천을 먼저 둘러보세요.</p><button type="button" onClick={() => { setHotState({ status: 'loading', items: [], days: [] }); setRetry(value => value + 1); }}>다시 불러오기</button></div>}
         {hotState.status === 'success' && hotState.items.length === 0 && <p>아직 여행지별 이용 기록이 없습니다. 검색하거나 여행지 상세를 열면 집계됩니다.</p>}
       </section>
       <section className="travel-section travel-personal">

@@ -58,7 +58,6 @@ export default function ExperienceDetailContent({ record, session, onSessionChan
   const stepsNeedTranslation = locale !== 'ko' && steps.some(step => !hasLocalizedField(step, 'title', locale) || !hasLocalizedField(step, 'description', locale));
   return <>
     {preview ? <p className="let-preview-notice">{t('previewBeforeSave')}</p> : null}
-    {experience.is_demo ? <div className="let-demo-notice"><strong>{t('demoNoticeTitle')}</strong><span>{t('demoNoticeBody')}</span></div> : null}
     <div className="let-detail-hero">
       <div className="let-detail-image"><ExperienceImage src={experience.hero_image_url} alt={experience.hero_image_alt || ''} eager /></div>
       <div className="let-detail-heading">

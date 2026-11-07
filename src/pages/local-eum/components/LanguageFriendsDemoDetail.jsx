@@ -50,7 +50,6 @@ export default function LanguageFriendsDemoDetail({ experience, locale = 'ko' })
   const session = experience.sessions[0];
 
   return <>
-    <div className="let-demo-notice" role="note"><strong>{labels.draft}</strong><span>{labels.draftBody}</span></div>
     <div className="let-detail-hero">
       <div className="let-detail-image"><ExperienceImage src={experience.hero_image_url} alt={experience.hero_image_alt} eager /></div>
       <div className="let-detail-heading">
