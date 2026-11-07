@@ -102,7 +102,7 @@ flowchart LR
 
 로컬이음 데이터베이스는 Supabase PostgreSQL입니다. `lc_user_roles`, `lc_hosts`, `lc_program_templates`, `lc_experiences`, `lc_sessions`, `lc_experience_steps`, `lc_places`, `lc_applications`, `lc_application_payments` 등의 기존 테이블을 사용합니다. `lc_hosts`의 한 호스트가 여러 체험을 소유할 수 있으며, 프로그램의 `host_id`와 RLS가 소유권 경계를 유지합니다.
 
-팀의 다른 영역에서 Oracle을 사용할 수 있지만, 로컬이음의 DB·인증·권한은 Oracle로 옮기거나 팀 DB와 임의 통합하지 않습니다. 브라우저는 공개 키와 RLS를 사용하고, 서비스 역할 비밀키를 노출하지 않습니다.
+전체 서비스는 Supabase Auth·PostgreSQL을 사용합니다. 로컬이음은 `lc_*` 테이블과 HOST/ADMIN 권한 경계를 유지합니다. 브라우저는 공개 키와 RLS를 사용하고 서비스 역할 비밀키를 노출하지 않습니다.
 
 ## 영어·일본어 지원
 
@@ -165,7 +165,7 @@ HOST 전용 운영 기능은 Supabase Auth 로그인과 승인된 HOST 역할을
 
 로컬이음 담당 코드는 `src/pages/local-eum/`, `src/lib/supabaseClient.js`, `supabase/functions/local-eum-agent/`, `docs/local-eum/`에 모여 있습니다. 팀 공통 Header와 라우터는 `src/components/header.jsx`, `src/App.jsx`를 사용합니다. 메인 화면 메뉴 연결, 공통 로그인 흐름, 배포 경로를 바꾸면 팀 담당자와 인터페이스를 맞춰야 합니다.
 
-다른 팀원의 여행 검색·일정·커뮤니티·Oracle 연동을 수정하지 않으며, 공통 Header의 변경도 로컬이음 단독 작업에 포함하지 않습니다. Supabase 개발 프로젝트와 SQL 적용은 지정된 DB 관리자가 별도로 검토하고, `.review.sql`/`.draft.sql` 적용 전에는 프로젝트 ID·권한·현재 데이터 상태를 확인합니다. Git 병합 전에는 현재 `hykang`의 staged, unstaged, untracked 파일을 기능별로 검토하고 다른 팀원 변경과 분리합니다.
+현재 작업 기준은 `main`입니다. 공통 Header·로그인·다른 팀 기능은 승인된 범위에서 수정하고 영향을 검증합니다. Supabase 개발 프로젝트와 SQL 적용은 별도로 검토하고, `.review.sql`/`.draft.sql` 적용 전에는 프로젝트 ID·권한·현재 데이터를 확인합니다. 커밋·Push 전에는 staged, unstaged, untracked 파일을 검토합니다.
 
 ## 관련 문서
 

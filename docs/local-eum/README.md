@@ -47,7 +47,9 @@ AI-Travel-Planner는 여행지 탐색·검색과 추천, 나의 여행, 여행 �
 
 ### 호스트 기능
 
-- 로그인한 HOST는 자신의 호스트 프로필과 소유 체험·회차를 관리합니다. 호스트 한 명이 여러 프로그램을 운영하며 호스트 소개는 프로그램마다 중복 작성하지 않습니다.
+- 일반 서비스와 HOST 화면은 같은 Supabase Auth 계정을 사용합니다. 로그인 계정을 새로 만들지 않고 `lc_user_roles`와 호스트 프로필로 권한을 구분합니다.
+- 로그인한 일반 회원은 호스트 프로필을 신청할 수 있습니다. 새 프로필은 승인 대기·비공개 상태로 시작하며, 신청자가 스스로 HOST 승인이나 ADMIN 권한을 부여할 수 없습니다.
+- 승인된 HOST는 한 개의 호스트 프로필로 본인 체험 여러 개와 각 체험의 운영 회차·신청을 관리합니다. 호스트 소개는 프로그램마다 중복 작성하지 않습니다.
 - 운영센터는 프로그램·회차를 선택해 상세 소개, 일정, 회비, 여행자 미리보기와 신청자 정보를 한 화면에서 다룹니다.
 - 기존 신청 데이터에서 선택 회차의 신청자 연락처를 조회하고 복사하거나 전화·메일 앱으로 연결할 수 있습니다. 연락처를 AI 요청에 보내지 않습니다.
 - 체험 및 호스트 소개의 영어·일본어 번역 초안을 편집하고 검수 상태를 관리합니다.
@@ -67,6 +69,10 @@ AI-Travel-Planner는 여행지 탐색·검색과 추천, 나의 여행, 여행 �
 
 체험의 `available_languages`는 호스트가 실제로 해당 언어로 안내할 수 있다고 확인할 때만 설정합니다. 2026-10-20 공개 적용 시 #113–#115를 모두 빈 배열로 맞췄습니다. HOST가 진행 가능 언어를 확인한 뒤 별도로 설정해야 합니다. 번역 검수와 진행 가능 언어 설정은 각각 별도 절차입니다.
 
+### 공통 로그인과 가입
+
+일반 여행자와 호스트는 같은 팀 공통 로그인·Supabase Auth를 사용합니다. 가입 화면은 활동명, 이메일, 비밀번호와 비밀번호 확인, 필수 약관 동의를 받습니다. 가입 직후 이메일 인증이 필요한지는 Supabase Auth 프로젝트 설정에 따릅니다. 공통 헤더는 현재 로그인 세션의 계정 이름과 로그아웃을 표시합니다. HOST는 별도 로그인 계정이 아니라, 공통 계정에 부여된 역할과 승인된 호스트 프로필로 판별합니다.
+
 ## AI 체험 기획·진단
 
 호스트 운영센터의 **AI 기획·진단** 또는 회차 편집 화면에서 현재 체험을 분석하거나 새 아이디어를 제안받습니다. Supabase Edge Function `local-eum-agent`가 로그인 JWT, HOST 역할, 승인된 호스트 프로필과 체험 소유권을 확인한 뒤 Codyssey COPA의 OpenAI 호환 Chat Completions API를 호출합니다. 기본 모델은 `gpt-5.4-mini`이며 요청 언어는 한국어·영어·일본어 중 선택합니다.
@@ -75,9 +81,11 @@ AI-Travel-Planner는 여행지 탐색·검색과 추천, 나의 여행, 여행 �
 
 Agent의 네 가지 도구는 기존 공개 체험 검색, 지역 지식 검색(RAG), 5개 기준 가치 평가, 운영비 계산입니다. 점수와 매출 계산은 서버에서 실행합니다. 회비는 DB에 저장된 시연 금액을 사용하고 재료비·고정비는 입력하더라도 미검증 가정으로 표시합니다. 검색 자료는 출처 URL과 확인일을 포함하지만, RAG 자료만으로 제휴·영업·원가·위생·시설 이용 조건을 확정할 수는 없습니다. AI 결과는 제안이며 HOST 검토가 필요합니다.
 
-모델이 만든 제안은 즉시 DB에 저장되지 않습니다. 호스트가 결과를 검토해 편집란에 복사한 다음 일반 저장 흐름을 거쳐야 반영됩니다. 현재 어댑터는 제공 API가 네이티브 도구 호출을 지원하지 않는 경우에도 일반 채팅 응답으로 도구 입력 JSON을 받아 Edge Function의 허용 목록·입력 검증을 거쳐 실행합니다. 모델이 임의 SQL이나 브라우저 도구를 실행하지 않습니다.
+모델이 만든 제안은 즉시 DB에 저장되지 않습니다. 호스트가 결과를 검토해 편집란에 복사한 다음 일반 저장 흐름을 거쳐야 반영됩니다. 현재 로컬 코드에서 모델은 네 가지 허용 도구 중 다음 행동 하나(도구와 입력 또는 종료)를 JSON으로 선택합니다. Codyssey의 일반 Chat Completions 응답을 어댑터가 해석하고 Edge Function이 허용 목록과 입력을 검증한 뒤 도구를 실행합니다. 검색 도구는 상황에 따라 생략하거나 재검색할 수 있지만, 보고서 계산에 필요한 가치 평가와 비용 계산은 완료해야 종료할 수 있습니다. 모델이 임의 SQL이나 브라우저 도구를 실행하지 않습니다.
 
-보안·제한 사항: HOST 소유권은 함수 안에서 다시 확인하고 관련 체험은 RLS가 적용된 사용자 JWT로 읽습니다. 이메일과 휴대전화 형식은 모델 입력에서 제거하며, 로그에는 도구명·소요시간·결과 수·오류 코드만 남깁니다. 요청당 최대 5회 모델 호출, 입력 길이·도구 실행 제한, Edge 인스턴스별 HOST 계정당 시간당 12회 제한이 적용됩니다. 인스턴스별 호출 제한은 전역 사용량 제한이 아니므로 공개 운영에는 지속 저장되는 전역 쿼터나 제공자 예산 경보가 추가로 필요합니다.
+보안·제한 사항: 함수는 로그인 JWT, HOST 역할, 승인 상태, 프로필과 체험 소유권을 확인합니다. 관련 체험 데이터는 사용자 JWT가 적용된 Supabase 클라이언트와 RLS로 읽습니다. 이메일과 휴대전화 형식은 모델 입력에서 제거하며, 로그에는 도구명·소요시간·결과 수·오류 코드만 남깁니다. 요청당 도구 실행은 최대 6회, 같은 도구는 최대 2회, 모델의 도구 선택 판단은 최대 7회입니다. 최종 보고서 생성을 포함하면 모델 호출은 최대 8회이고 전체 실행 제한은 90초입니다. 별도로 Edge 인스턴스별 HOST 계정당 시간당 12회 제한이 있으나 전역 사용량 제한은 아닙니다.
+
+**배포 상태:** 위 모델 선택형 흐름은 현재 로컬 코드와 모의 테스트에 반영돼 있습니다. Supabase Dashboard에서 확인한 `local-eum-agent` 원격 배포본은 20일 전 버전이므로 이 새 흐름을 포함하지 않습니다. 따라서 새 흐름의 실제 Codyssey 호출 및 HOST 검증이 완료됐다고 볼 수 없습니다. 배포 전후 검증 절차는 [도구 선택 구조 및 배포 검토](agent-tool-selection-20261107.md)를 참고하세요.
 
 API 키는 Supabase Edge Function Secret의 `CODYSSEY_API_KEY`로 관리합니다. 브라우저 환경변수, 데이터베이스, Git 파일에 키를 넣지 마세요. 모델과 CORS origin 설정, 함수 배포 및 진단 방법은 [AI Agent 실행·배포 안내](ai-agent-runbook.md)를 참고하세요.
 
@@ -85,18 +93,17 @@ API 키는 Supabase Edge Function Secret의 `CODYSSEY_API_KEY`로 관리합니�
 
 ```mermaid
 flowchart LR
-  Traveler[여행자 브라우저] --> React[React 로컬이음 화면]
-  Host[HOST 브라우저] --> React
-  React --> Auth[Supabase Auth]
-  React --> DB[(Supabase lc_* 테이블 / RLS)]
-  React --> Storage[Supabase Storage: local-eum-media]
-  React --> Edge[Supabase Edge Function: local-eum-agent]
-  Edge --> DB
-  Edge --> COPA[Codyssey COPA API]
-  React --> Kakao[카카오 지도]
+  User[여행자·HOST 브라우저] --> Web[Vercel 정적 웹<br/>공통 React·Vite 앱]
+  Web -->|공통 로그인·세션| Auth[Supabase Auth]
+  Web -->|공개 조회: publishable key·RLS<br/>회원 요청: 사용자 JWT·RLS| DB[(Supabase PostgreSQL<br/>lc_* 로컬이음 테이블)]
+  Web -->|대표 이미지 읽기| Storage[Supabase Storage<br/>local-eum-media]
+  Web -->|지도·주소 검색| Kakao[카카오 지도 SDK]
+  Web -->|HOST 요청 + 로그인 JWT| Edge[Supabase Edge Function<br/>local-eum-agent]
+  Edge -->|JWT·HOST 승인·소유권 확인<br/>사용자 JWT로 RLS 조회| DB
+  Edge -->|분석·기획 요청| COPA[Codyssey COPA API]
 ```
 
-로컬이음의 사용자·호스트·체험 데이터는 Supabase를 사용합니다. 팀 프로젝트의 다른 영역에서 사용하는 Oracle 연결을 로컬이음 데이터 저장에 사용하지 않습니다. 브라우저는 Supabase publishable key와 RLS를 사용하고, 서비스 역할 키는 사용하지 않습니다.
+Vercel은 팀 공통 React 앱을 제공하고, 로컬이음의 공개 목록·상세 데이터는 브라우저가 Supabase에 직접 요청합니다. 로그인·HOST 수정 요청은 공통 Supabase Auth 세션을 사용하며 RLS가 행 접근을 제한합니다. 호스트 Agent만 Edge Function을 거칩니다. 브라우저는 publishable key만 사용하며 서비스 역할 비밀키를 사용하지 않습니다. 그림은 현재 코드 구조를 나타내며 Oracle 연동은 포함하지 않습니다.
 
 주요 테이블은 `lc_user_roles`, `lc_hosts`, `lc_program_templates`, `lc_experiences`, `lc_sessions`, `lc_experience_steps`, `lc_places`, `lc_applications`, `lc_application_payments`입니다. 하나의 `lc_hosts` 행이 여러 체험을 소유할 수 있습니다. 공개 조회와 호스트 본인 데이터 쓰기는 RLS와 서버 측 소유권 확인에 따릅니다.
 

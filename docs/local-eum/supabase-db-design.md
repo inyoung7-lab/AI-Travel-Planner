@@ -120,7 +120,7 @@ erDiagram
 
 ## HOST·ADMIN 권한과 RLS 초안
 
-Supabase Auth 로그인은 공통으로 사용하지만 기존 팀 Oracle 로그인 코드를 수정하거나 직접 연결하지 않는다. 팀이 공통 Supabase Auth를 사용하도록 합의하고, 승인된 호스트 계정과 `lc_hosts.auth_user_id` 및 `lc_user_roles`를 서버 측에서 연결하는 것이 선행 조건이다. HOST는 승인된 본인 체험의 회차만 읽고 수정하며, ADMIN은 관리 범위 전체를 읽고 회차를 수정한다. 같은 계정에 두 역할이 있으면 ADMIN 권한도 적용된다.
+전체 서비스는 공통 Supabase Auth를 사용한다. 승인된 호스트 계정은 `lc_hosts.auth_user_id` 및 `lc_user_roles`와 연결한다. HOST는 승인된 본인 체험의 회차만 읽고 수정하며, ADMIN은 관리 범위 전체를 읽고 회차를 수정한다. 같은 계정에 두 역할이 있으면 ADMIN 권한도 적용된다.
 
 | 주체 | 읽기 | 쓰기 |
 | --- | --- | --- |
