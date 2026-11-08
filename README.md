@@ -14,9 +14,9 @@
 
 | 구분 | 문서 |
 | --- | --- |
-| 기획·발표 | [프로젝트 기획서](deliverables/final-project-20261025/01_프로젝트_기획서.pdf) · [발표 자료 PPT](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx) |
+| 기획·발표 | [프로젝트 기획서](deliverables/final-project-20261025/01_프로젝트_기획서.pdf) · [후속 검증 반영 발표자료](deliverables/final-project-20261025/04_프로젝트_기획발표_후속검증반영.pptx) · [기존 발표자료 원본](deliverables/final-project-20261025/04_프로젝트_기획발표.pptx) |
 | 기능·설계 | [기능요구명세서·아키텍처](deliverables/final-project-20261025/02_기능요구명세서_아키텍처.pdf) · [데이터베이스 설계서](deliverables/final-project-20261025/05_데이터베이스_설계서.pdf) · [전체 ERD·데이터 사전](database/ERD.md) |
-| 테스트·피드백 | [테스트 보고서](deliverables/final-project-20261025/03_테스트_보고서.pdf) · [실사용자 테스트 결과](docs/user-test-results-20261108.md) · [개발 피드백](docs/ai-persona-evaluation.md) · [실사용자 테스트 설문](https://docs.google.com/forms/d/e/1FAIpQLSdBIxyHjKKSEAg4tCzuaX4YtL1xFYKwa6yl2z0swgPtI3XMsg/viewform?usp=publish-editor) |
+| 테스트·피드백 | [최종 평가 결과 보고서](docs/travel_evaluation_report_final.md) · [2026-10-26 개발 테스트 보고서](deliverables/final-project-20261025/03_테스트_보고서.pdf) · [실사용자 테스트 최종 결과](docs/user-test-results-20261108.md) · [개발 피드백](docs/ai-persona-evaluation.md) |
 | 기능 화면 | [화면별 기능 가이드 · 전체 캡처와 사용 방법](docs/feature-screens.md) |
 
 여행지를 찾는 순간부터 날짜별 계획, 저장, 여행 후 리뷰까지 연결하는 서비스입니다. 실제 관광정보를 바탕으로 AI 일정 초안을 만들거나, 원하는 장소를 직접 골라 나만의 일정을 작성할 수 있습니다. 지역 체험을 탐색하는 여행자와 체험을 기획·운영하는 호스트를 위한 기능도 제공합니다.
@@ -314,7 +314,7 @@ npm run lint
 npm run build
 ```
 
-자동 검사는 검색·저장·권한·Agent 도구 실행 로직을 확인합니다. Agent 검사에는 모의 모델을 사용하며, 실제 사용자 설문과 구분합니다. 상세 결과는 상단의 테스트 보고서와 [평가 보완 기록](docs/evaluation-followup-20261107.md)을 참고합니다.
+자동 검사는 검색·저장·권한·Agent 도구 실행 로직을 확인합니다. Agent 검사에는 모의 모델을 사용하며, 실제 사용자 설문과 구분합니다. 상세 결과는 상단의 [최종 평가 결과 보고서](docs/travel_evaluation_report_final.md)와 [실사용자 테스트 최종 결과](docs/user-test-results-20261108.md)를 참고합니다.
 
 ### 개발 중 피드백 반영
 
@@ -328,7 +328,7 @@ npm run build
 | 일정과 찜이 많으면 화면이 계속 늘어남 | 목록 페이지 분할 |
 | 헤더 인증 표시와 별도 호스트 로그인 혼선 | 공통 인증·계정 이름·로그아웃 표시 |
 
-위 표는 개발 과정의 개선 의견입니다. 실사용자 설문 응답은 별도로 보관하며, 참여 인원·기간과 주요 의견 및 개선 반영 결과는 응답 원문을 확인한 뒤 정리합니다.
+위 표는 개발 과정의 개선 의견입니다. 실사용자 5명이 참여 동의 후 테스트 설문에 응답했고, 여행지 검색·AI 일정 생성·일정 저장 후 재조회·로컬 체험 정보 확인은 모두 5/5 성공으로 보고했습니다. 만족도 평균은 4.8/5였으며, 응답은 자기보고 결과입니다. 자세한 집계는 [실사용자 테스트 최종 결과](docs/user-test-results-20261108.md)를 참고합니다.
 
 ## 10. 배포
 
@@ -348,4 +348,3 @@ Vercel은 Vite 정적 웹과 Express API Function을 제공합니다. `api/index
 - 체험의 카드 이미지는 AI 생성 시연 이미지이며 실제 현장 사진이 아닙니다.
 - 날씨·행사 정보는 참고용이며 실제 이동시간과 시설 운영 여부는 방문 전 확인해야 합니다.
 - AI 일정 생성 API의 인증·호출 제한과 응답시간 개선은 후속 과제입니다.
-- 실사용자 5명이 테스트에 참여했습니다. 수집 기간·주요 응답과 개선 결과는 설문 원본을 확인해 보고서·발표자료와 함께 정리합니다.
