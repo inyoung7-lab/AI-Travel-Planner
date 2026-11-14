@@ -182,7 +182,8 @@ export async function saveHostProfile(userId, host, profile) {
     .eq('host_id', Number(host.host_id))
     .eq('display_name', host.display_name);
   query = host.bio == null ? query.is('bio', null) : query.eq('bio', host.bio);
-  if (includeTranslations) query = query.eq('translations', host.translations || {});
+  // PostgREST expects a JSON literal for a jsonb equality filter.
+  if (includeTranslations) query = query.eq('translations', JSON.stringify(host.translations ?? {}));
   const result = await query
     .select(`host_id,display_name,bio,approval_status,is_public${includeTranslations ? ',translations' : ''}`)
     .maybeSingle();
