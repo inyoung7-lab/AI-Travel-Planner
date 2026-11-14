@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import "./CommunityHome.css";
 import { Pin, Thumb, Chat, Check, ImageIcon } from "./Icons.jsx";
-import { posts as mockPosts, places, waitingQuestions, hotPlaces as mockHot, GRADIENTS } from "./data/mockPosts.js";
+import { places, waitingQuestions, hotPlaces as mockHot, GRADIENTS } from "./data/mockPosts.js";
 import { loadPostList, loadHot, placeDetailPath } from "./data/api.js";
 import Pager from "./Pager.jsx";
 import SortMenu from "./SortMenu.jsx";
@@ -192,11 +192,6 @@ const CATS = [
 ];
 // 위에서 아래로: 수도권 → 강원 → 충청 → 호남 → 영남 → 제주 (같은 도끼리, 광역시는 소속 권역 뒤에 붙였어요)
 const REGIONS = ["서울", "인천", "경기", "강원", "세종", "대전", "충북", "충남", "전북", "전남", "광주", "경북", "경남", "대구", "울산", "부산", "제주"];
-// 서버가 꺼져 있을 때만 보여주는 예시 숫자
-const FALLBACK_COUNTS = {
-  total: 1284, review: 862, trip: 318, place: 544, question: 322, talk: 100,
-  regions: { 서울: 212, 부산: 168, 제주: 301, 강원: 142, 경기: 96, 전남: 118, 경북: 87, 경남: 64 },
-};
 const fmt = (v) => (v == null ? "" : Number(v).toLocaleString());
 
 export default function CommunityHome() {
@@ -204,6 +199,7 @@ export default function CommunityHome() {
   const [page, setPage] = useState(1);
   const [posts, setPosts] = useState(null); // null = 불러오는 중
   const [counts, setCounts] = useState(null);
+  const [postsFailed, setPostsFailed] = useState(false);
   const [sort, setSort] = useState("latest");
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
@@ -214,20 +210,21 @@ export default function CommunityHome() {
   const author = searchParams.get("author") ?? ""; // 작성자의 글 모아보기
   const authorName = searchParams.get("name") ?? author;
 
-  // 왼쪽 숫자: DB에서 센 개수 (서버가 꺼져 있으면 예시 숫자)
+  // 왼쪽에는 DB에서 집계한 글 수만 표시합니다.
   useEffect(() => {
     fetch(`${API}/api/community/counts`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setCounts)
-      .catch(() => setCounts(FALLBACK_COUNTS));
+      .catch(() => setCounts(null));
   }, []);
 
-  // 글 목록: 카테고리·지역을 바꿀 때마다 DB에서 다시 가져와요 (서버가 꺼져 있으면 예시 글)
+  // 선택한 조건으로 실제 게시글을 불러옵니다.
   useEffect(() => {
     let alive = true;
     loadPostList({ category: cat, region, sort, q, author, limit: 200 }).then((data) => {
       if (alive) {
-        setPosts(data ?? mockPosts);
+        setPosts(data);
+        setPostsFailed(data == null);
         setPage(1);
       }
     });
@@ -269,10 +266,10 @@ export default function CommunityHome() {
 </div><div className="cmh-rl"><div className="cmh-rtt">지역</div>
 <div className={"cmh-ri" + (region === "전체" ? " cmh-on" : "")} onClick={() => setRegion("전체")} style={{ cursor: "pointer" }}><i></i><span>전체</span><em>{fmt(counts && counts.total)}</em></div>
 {REGIONS.map((r) => (
-  <div key={r} className={"cmh-ri" + (region === r ? " cmh-on" : "")} onClick={() => setRegion(r)} style={{ cursor: "pointer" }}><i></i><span>{r}</span><em>{fmt(counts && (counts.regions[r] ?? 0))}</em></div>
+  <div key={r} className={"cmh-ri" + (region === r ? " cmh-on" : "")} onClick={() => setRegion(r)} style={{ cursor: "pointer" }}><i></i><span>{r}</span><em>{fmt(counts && (counts.regions?.[r] ?? 0))}</em></div>
 ))}
 </div></aside>
-<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{all.length}</b></div><SortMenu
+<section className="cmh-feedc"><div className="cmh-fbar"><div className="cmh-fl2"><div className="cmh-fcnt">{catLabel} 글 <b>{posts == null ? "—" : posts.length === 200 ? "200+" : fmt(posts.length)}</b></div><SortMenu
             className="cmh-pl3 cmh-sortc"
             value={sort}
             onChange={setSort}
@@ -294,6 +291,7 @@ export default function CommunityHome() {
               )}
             </div>
           )}
+          {postsFailed && <p role="status">게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
           {posts && posts.length === 0 && (
             <div className="cmh-inl"><div className="cmh-inh"><b>아직 글이 없어요</b><span className="cmh-muted">다른 카테고리나 지역을 선택해 보세요</span></div></div>
           )}
